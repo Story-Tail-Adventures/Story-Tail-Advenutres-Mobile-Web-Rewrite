@@ -629,7 +629,8 @@ The platform will be built on **Kotlin Multiplatform (KMP)**. This is a delibera
 >   apps, which change only the address they send function calls to.
 > - **Deploys:** GitHub Actions deploys the Go service to Render by commit. Supabase's GitHub
 >   integration keeps applying migrations (and deploying any Edge Function not yet ported).
-> - **Repo:** the Go service is built in `webgo/` and becomes `web/` when Next.js is deleted.
+> - **Repo:** the Go service lives in `web/`. It was built in `web/` while the Next app still
+>   held that name, and was renamed over it when that app was deleted (Phase 6, 2026-11-26).
 
 **Web UI — Next.js + React + TypeScript.** The entire web surface — authenticated client portal, agent workspace, and public marketing-adjacent pages — is built on Next.js with React and TypeScript. Why:
 
@@ -666,7 +667,7 @@ For the mobile clients, Edge Functions expose a REST API. Mobile consumes that A
 
 - `mobile/` — Gradle multi-module KMP setup with `shared`, `androidApp`, `iosApp`
 - `web/` — Next.js + React + TypeScript (until Phase 6 of `docs/GO-MIGRATION.md`)
-- `webgo/`: the Go service, web pages and the API (renamed `web/` when Next.js is deleted)
+- `web/`: the Go service, web pages and the API
 - `supabase/` — Supabase project with migrations (`supabase/migrations/`) and Edge Functions (`supabase/functions/`)
 - `contracts/` — Shared API contract: OpenAPI spec plus generated TypeScript types and (optionally) Kotlin types for the mobile module
 

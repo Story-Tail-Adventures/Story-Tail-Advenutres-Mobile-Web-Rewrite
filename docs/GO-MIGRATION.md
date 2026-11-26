@@ -871,18 +871,31 @@ into typed structs rather than generated TypeScript, so when `web/` goes the scr
 
 So Phase 6 is **three** PRs, not two: re-point the copy checks at Go, then delete, then rename.
 
-#### The rename is the risky part, not the deletion
+#### The rename is the risky part, not the deletion — DONE (PR 4, 2026-11-26)
 
-`git mv webgo web` renames the directory that the stack-boundary hook, `.claude/settings.json`'s
-Go allow rules, `.claude/launch.json`, the `Web (Go)` job's `working-directory`, Dependabot's
-`gomod` entry and `go.mod`'s own module path all name separately. If the rename lands without
-them, **the stack-boundary guard denies the very writes it exists to permit** (it has done this
-before), and every `go` command in CI runs in a directory that no longer exists. Move them in one
-commit, and run the boundary hook against a sample payload before pushing.
+`git mv webgo web` renamed the directory that the stack-boundary hook, `.claude/settings.json`'s
+Go allow rules, `.claude/launch.json`, the Go job's `working-directory`, Dependabot's `gomod`
+entry and `go.mod`'s own module path all name separately. Landing it without them would have
+made **the stack-boundary guard deny the very writes it exists to permit** (it has done this
+before), and every `go` command in CI would have run in a directory that no longer exists. They
+moved in one commit, and the hook was exercised against sample payloads both ways before pushing:
+Go under `web/` allowed, Go under `webgo/`, `mobile/` and `supabase/` denied, React under `web/`
+still denied.
 
-Do the deletion and the rename as **two PRs, in that order**. Deleting first leaves a tree where
-`webgo/` is the only web code, so a broken rename is a one-line revert rather than an archaeology
-problem.
+**What the plan did not list, and what found it.** `webgo` appeared in 362 tracked files. The
+module path and 1,219 import paths across 313 Go files are the bulk, but three more only a
+whole-repo `git grep` turns up:
+
+- **`cmd/gen-kotlin` locates the repo root by walking up for `webgo/go.mod`.** It would have
+  failed at runtime, not at build, and only in the one CI job that runs it.
+- **`check_copy_parity.py` names 69 Go owner files by path.** All 90 of its `webgo` strings had
+  to move or the job fails on "owner file gone", which is at least loud.
+- **`.gitignore` ends up with `web/server` twice**, because it already carried `web/server` in
+  anticipation of the rename.
+
+The deletion and the rename were **two PRs, in that order**. Deleting first left a tree where
+`webgo/` was the only web code, so a broken rename would have been a one-line revert rather than
+an archaeology problem.
 
 Also drop `web` from the root `package.json` workspaces (it is `["web", "contracts"]`; `contracts`
 stays) and from Dependabot's npm config.

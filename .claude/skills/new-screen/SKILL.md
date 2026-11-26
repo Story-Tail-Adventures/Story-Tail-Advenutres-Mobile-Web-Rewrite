@@ -49,8 +49,8 @@ Use this skill any time the user names a screen from the Screen Inventory (secti
    that fills it. Read `docs/GO-MIGRATION.md` §4.4 (page building) and §4.8 (styling) before the
    first screen you build; the rules below are the short form.
 
-   - **Write the page file** at `webgo/pages/<area>/<screen>.html`, where `<area>` is `public`,
-     `auth`, `onboarding`, `client` or `agent` (see `webgo/pages/client/trips.html` and
+   - **Write the page file** at `web/pages/<area>/<screen>.html`, where `<area>` is `public`,
+     `auth`, `onboarding`, `client` or `agent` (see `web/pages/client/trips.html` and
      `account.html`). It is a full HTML document that opens on its own in a browser showing its
      placeholder copy. The loader refuses head content beyond `<title>` and `<meta>`, attributes
      on `<main>`, and anything in `<body>` outside `<main>`. Shared CSS and scripts belong to
@@ -61,19 +61,19 @@ Use this skill any time the user names a screen from the Screen Inventory (secti
      Open the file with a comment citing the Screen Inventory entry, the §4.4 Pattern, the
      prototype file, and every deliberate departure from the artboard.
 
-   - **Style with the classes that exist** in `webgo/assets/css/`: `tokens.css` (the design
+   - **Style with the classes that exist** in `web/assets/css/`: `tokens.css` (the design
      tokens, pinned to `design/web-tokens/tokens.css`), `theme.css` (the palette variables both
      schemes read), `ui.css` (`.btn`, `.card`, `.chip`, `.field`, `.table`, `.tabs`,
      `.status-chip`, `.type-*`, …), `shell.css` for chrome, and `area/<area>.css` for rules only
      this area uses. `/_styleguide` (development only) shows every `ui.css` class in both
-     schemes. Don't invent a class: `webgo/internal/static/classes_test.go` fails on any class a
+     schemes. Don't invent a class: `web/internal/static/classes_test.go` fails on any class a
      page uses, or a handler adds with `Class(...)`, that no stylesheet defines. A misspelled
      class matches no rule and nothing else would notice. There is no CSS framework.
 
-   - **Write the handler** at `webgo/internal/handlers/<area>/<screen>.go`. Declare a
+   - **Write the handler** at `web/internal/handlers/<area>/<screen>.go`. Declare a
      `page.Spec` naming the file, the layout (`shell.Client`, `shell.Agent`, …) and every slot
      and repeat, add that spec to the area's `Specs` slice, and add your `mount<Screen>`
-     function to the area's `Mount` list (`webgo/internal/handlers/client/client.go` shows
+     function to the area's `Mount` list (`web/internal/handlers/client/client.go` shows
      both). Take the parsed template once, inside mount: `tmpl, err := a.Pages.Template(spec.File)`.
 
    - **Mount under a gate, never by matching the path yourself.** `rt.Protected` for a
@@ -102,7 +102,7 @@ Use this skill any time the user names a screen from the Screen Inventory (secti
 
    - **Interactivity is links and forms first** (§4.9): one URL per tab, `<form method="get">`
      for filters so the filter lives in the URL, `<form method="post">` then 303 and a one-time
-     flash for a mutation, native `<dialog>` and `<details>`. A JS module in `webgo/assets/js/`
+     flash for a mutation, native `<dialog>` and `<details>`. A JS module in `web/assets/js/`
      only when none of that does the job; the CSP is `script-src 'self'` with no inline script,
      style attribute or `on*` handler, and a page that would break it refuses to boot.
 
@@ -111,10 +111,10 @@ Use this skill any time the user names a screen from the Screen Inventory (secti
      from its empty state.
 
 7. **Wire up the API call.** A plain RLS-protected table read goes straight through the
-   `webgo/internal/supa` helpers with the **visitor's own access token** (`supa.MaybeOne`,
+   `web/internal/supa` helpers with the **visitor's own access token** (`supa.MaybeOne`,
    `supa.Many`), or the repository layer in `com.storytail.adventures.api` on mobile. No API
    endpoint is needed, but the table needs policies, so check `rls-policy`. The service-role client
-   must never reach a page handler; only `webgo/internal/api/...` may import it. Anything with
+   must never reach a page handler; only `web/internal/api/...` may import it. Anything with
    server-side logic, a secret, or a sensitive mutation gets an endpoint: use the
    `new-go-endpoint` skill, which also handles the `contracts/openapi.yaml` entry and
    `npm run generate -w contracts`.
@@ -124,7 +124,7 @@ Use this skill any time the user names a screen from the Screen Inventory (secti
 9. **Verify.** Open the prototype's JSX side-by-side. If the Compose or Go output looks different
    from the prototype's light or dark artboards, fix the implementation unless the prototype is
    genuinely wrong (rare). Check both schemes: on web, dark mode is the `.scheme-dark` class on
-   `<html>`, not `prefers-color-scheme`. Then from `webgo/`:
+   `<html>`, not `prefers-color-scheme`. Then from `web/`:
    ```bash
    gofmt -l .          # must print nothing
    go vet ./...
@@ -145,9 +145,9 @@ Use this skill any time the user names a screen from the Screen Inventory (secti
 
 - Skips the responsive variant mapping. Mobile gets Pattern X, tablet gets Pattern Y, web gets Pattern Z — they are not always the same layout.
 - Hardcodes brand colors. All colors come through `MaterialTheme.colorScheme.*` on mobile and the
-  CSS custom properties in `webgo/assets/css/tokens.css` and `theme.css` on web.
+  CSS custom properties in `web/assets/css/tokens.css` and `theme.css` on web.
 - Loads fonts from the Google Fonts CDN at runtime. They are already bundled and self-hosted:
-  the TTFs in `webgo/assets/fonts/` with `@font-face` in `webgo/assets/css/fonts.css` on web, and
+  the TTFs in `web/assets/fonts/` with `@font-face` in `web/assets/css/fonts.css` on web, and
   `composeResources/font/` on mobile.
 - Writes raw HTML, or anything read from the database, into a page as markup. Text goes in as
   text.

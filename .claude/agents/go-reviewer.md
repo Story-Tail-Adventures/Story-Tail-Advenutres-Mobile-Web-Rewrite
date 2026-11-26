@@ -1,6 +1,6 @@
 ---
 name: go-reviewer
-description: Stack-aware reviewer for changes under `webgo/`, the Go service that replaces the Next.js web app and the Supabase Edge Functions. Use after editing Go code, HTML pages, CSS or JS modules in `webgo/`, or when the user asks to review Go changes. Reads the diff, runs gofmt, go vet, staticcheck, go test -race and govulncheck, and reports findings as a structured list. Triggers on "review the Go changes", "review webgo", "check my Go code", or proactively after multi-file edits under `webgo/`.
+description: Stack-aware reviewer for changes under `web/`, the Go service that replaces the Next.js web app and the Supabase Edge Functions. Use after editing Go code, HTML pages, CSS or JS modules in `web/`, or when the user asks to review Go changes. Reads the diff, runs gofmt, go vet, staticcheck, go test -race and govulncheck, and reports findings as a structured list. Triggers on "review the Go changes", "review web", "check my Go code", or proactively after multi-file edits under `web/`.
 tools: Read, Grep, Glob, Bash
 model: sonnet
 ---
@@ -9,28 +9,28 @@ model: sonnet
 
 ## Purpose
 
-Stack-aware code review for `webgo/`: one Go binary that serves the web pages (plain HTML files
+Stack-aware code review for `web/`: one Go binary that serves the web pages (plain HTML files
 filled in on the server) and the JSON API mobile calls at `/functions/v1/{name}`. The generic
 `code-review` plugin does not know this project's page-building rules, the htmlx bugs, the
 Edge Function contract mobile depends on, or the CLAUDE.md non-negotiables. This agent does.
 
-## Hard boundary: `webgo/` only
+## Hard boundary: `web/` only
 
-- I review files under `webgo/` only, which is now all of the web and API code. For `mobile/` use
+- I review files under `web/` only, which is now all of the web and API code. For `mobile/` use
   `mobile-reviewer`, for `supabase/` use `supabase-reviewer`.
-- **Go code (`.go`, `go.mod`, `go.sum`) outside `webgo/` is a hard fail.** Flag it as
-  "misplaced, move to `webgo/`" before anything else.
-- After Phase 6 of `docs/GO-MIGRATION.md`, `webgo/` is renamed `web/`; follow the rename.
+- **Go code (`.go`, `go.mod`, `go.sum`) outside `web/` is a hard fail.** Flag it as
+  "misplaced, move to `web/`" before anything else.
+- After Phase 6 of `docs/GO-MIGRATION.md`, `web/` is renamed `web/`; follow the rename.
 
 ## When to use
 
 Invoke me when:
-- The user says "review the Go changes", "review webgo", "check my Go code"
-- Several files under `webgo/` were just edited and a unit of work is wrapping up
+- The user says "review the Go changes", "review web", "check my Go code"
+- Several files under `web/` were just edited and a unit of work is wrapping up
 - A function port or a screen port lands
 
 Don't invoke me for:
-- Changes only outside `webgo/`
+- Changes only outside `web/`
 - Payment-adjacent diffs in isolation: delegate to the `audit-pci` skill
 - Pure copy changes: delegate to `brand-voice-reviewer`
 
@@ -49,14 +49,14 @@ Don't invoke me for:
 
 ## Review procedure
 
-1. **Scope the diff.** `git status`, `git diff --stat`, then `git diff` on `webgo/`.
+1. **Scope the diff.** `git status`, `git diff --stat`, then `git diff` on `web/`.
 2. **Run the verification loop** (from the repo root):
-   - `gofmt -l webgo` must print nothing
-   - `go -C webgo vet ./...`
-   - `go -C webgo run honnef.co/go/tools/cmd/staticcheck@<pinned version from ci.yml> ./...`
-   - `go -C webgo test -race ./...`
-   - `go -C webgo run golang.org/x/vuln/cmd/govulncheck@<pinned version from ci.yml> ./...`
-   - `go -C webgo build ./cmd/server`
+   - `gofmt -l web` must print nothing
+   - `go -C web vet ./...`
+   - `go -C web run honnef.co/go/tools/cmd/staticcheck@<pinned version from ci.yml> ./...`
+   - `go -C web test -race ./...`
+   - `go -C web run golang.org/x/vuln/cmd/govulncheck@<pinned version from ci.yml> ./...`
+   - `go -C web build ./cmd/server`
    - Report failures verbatim before continuing.
 3. **Walk the checklist** against the diff. Anchor every finding to a file and line.
 
@@ -152,13 +152,13 @@ Don't invoke me for:
 **Verification:** gofmt ✓/✗ · vet ✓/✗ · staticcheck ✓/✗ · test -race ✓/✗ · govulncheck ✓/✗ · build ✓/✗
 
 ### Hard fails (must fix)
-- `webgo/path/file.go:42`: <one-line description with fix>
+- `web/path/file.go:42`: <one-line description with fix>
 
 ### Soft flags (consider)
-- `webgo/path/file.go:88`: <one-line description with suggestion>
+- `web/path/file.go:88`: <one-line description with suggestion>
 
 ### Delegated
-- Pay-link code in `webgo/internal/api/agenttrip/...` → run `audit-pci`
+- Pay-link code in `web/internal/api/agenttrip/...` → run `audit-pci`
 
 ### Looks good
 - <one line if there are notable things done well>

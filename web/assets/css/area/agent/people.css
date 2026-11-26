@@ -1,0 +1,900 @@
+/* Agent workspace, people sub-area: page-only styles (see web/internal/handlers/agent/people).
+ *
+ * The worklist and calendar (§3.2), clients (§3.3), leads (§3.8) and messages (§3.10). Every
+ * rule is the Next page's sx, read off app/(agent)/agent/... and checked against the running app
+ * (docs/GO-MIGRATION.md §4.8). Every class here starts with ppl- so it cannot collide with the
+ * trips or money sub-areas in the joined css/area/agent.css. */
+
+@layer components {
+  /* ── Shared ──────────────────────────────────────────────────────────────────────────── */
+
+  /* The page column: `mx-auto w-full max-w-[1100px] px-4 py-6 md:px-8`. */
+  .ppl-page { margin: 0 auto; width: 100%; max-width: 1100px; padding: 24px 16px; }
+  @media (min-width: 768px) { .ppl-page { padding-left: 32px; padding-right: 32px; } }
+
+  .ppl-block { display: block; }
+  /* sx flex: 1 (a 0 basis), which ui.css's .grow (an auto basis) is not. */
+  .ppl-flex1 { flex: 1; min-width: 0; }
+  .ppl-italic { font-style: italic; }
+  .ppl-mt-0_5 { margin-top: 4px; }
+  .ppl-mt-1 { margin-top: 8px; }
+  .ppl-mt-2 { margin-top: 16px; }
+  .ppl-icon-26 { width: 26px; height: 26px; }
+  .ppl-money { font-family: var(--font-mono); font-weight: 700; }
+
+  /* AgentViews: each view an MUI Chip as a link, outlined at rest and filled secondary when
+     current, on the legacy .agent-view-link box (34px, 14px sides, 44px on touch). */
+  .ppl-views { display: flex; gap: 6px; flex-wrap: wrap; }
+  .ppl-view { height: auto; min-height: 34px; border-radius: 999px; font-weight: 600; }
+  .ppl-view .chip-label,
+  .ppl-view.chip-outlined .chip-label { padding-left: 14px; padding-right: 14px; }
+  @media (pointer: coarse) { .ppl-view { min-height: 44px; } }
+
+  /* MuiButton size="small" with the BTN_SM box. */
+  .ppl-btn-sm { min-height: 32px; padding-left: 16px; padding-right: 16px; gap: 8px; white-space: nowrap; }
+
+  /* A clickable row: ListItemButton with `px 2 py 1.5 gap 1.5`, a rule between rows. */
+  .ppl-row {
+    position: relative;
+    display: flex;
+    flex-grow: 1;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 12px;
+    min-width: 0;
+    padding: 12px 16px;
+    color: inherit;
+    text-align: left;
+    text-decoration: none;
+    transition: background-color 150ms cubic-bezier(0.4, 0, 0.2, 1) 0ms;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .ppl-row:hover { background-color: var(--mui-palette-action-hover); }
+  .ppl-row:focus-visible { outline: none; background-color: var(--mui-palette-action-focus); }
+  .ppl-row-item + .ppl-row-item { border-top: 1px solid var(--mui-palette-divider); }
+  .ppl-row-main { flex: 1; min-width: 0; }
+  .ppl-row-end { text-align: right; }
+
+  /* The 36px initials disc on the primary container pair. */
+  .ppl-initials {
+    width: 36px;
+    height: 36px;
+    flex-shrink: 0;
+    background-color: var(--mui-palette-primary-container);
+    color: var(--mui-palette-primary-onContainer);
+    font-size: 12px;
+    font-weight: 700;
+  }
+
+  /* The §5 state card (ErrorState, AdminNoAccess): 512px, centred, 24px down. */
+  .ppl-state { margin: 24px auto 0; max-width: 512px; text-align: center; }
+  .ppl-state-body { padding: 28px; }
+  .ppl-state-tile { display: flex; margin: 0 auto 12px; width: 56px; height: 56px; }
+  .ppl-state-tile-neutral { background-color: var(--mui-palette-surface-3); color: var(--mui-palette-text-secondary); }
+  .ppl-state-tile-error { background-color: var(--mui-palette-error-container); color: var(--mui-palette-error-onContainer); }
+  .ppl-state-actions { margin-top: 20px; display: flex; flex-direction: column; align-items: center; gap: 8px; }
+  @media (min-width: 640px) { .ppl-state-actions { flex-direction: row; justify-content: center; } }
+  .ppl-state-btn { min-height: 40px; padding-left: 24px; padding-right: 24px; gap: 8px; white-space: nowrap; }
+
+  /* ── Worklist (§3.2.1) ───────────────────────────────────────────────────────────────── */
+
+  .ppl-head { margin-top: 20px; }
+  .ppl-overline { display: block; color: var(--mui-palette-brand-main); font-weight: 600; line-height: 1.3; }
+  .ppl-greeting { margin-top: 4px; font-weight: 700; }
+
+  /* The KPI rail: a snap carousel below md, three across on tablets, five from web (1200). */
+  .ppl-kpis {
+    margin-top: 16px;
+    display: flex;
+    gap: 10px;
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    padding-bottom: 2px;
+  }
+  @media (min-width: 768px) {
+    .ppl-kpis { display: grid; overflow-x: visible; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  }
+  @media (min-width: 1200px) { .ppl-kpis { grid-template-columns: repeat(5, minmax(0, 1fr)); } }
+
+  .ppl-kpi { min-width: 152px; flex-shrink: 0; scroll-snap-align: start; }
+  @media (min-width: 768px) { .ppl-kpi { min-width: 0; } }
+  .ppl-tone-primary { background-color: var(--mui-palette-primary-container); color: var(--mui-palette-primary-onContainer); }
+  .ppl-tone-secondary { background-color: var(--mui-palette-secondary-container); color: var(--mui-palette-secondary-onContainer); }
+  .ppl-tone-tertiary { background-color: var(--mui-palette-tertiary-container); color: var(--mui-palette-tertiary-onContainer); }
+  .ppl-tone-surface { background-color: var(--mui-palette-surface-2); color: var(--mui-palette-text-primary); }
+
+  .ppl-kpi-body { display: block; padding: 14px 16px; }
+  .ppl-kpi-top { display: flex; align-items: center; justify-content: space-between; }
+  .ppl-kpi-label { font-weight: 500; letter-spacing: 0.4px; opacity: 0.85; }
+  .ppl-kpi-value { display: block; margin-top: 4px; font-size: 26px; font-weight: 800; line-height: 1; }
+  .ppl-kpi-sub { display: block; margin-top: 4px; opacity: 0.85; }
+  .ppl-kpi-unavailable { margin-top: 8px; opacity: 0.85; }
+
+  /* CardActionArea: the whole tile is the link; its hover wash is currentColor at the
+     theme's hover opacity, as MUI's focusHighlight span draws it. */
+  .ppl-kpi-link { position: relative; display: block; width: 100%; height: 100%; color: inherit; text-align: inherit; text-decoration: none; }
+  .ppl-kpi-link::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background-color: currentColor;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 250ms cubic-bezier(0.4, 0, 0.2, 1) 0ms;
+  }
+  .ppl-kpi-link:hover::after { opacity: var(--mui-palette-action-hoverOpacity); }
+  .ppl-kpi-link:focus-visible { outline: none; }
+  .ppl-kpi-link:focus-visible::after { opacity: var(--mui-palette-action-focusOpacity); }
+
+  /* A section: a Card with a title row over a divider. */
+  .ppl-section { margin-top: 16px; }
+  .ppl-section-head {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--mui-palette-divider);
+  }
+  .ppl-section-title { flex: 1; font-weight: 600; }
+  .ppl-section-empty { padding: 16px; }
+  .ppl-msg-top { display: flex; }
+
+  /* ── Calendar (§3.2.3) ───────────────────────────────────────────────────────────────── */
+
+  .ppl-cal-head { margin-top: 20px; display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
+  .ppl-cal-title { flex: 1; font-weight: 700; }
+  .ppl-cal-toggle { display: flex; gap: 6px; flex-wrap: wrap; }
+
+  .ppl-agenda { margin: 16px 0 0; padding: 0; list-style: none; }
+  .ppl-agenda-item { margin-top: 8px; }
+  .ppl-agenda-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px;
+    color: inherit;
+    text-decoration: none;
+    transition: background-color 150ms cubic-bezier(0.4, 0, 0.2, 1) 0ms;
+  }
+  .ppl-agenda-row:hover { background-color: var(--mui-palette-action-hover); }
+  .ppl-agenda-bar { width: 8px; flex-shrink: 0; align-self: stretch; border-radius: 999px; }
+
+  /* KIND_TONE: the colour pair per event kind. */
+  .ppl-ev-departure { background-color: var(--mui-palette-tertiary-container); color: var(--mui-palette-tertiary-onContainer); }
+  .ppl-ev-return { background-color: var(--mui-palette-surface-3); color: var(--mui-palette-text-primary); }
+  .ppl-ev-payment { background-color: var(--mui-palette-error-container); color: var(--mui-palette-error-onContainer); }
+  .ppl-ev-availability { background-color: var(--mui-palette-secondary-container); color: var(--mui-palette-secondary-onContainer); }
+
+  .ppl-cal-table { margin-top: 16px; table-layout: fixed; }
+  .ppl-cal-table th.ppl-weekday {
+    padding: 0 0 4px;
+    border-bottom: 0;
+    font: var(--mui-font-caption);
+    font-weight: 500;
+    text-align: left;
+    color: var(--mui-palette-text-secondary);
+  }
+  .ppl-cal-table td.ppl-day { vertical-align: top; border: 1px solid var(--mui-palette-divider); padding: 6px; }
+  .ppl-day-out { opacity: 0.4; }
+  .ppl-day-top { display: flex; align-items: center; justify-content: space-between; }
+  .ppl-today {
+    width: 24px;
+    height: 24px;
+    background-color: var(--mui-palette-primary-main);
+    color: var(--mui-palette-primary-contrastText);
+    font-size: 12px;
+    font-weight: 700;
+  }
+  .ppl-ev {
+    display: block;
+    margin-top: 4px;
+    padding: 2px 4px;
+    border-radius: 4px;
+    text-decoration: none;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .ppl-deferral { margin-top: 16px; opacity: 0.6; }
+
+  /* ── Client roster (§3.3.1) ──────────────────────────────────────────────────────────── */
+
+  .ppl-page-wide { max-width: 1336px; }
+  .ppl-mt-0_25 { margin-top: 2px; }
+  .ppl-mb-1 { margin-bottom: 8px; }
+  .ppl-icon-12 { width: 12px; height: 12px; }
+  .ppl-truncate { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .ppl-contents { display: contents; margin: 0; padding: 0; border: 0; min-width: 0; }
+
+  .ppl-roster-head { margin-bottom: 16px; display: flex; flex-wrap: wrap; align-items: flex-start; gap: 12px; }
+
+  /* ClientRosterFilters: a search row over the chip row. */
+  .ppl-filters { margin-bottom: 12px; display: flex; flex-direction: column; gap: 10px; }
+  .ppl-filter-search { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+  /* A bare OutlinedInput size="small": 40px, not the 44px Field box. */
+  .ppl-search { flex: 1; min-width: 0; height: 40px; min-height: 0; }
+  .ppl-filter-chips { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+  .ppl-facet-rule { margin: 0 4px; height: 16px; align-self: center; }
+
+  /* Below md, each client is a card link. */
+  .ppl-roster-cards { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 8px; }
+  .ppl-roster-card {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 14px;
+    color: inherit;
+    text-decoration: none;
+  }
+  .ppl-roster-card:hover { background-color: var(--mui-palette-surface-2); }
+
+  /* From md, the table. */
+  .ppl-roster-table { overflow-x: auto; }
+  /* TableCell padding="checkbox" at size="small". ui.css's .table cells sit in the mui layer,
+     so these (components layer) win over their padding, weight and colour. */
+  .ppl-roster-table .ppl-cell-check { width: 48px; padding: 0 12px 0 16px; }
+  .ppl-roster-table .ppl-td-muted { font-weight: 500; color: var(--mui-palette-text-secondary); }
+  .ppl-roster-table .ppl-td-strong { font-weight: 500; }
+  /* MUI's size="small" Checkbox here is a 20px icon with no padding (a 15px square), not the
+     42px target ui.css's .check-input draws. */
+  .ppl-roster-table .check-input { width: 15px; height: 15px; margin: 2.5px; vertical-align: middle; background-size: 11px 11px; }
+  .ppl-roster-client { display: flex; min-width: 0; align-items: center; gap: 10px; }
+  .ppl-roster-link { display: block; min-width: 0; }
+  .ppl-roster-tags { display: flex; flex-wrap: wrap; gap: 4px; }
+  .ppl-mini-chip { height: 20px; font-size: 10.5px; line-height: 1.5; padding: 0 8px; }
+  .ppl-now { font-weight: 600; color: var(--mui-palette-primary-main); }
+
+  /* The bulk-tag bar: an outlined Paper on surface.2, from md, once something is ticked. */
+  .ppl-bulk-bar {
+    margin-top: 8px;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    background-color: var(--mui-palette-surface-2);
+  }
+  .ppl-bulk-bar[hidden] { display: none; }
+  .ppl-bulk-input { flex: 1; min-width: 0; height: 40px; min-height: 0; }
+
+  /* RosterPagination. */
+  .ppl-pager { margin-top: 12px; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+
+  /* ── Client form (§3.3.3 / §3.3.4) and not-found ─────────────────────────────────────── */
+
+  .ppl-page-form { max-width: 860px; }
+  .ppl-icon-11 { width: 11px; height: 11px; }
+  .ppl-icon-13 { width: 13px; height: 13px; }
+  /* The back link: MuiLink body2, underline on hover, muted. */
+  .ppl-back { display: inline-flex; align-items: center; gap: 4px; font: var(--mui-font-body2); color: var(--mui-palette-text-secondary); }
+  .ppl-form-head { margin: 10px 0 16px; }
+  .ppl-form-fieldset { margin: 0; padding: 0; border: 0; min-width: 0; display: flex; flex-direction: column; gap: 20px; }
+  .ppl-form-card { padding: 20px; display: flex; flex-direction: column; gap: 20px; }
+  .ppl-form-section { display: flex; flex-direction: column; gap: 12px; }
+  .ppl-form-section > h2, .ppl-form-section > p { margin: 0; }
+  .ppl-form-grid { display: grid; gap: 12px; grid-template-columns: minmax(0, 1fr); }
+  @media (min-width: 640px) {
+    .ppl-form-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .ppl-span-2 { grid-column: span 2; }
+  }
+  .ppl-underline { text-decoration: underline; }
+  /* MUI draws a multiline field's border as an overlay, so rows="3" is 69px + 17px padding =
+     86px. ui.css's textarea.input adds its 1px border to that; take it back off the padding
+     so the box and the first line both land where Next puts them. */
+  .ppl-form-card textarea.input,
+  .ppl-dialog textarea.input,
+  textarea.input.ppl-note-input { padding: 7.5px 13px; }
+
+  /* Tags: chosen ones filled secondary with a close button, suggestions outlined. */
+  .ppl-chip-row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+  .ppl-tag-label { display: inline-flex; align-items: center; }
+  .ppl-tag-x {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    margin-left: 4px;
+    padding: 2px;
+    border: 0;
+    border-radius: 50%;
+    background: none;
+    color: inherit;
+    cursor: pointer;
+  }
+  .ppl-tag-x:hover { background-color: var(--mui-palette-action-hover); }
+  .ppl-suggest[hidden] { display: none; }
+  .ppl-newtag-row { display: flex; align-items: center; gap: 8px; }
+  .ppl-newtag { max-width: 220px; height: 40px; min-height: 0; }
+
+  /* Dates: label, date, Every year, Remove; stacked below sm. */
+  /* The rows are the section's own flex children in Next (12px apart, no gap when there are
+     none), so the wrapper the script appends to takes no box of its own. */
+  .ppl-date-rows { display: contents; }
+  .ppl-date-row { display: grid; align-items: end; gap: 8px; grid-template-columns: minmax(0, 1fr); }
+  @media (min-width: 640px) { .ppl-date-row { grid-template-columns: minmax(0, 1fr) auto auto auto; } }
+  .ppl-date-tail { margin-bottom: 4px; }
+  .ppl-self-start { align-self: flex-start; }
+
+  .ppl-invite {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px;
+    background-color: var(--mui-palette-secondary-container);
+    color: var(--mui-palette-secondary-onContainer);
+    opacity: 0.6;
+  }
+  .ppl-form-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+  .ppl-ml-auto { margin-left: auto; }
+  /* MuiButton text with BTN_TEXT: 40px, 12px sides. */
+  .ppl-btn-text { min-height: 40px; padding-left: 12px; padding-right: 12px; gap: 8px; white-space: nowrap; }
+
+  .ppl-notfound { padding: 24px; display: flex; flex-direction: column; align-items: flex-start; gap: 12px; }
+  .ppl-notfound > h1, .ppl-notfound > p { margin: 0; }
+
+  /* ── Client detail (§3.3.2) ──────────────────────────────────────────────────────────── */
+
+  .ppl-minw0 { min-width: 0; }
+  .ppl-strong { font-weight: 600; line-height: 1.3; }
+  .ppl-lh-1_3 { line-height: 1.3; }
+  .ppl-mt-0_75 { margin-top: 6px; }
+  .ppl-mt-1_25 { margin-top: 10px; }
+  .ppl-mt-1_5 { margin-top: 12px; }
+  .ppl-mr-1 { margin-right: 8px; }
+  .ppl-inline { display: inline; }
+  .ppl-anywhere { margin: 0; overflow-wrap: anywhere; }
+  .ppl-avatar-36 { width: 36px; height: 36px; }
+  .ppl-label { display: block; font-weight: 500; line-height: 1.3; letter-spacing: 0.4px; color: var(--mui-palette-text-secondary); }
+  .ppl-pad-2 { padding: 16px; }
+  .ppl-pad-1_75 { padding: 14px; }
+  .ppl-stack-1, .ppl-stack-0_75 { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 8px; }
+  .ppl-stack-0_75 { gap: 6px; }
+  .ppl-tab-empty { padding: 16px 4px; }
+  .ppl-tone-warning { background-color: var(--mui-palette-warning-container); color: var(--mui-palette-text-primary); }
+
+  /* The header band: a primary-to-secondary container gradient. */
+  .ppl-detail-head { margin-top: 10px; }
+  .ppl-detail-band {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 14px;
+    padding: 20px;
+    background: linear-gradient(to bottom right, var(--mui-palette-primary-container), var(--mui-palette-secondary-container));
+  }
+  .ppl-detail-titlerow { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+  .ppl-on-primary { color: var(--mui-palette-primary-onContainer); }
+  .ppl-detail-contact { margin-top: 4px; display: flex; flex-wrap: wrap; column-gap: 14px; row-gap: 2px; color: var(--mui-palette-primary-onContainer); }
+  .ppl-detail-actions { display: flex; flex-shrink: 0; flex-wrap: wrap; gap: 6px; }
+  .ppl-archived-banner { padding: 8px 20px; border-top: 1px solid var(--mui-palette-divider); }
+  .ppl-tabs { margin-top: 16px; display: flex; flex-wrap: wrap; gap: 6px; }
+
+  /* Overview: the two columns from lg. */
+  .ppl-ov { display: grid; gap: 14px; grid-template-columns: minmax(0, 1fr); }
+  @media (min-width: 1024px) { .ppl-ov { grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); } }
+  .ppl-ov-main, .ppl-ov-side { display: flex; flex-direction: column; gap: 12px; }
+  .ppl-ov-grid { margin-top: 8px; display: grid; column-gap: 16px; row-gap: 10px; grid-template-columns: minmax(0, 1fr); }
+  @media (min-width: 640px) { .ppl-ov-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+  .ppl-ruled { margin: 12px 0 0; padding-top: 10px; border-top: 1px solid var(--mui-palette-divider); }
+  .ppl-ruled-1_25 { margin: 10px 0 0; padding-top: 10px; border-top: 1px solid var(--mui-palette-divider); }
+  .ppl-pref-notes { margin-top: 10px; display: flex; flex-direction: column; gap: 4px; }
+  .ppl-stats { display: grid; gap: 8px; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .ppl-stat { padding: 10px; }
+  .ppl-stat-value { margin-top: 2px; font-weight: 600; line-height: 1.3; }
+  .ppl-household-title { font-weight: 600; line-height: 1.3; }
+  .ppl-household { margin: 8px 0 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 8px; }
+  .ppl-household-row { display: flex; align-items: center; gap: 10px; }
+
+  /* Trips, messages, documents. */
+  .ppl-trips-head { margin-bottom: 10px; display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+  .ppl-trip-card { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; padding: 12px 14px; color: inherit; text-decoration: none; }
+  .ppl-trip-card:hover { background-color: var(--mui-palette-surface-2); }
+  .ppl-thread-row { display: flex; align-items: center; gap: 12px; padding: 12px 14px; }
+  .ppl-thread-icon { display: inline-flex; flex-shrink: 0; color: var(--mui-palette-primary-main); }
+  .ppl-brand-chip { height: 20px; flex-shrink: 0; font-weight: 700; background-color: var(--mui-palette-brand-main); color: var(--mui-palette-brand-contrastText); }
+  .ppl-docs { margin: 0; padding: 0; list-style: none; display: grid; gap: 10px; grid-template-columns: minmax(0, 1fr); }
+  @media (min-width: 640px) { .ppl-docs { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+  @media (min-width: 1280px) { .ppl-docs { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+  .ppl-doc { padding: 12px; display: flex; align-items: center; gap: 10px; }
+  .ppl-doc-badge { display: flex; align-items: center; justify-content: center; width: 36px; height: 44px; flex-shrink: 0; border-radius: 4px; font-size: 9px; font-weight: 800; }
+  .ppl-badge-pdf { background-color: var(--mui-palette-brandSource-burgundy); color: var(--mui-palette-common-white); }
+  .ppl-badge-img { background-color: var(--mui-palette-brand-main); color: var(--mui-palette-brand-contrastText); }
+  .ppl-badge-doc { background-color: var(--mui-palette-tertiary-main); color: var(--mui-palette-tertiary-contrastText); }
+  .ppl-doc-chip { height: 20px; flex-shrink: 0; font-size: 10px; }
+
+  /* Notes. */
+  .ppl-notes { display: flex; flex-direction: column; gap: 14px; }
+  .ppl-note-input { margin-top: 6px; }
+  .ppl-note-actions { margin-top: 8px; display: flex; align-items: center; gap: 8px; }
+  /* Next disables Save while the note is empty. The textarea is required, so the empty state
+     is :invalid; draw the button the way ui.css draws a disabled one. */
+  form:has(.ppl-note-input:invalid) .ppl-note-save {
+    color: var(--mui-palette-action-disabled);
+    border-color: var(--mui-palette-action-disabledBackground);
+    pointer-events: none;
+  }
+  .ppl-notes-empty { padding: 0 4px; }
+  .ppl-note { padding: 14px; background-color: var(--mui-palette-surface-2); }
+  .ppl-note-head { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+  .ppl-note-when { color: var(--mui-palette-brand-main); line-height: 1.3; }
+  .ppl-note-tools { margin-left: auto; display: flex; gap: 4px; }
+  .ppl-note-body { margin-top: 4px; white-space: pre-wrap; }
+  .ppl-note-confirm { margin-top: 8px; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+
+  /* Activity. */
+  .ppl-event { padding: 10px 14px; display: flex; align-items: center; gap: 10px; }
+  .ppl-event-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    flex-shrink: 0;
+    border-radius: 50%;
+    background-color: var(--mui-palette-secondary-container);
+    color: var(--mui-palette-secondary-onContainer);
+  }
+
+  /* Dialogs (archive, account admin): MUI's Paper at m 2, 520px / 480px. */
+  .ppl-dialog { width: min(520px, calc(100vw - 2rem)); max-width: 100%; }
+  .ppl-dialog-sm { width: min(480px, calc(100vw - 2rem)); }
+  /* The server opens a dialog with the open attribute when it re-renders one with an error
+     (or for ?confirm= without JS). That is a non-modal dialog, drawn where it sits in the
+     page, often below the fold. dialogs.js reopens it as a modal; without JS, pin it to the
+     middle of the screen anyway. */
+  .ppl-dialog[open]:not(:modal) { position: fixed; inset: 0; z-index: 1300; }
+  .ppl-dialog:focus { outline: 0; }
+  .ppl-dialog-body { padding: 20px; }
+  .ppl-dialog-head { display: flex; align-items: flex-start; gap: 12px; }
+  .ppl-eyebrow-warning { display: block; color: var(--mui-palette-warning-main); line-height: 1.3; }
+  .ppl-dialog-actions { margin-top: 14px; display: flex; align-items: center; gap: 8px; }
+  .ppl-audit { margin-top: 12px; padding: 10px; display: flex; align-items: center; gap: 8px; background-color: var(--mui-palette-surface-2); color: var(--mui-palette-text-secondary); }
+
+  /* Account admin. */
+  .ppl-acc-card { max-width: 640px; }
+  .ppl-acc-pad { padding: 18px; }
+  .ppl-gate { display: flex; align-items: flex-start; gap: 12px; }
+  .ppl-acc-stack { display: flex; flex-direction: column; gap: 16px; }
+  .ppl-acc-grid { display: grid; gap: 14px; grid-template-columns: minmax(0, 1fr); max-width: 1080px; }
+  @media (min-width: 1024px) { .ppl-acc-grid { grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); } }
+  .ppl-acc-wide { max-width: 1080px; }
+  .ppl-tiles-stack { margin-top: 14px; display: flex; flex-direction: column; gap: 8px; }
+  .ppl-tiles-grid { margin-top: 10px; display: grid; gap: 10px; grid-template-columns: minmax(0, 1fr); }
+  @media (min-width: 640px) { .ppl-tiles-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+  .ppl-tile-wrap { overflow: hidden; }
+  .ppl-tile {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 10px;
+    width: 100%;
+    min-height: 52px;
+    padding: 8px 12px;
+    color: inherit;
+    text-align: left;
+    text-decoration: none;
+  }
+  .ppl-tile:hover { background-color: var(--mui-palette-surface-2); }
+  .ppl-tile-off { opacity: 0.55; cursor: default; }
+  .ppl-tile-off:hover { background-color: transparent; }
+  .ppl-tile-icon { width: 32px; height: 32px; background-color: var(--mui-palette-surface-3); color: var(--mui-palette-text-primary); }
+  .ppl-tile-chevron { display: inline-flex; }
+  .ppl-tile-dup { display: block; padding: 0 12px 8px; }
+  .ppl-status-list { margin: 6px 0 0; display: grid; gap: 6px; }
+  .ppl-status-row { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+  .ppl-status-row > dd { margin: 0; }
+  .ppl-devices { margin: 8px 0 0; padding: 0; list-style: none; display: grid; gap: 6px; }
+  .ppl-device { display: flex; flex-wrap: wrap; gap: 8px; align-items: baseline; }
+  .ppl-ip { font-family: var(--font-mono); font-size: 12px; }
+  tr:has(> td.ppl-flagged) { background-color: var(--mui-palette-status-due-bg); }
+
+  /* ── Merge duplicate records (Screens 3.9.7 / 3.3.11, client-merge.html) ─────────────── */
+  .ppl-page-merge { max-width: 1140px; }
+  .ppl-merge-header { margin: 10px 0 16px; }
+  .ppl-merge-sub { max-width: 720px; }
+  .ppl-merge-pick { max-width: 760px; }
+  .ppl-merge-search { margin-top: 14px; display: flex; align-items: flex-end; gap: 8px; }
+  .ppl-merge-search-btn { min-height: 44px; padding-left: 16px; padding-right: 16px; }
+  .ppl-merge-cands { margin: 16px 0 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 8px; }
+  .ppl-merge-cand { padding: 14px; display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
+  .ppl-merge-sides { display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; }
+  .ppl-merge-side { padding: 14px; }
+  .ppl-merge-name { margin: 4px 0 0; line-height: 1.3; overflow-wrap: anywhere; }
+  .ppl-merge-arrow { display: none; margin: 0; align-self: center; text-align: center; }
+  @media (min-width: 768px) {
+    .ppl-merge-sides { grid-template-columns: minmax(0, 1fr) 60px minmax(0, 1fr); }
+    .ppl-merge-arrow { display: block; }
+  }
+  .ppl-mt-1_75 { margin-top: 14px; }
+  .ppl-merge-fields { margin-top: 20px; }
+  .ppl-merge-fields-sub { margin: 2px 0 12px; }
+  .ppl-merge-label { font-weight: 600; white-space: nowrap; }
+  /* A pinned detail: the chosen side in primary text with its chip, the other one secondary. */
+  .ppl-merge-fixed { overflow-wrap: anywhere; color: var(--mui-palette-text-secondary); }
+  .ppl-merge-fixed.ppl-merge-chosen { color: var(--mui-palette-text-primary); }
+  .ppl-merge-pin { margin-left: 8px; background-color: var(--mui-palette-primary-container); color: var(--mui-palette-primary-onContainer); }
+  /* A choice: the radio and its value. The checked one reads primary and bold, in CSS, so it
+     follows the radio with no script. */
+  .ppl-merge-cell { padding-top: 4px; padding-bottom: 4px; }
+  .ppl-merge-choice {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    cursor: pointer;
+    overflow-wrap: anywhere;
+    color: var(--mui-palette-text-secondary);
+    font-weight: 400;
+  }
+  .ppl-merge-choice:has(.ppl-merge-radio:checked) { color: var(--mui-palette-text-primary); font-weight: 600; }
+  .ppl-merge-value { font-weight: inherit; }
+  /* MUI's small Radio: a 20px icon in a 38px button. The ring is the icon's 24-unit circle
+     drawn at 20px (16.67px across, a 1.67px stroke), and the dot scales the same way. */
+  .ppl-merge-radio { width: 16.67px; height: 16.67px; margin: 10.67px; border-width: 1.67px; }
+  .ppl-merge-radio:checked { background-image: radial-gradient(circle, var(--mui-palette-primary-main) 0 3.75px, transparent 4.15px); }
+  .ppl-merge-actions { margin-top: 16px; display: flex; align-items: center; gap: 10px; }
+  .ppl-icon-14 { width: 14px; height: 14px; }
+  .ppl-dialog-merge { width: min(560px, calc(100vw - 2rem)); }
+  .ppl-merge-dl { margin: 4px 0 0; display: grid; grid-template-columns: auto minmax(0, 1fr); column-gap: 12px; row-gap: 4px; }
+  .ppl-merge-dl dd { margin: 0; }
+  .ppl-merge-note {
+    margin-top: 12px;
+    padding: 10px;
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    background-color: var(--mui-palette-surface-2);
+    color: var(--mui-palette-text-secondary);
+  }
+  .ppl-merge-note-icon { padding-top: 2px; }
+
+  /* ── Leads (§3.8: leads.html, lead.html, lead-new.html) ──────────────────────────────── */
+  .ppl-page-lead { max-width: 960px; }
+  .ppl-page-narrow { max-width: 640px; }
+  .ppl-mb-1_5 { margin-bottom: 12px; }
+  .ppl-mb-2 { margin-bottom: 16px; }
+  .ppl-noshrink { flex-shrink: 0; }
+  .ppl-nowrap { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .ppl-prewrap { white-space: pre-wrap; overflow-wrap: anywhere; }
+  .ppl-leads-header { margin-bottom: 16px; display: flex; flex-wrap: wrap; align-items: flex-start; gap: 12px; }
+  .ppl-lead-filters { margin-bottom: 16px; display: flex; flex-wrap: wrap; gap: 8px; }
+  .ppl-lead-list { margin: 0; padding: 0; list-style: none; }
+  .ppl-lead-item + .ppl-lead-item { border-top: 1px solid var(--mui-palette-divider); }
+  /* ListItemButton: the whole row is the link. */
+  .ppl-lead-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 12px 16px;
+    color: inherit;
+    text-decoration: none;
+    transition: background-color 150ms cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  .ppl-lead-row:hover { background-color: var(--mui-palette-action-hover); }
+  .ppl-lead-row:focus-visible { outline: 0; background-color: var(--mui-palette-action-focus); }
+  .ppl-lead-side { flex-shrink: 0; display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
+  .ppl-lead-header { margin: 12px 0 16px; display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
+  .ppl-lead-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+  .ppl-lead-card { margin-top: 16px; padding: 16px; }
+  .ppl-lead-dl { margin: 0; display: flex; flex-direction: column; gap: 6px; }
+  .ppl-lead-dl-row { display: flex; flex-wrap: wrap; gap: 12px; }
+  .ppl-lead-dt { min-width: 120px; }
+  .ppl-lead-dd { margin: 0; min-width: 0; overflow-wrap: anywhere; }
+  .ppl-lead-notes { display: flex; flex-direction: column; gap: 16px; }
+  .ppl-lead-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 10px; }
+  .ppl-lead-radios { display: flex; flex-direction: column; }
+  .ppl-lead-check { display: flex; width: fit-content; }
+  .ppl-lead-dialog-actions { margin-top: 16px; display: flex; justify-content: flex-end; gap: 8px; }
+  .ppl-lead-form { display: flex; flex-direction: column; gap: 10px; }
+
+  /* ── Messages (§3.10.1, §3.10.2: messages.html) ──────────────────────────────────────── */
+  /* Two panes inside the viewport less the bars; each scrolls on its own, so the reply box
+     sits under the messages rather than over them. Below lg one pane shows at a time. */
+  .ppl-msg-frame {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr);
+    height: calc(100dvh - var(--client-topbar-h) - 68px - max(env(safe-area-inset-bottom), 8px));
+  }
+  @media (min-width: 768px) { .ppl-msg-frame { height: calc(100dvh - var(--client-topbar-h)); } }
+  .ppl-msg-list-pane,
+  .ppl-msg-detail-pane { position: relative; min-width: 0; min-height: 0; overflow-y: auto; }
+  .ppl-msg-detail-pane { display: none; }
+  .ppl-msg-thread-open .ppl-msg-list-pane { display: none; }
+  .ppl-msg-thread-open .ppl-msg-detail-pane { display: block; }
+  @media (min-width: 1024px) {
+    .ppl-msg-frame { grid-template-columns: 340px minmax(0, 1fr); }
+    .ppl-msg-list-pane,
+    .ppl-msg-thread-open .ppl-msg-list-pane { display: block; border-right: 1px solid var(--mui-palette-divider); }
+    .ppl-msg-detail-pane { display: block; }
+  }
+  .ppl-msg-head { padding: 14px 14px 8px; }
+  .ppl-msg-head-top { display: flex; align-items: baseline; flex-wrap: wrap; gap: 8px; }
+  .ppl-msg-chips { margin-top: 8px; display: flex; flex-wrap: wrap; gap: 6px; }
+  .ppl-msg-search { margin-top: 10px; display: flex; align-items: flex-end; gap: 8px; }
+  /* MUI's small OutlinedInput is 40px; ui.css's .input is the 44px Field box. */
+  /* The search box keeps the house Field's own height. MUI floats its label on the border,
+     so Next's input is 40px with the label inside it; ours sits under a label of its own and
+     is 43px. Forcing 40 here lifts every row 3px off Next's, which is the comparison that
+     matters, so the box stays as the Field draws it. */
+  /* MUI's small Checkbox: a 20px icon in a 38px button. */
+  .ppl-msg-check { width: 38px; height: 38px; align-items: center; justify-content: center; }
+  .ppl-msg-check .check-input { width: 20px; height: 20px; margin: 0; }
+  .ppl-msg-receipt { padding: 8px 14px 0; }
+  .ppl-msg-error { padding: 8px 14px 0; }
+  .ppl-msg-bulk { display: flex; align-items: center; gap: 8px; padding: 8px 14px; background-color: var(--mui-palette-surface-2); }
+  .ppl-msg-empty { padding: 16px 14px; }
+  .ppl-msg-list { margin: 0; padding: 0; list-style: none; }
+  .ppl-msg-list > li { display: block; }
+  .ppl-msg-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 4px;
+    padding: 8px 14px 8px 4px;
+    border-bottom: 1px solid var(--mui-palette-divider);
+    border-left: 3px solid transparent;
+  }
+  .ppl-msg-active { border-left-color: var(--mui-palette-brand-main); background-color: var(--mui-palette-surface-2); }
+  .ppl-msg-check { display: flex; flex: none; }
+  .ppl-msg-row { flex: 1; min-width: 0; padding: 4px 0; color: inherit; text-decoration: none; }
+  .ppl-msg-row-top { display: flex; align-items: baseline; gap: 8px; }
+  .ppl-msg-row-foot { margin-top: 4px; display: flex; align-items: center; gap: 8px; }
+  .ppl-msg-trip { color: var(--mui-palette-brand-main); font-weight: 600; line-height: 1.2; }
+  .ppl-msg-replyby { color: var(--mui-palette-text-secondary); font-weight: 400; }
+  .ppl-msg-unread { height: 20px; font-weight: 700; background-color: var(--mui-palette-brand-main); color: var(--mui-palette-brand-contrastText); }
+  .ppl-msg-unread .chip-label { padding-left: 6px; padding-right: 6px; }
+  .ppl-msg-overdue { color: var(--mui-palette-error-main); font-weight: 600; }
+  .ppl-msg-pager { display: flex; justify-content: space-between; padding: 10px 14px; }
+  .ppl-msg-pick { display: grid; place-items: center; height: 100%; min-height: 320px; padding: 0 24px; }
+  .ppl-msg-pick > p { margin: 0; }
+  /* The thread: header, the messages (the only part that scrolls), the reply box. */
+  .ppl-msg-thread { display: flex; flex-direction: column; height: 100%; }
+  .ppl-msg-thread-head { flex: none; padding: 12px 16px; border-bottom: 1px solid var(--mui-palette-divider); }
+  @media (min-width: 768px) { .ppl-msg-thread-head { padding-left: 20px; padding-right: 20px; } }
+  .ppl-msg-back { display: inline-flex; margin-bottom: 8px; }
+  @media (min-width: 1024px) { .ppl-msg-back { display: none; } }
+  .ppl-msg-thread-top { display: flex; align-items: flex-start; flex-wrap: wrap; gap: 12px; }
+  .ppl-msg-thread-who { flex: 1 1 220px; min-width: 0; }
+  .ppl-msg-thread-tools { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+  .ppl-chip-error { color: var(--mui-palette-error-main); border-color: var(--mui-palette-error-main); }
+  .ppl-msg-scroll { flex: 1; min-height: 0; overflow-y: auto; padding: 16px; position: relative; }
+  @media (min-width: 768px) { .ppl-msg-scroll { padding-left: 20px; padding-right: 20px; } }
+  .ppl-msg-truncated { display: block; margin-bottom: 12px; text-align: center; }
+  /* Next stacks days 12px apart and the rows inside a day 10px apart, with the attachments
+     4px under their bubble and the time 2px under those. One container gap cannot say all
+     four, and the page builder allows no nested repeat, so every row carries its own gap. */
+  .ppl-msg-days { display: flex; flex-direction: column; }
+  .ppl-msg-rowbox { display: flex; flex-direction: column; align-items: flex-start; margin-top: 10px; }
+  .ppl-msg-days > :first-child .ppl-msg-rowbox { margin-top: 0; }
+  .ppl-msg-r-day { margin-top: 12px; }
+  .ppl-msg-r-attach { margin-top: 4px; }
+  .ppl-msg-r-time { margin-top: 2px; }
+  .ppl-msg-mine { align-items: flex-end; }
+  .ppl-msg-day { width: 100%; text-align: center; }
+  .ppl-msg-note {
+    max-width: 88%;
+    padding: 10px 14px;
+    border-style: dashed;
+    border-color: var(--mui-palette-outline-main);
+    background-color: var(--mui-palette-surface-2);
+  }
+  @media (min-width: 768px) { .ppl-msg-note { max-width: 70%; } }
+  .ppl-msg-note-tag { display: flex; align-items: center; gap: 4px; line-height: 1.4; }
+  .ppl-msg-note-time { margin-top: 4px; display: block; text-align: right; }
+  .ppl-msg-bubble-wrap { max-width: 82%; }
+  @media (min-width: 768px) { .ppl-msg-bubble-wrap { max-width: 70%; } }
+  .ppl-msg-bubble {
+    padding: 10px 14px;
+    border-radius: 18px 18px 4px 18px;
+    background-color: var(--mui-palette-primary-main);
+    color: var(--mui-palette-primary-contrastText);
+  }
+  .ppl-msg-theirs {
+    border: 1px solid var(--mui-palette-divider);
+    border-radius: 18px 18px 18px 4px;
+    background-color: var(--mui-palette-background-paper);
+    color: var(--mui-palette-text-primary);
+  }
+  .ppl-msg-time { display: block; }
+  .ppl-msg-mine .ppl-msg-time { text-align: right; }
+  .ppl-msg-attach { display: inline-flex; align-items: center; gap: 6px; padding: 4px 8px; max-width: 100%; }
+  .ppl-preline { white-space: pre-line; }
+  /* The reply box. A note looks like a note before it is sent: tinted, a dashed edge, a lock
+     and a line that says only the advisor sees it. */
+  .ppl-msg-reply { flex: none; padding: 12px 16px; border-top: 1px solid var(--mui-palette-divider); }
+  @media (min-width: 768px) { .ppl-msg-reply { padding-left: 20px; padding-right: 20px; } }
+  .ppl-msg-reply:has(.ppl-note-switch:checked) {
+    border-top: 2px dashed var(--mui-palette-outline-main);
+    background-color: var(--mui-palette-surface-2);
+  }
+  .ppl-msg-text { padding: 7.5px 13px; }
+  .ppl-msg-reply-foot { margin-top: 8px; display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+  .ppl-msg-note-switch { margin-right: 0; }
+  .ppl-msg-note-hint,
+  .ppl-msg-send-note { display: none; }
+  /* Next disables Send while the box is empty. The textarea is required, so an empty box is
+     :invalid; draw the button the way ui.css draws a disabled one. The form still refuses to
+     submit without JS, so this is the look, not the gate. */
+  .ppl-msg-reply:has(.ppl-msg-text:invalid) .ppl-msg-send,
+  .ppl-msg-reply:has(.ppl-msg-text:invalid) .ppl-msg-send-note,
+  .ppl-msg-new-box:has(.ppl-msg-text:invalid) .btn-contained {
+    color: var(--mui-palette-action-disabled);
+    background-color: var(--mui-palette-action-disabledBackground);
+    pointer-events: none;
+  }
+  .ppl-msg-reply:has(.ppl-note-switch:checked) .ppl-msg-note-hint { margin-top: 6px; display: flex; align-items: center; gap: 4px; }
+  .ppl-msg-reply:has(.ppl-note-switch:checked) .ppl-msg-send-note { display: inline-flex; }
+  .ppl-msg-reply:has(.ppl-note-switch:checked) .ppl-msg-send { display: none; }
+  /* A note is never emailed, so the line about the client's login does not belong on it. */
+  .ppl-msg-reply:has(.ppl-note-switch:checked) [data-slot="rp-nologin"] { display: none; }
+
+  /* "Message client" before the thread exists, and the poller's banner. */
+  .ppl-msg-new { margin: 0 auto; width: 100%; max-width: 760px; padding: 24px 16px; }
+  @media (min-width: 768px) { .ppl-msg-new { padding-left: 32px; padding-right: 32px; } }
+  .ppl-msg-new-title { margin-top: 12px; }
+  @media (min-width: 1024px) { .ppl-msg-new-title { margin-top: 0; } }
+  .ppl-msg-new-box { border: 1px solid var(--mui-palette-divider); border-radius: 16px; padding: 12px 16px; }
+  .ppl-msg-new-banner {
+    display: block;
+    padding: 8px 14px;
+    background-color: var(--mui-palette-brand-main);
+    color: var(--mui-palette-brand-contrastText);
+    font: var(--mui-font-body2);
+    font-weight: 600;
+    text-align: center;
+    text-decoration: none;
+  }
+  /* ── 3.10.4 Template Library and 3.10.5 Template Editor ──────────────────────────────── */
+
+  /* The library's own column: maxWidth 1100 (the .ppl-page default), px {xs: 2, md: 3},
+     pt: 2.5 and pb: 8 — four pixels less above than .ppl-page's own padding, and a gutter
+     that stops at 24px rather than 32. */
+  .ppl-tpl-page { padding-top: 20px; padding-bottom: 64px; }
+  @media (min-width: 768px) { .ppl-tpl-page { padding-left: 24px; padding-right: 24px; } }
+  .ppl-tpl-header { margin-top: 8px; display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 12px; }
+  .ppl-tpl-header .ppl-flex1 { flex: 1 1 320px; }
+  .ppl-tpl-h1 { font-weight: 700; }
+  .ppl-tpl-h1:focus { outline: none; }
+  .ppl-tpl-header-tools { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+  .ppl-tpl-error { margin-top: 20px; margin-bottom: -8px; }
+
+  /* Next draws a <section> per category, each with its own grid 10px apart, 20px between
+     sections and 8px under a heading. This is one grid: the heading spans it and carries the
+     20px above and the -2px that makes the 10px row gap under it 8px. */
+  .ppl-tpl-grid {
+    margin-top: 20px;
+    display: grid;
+    gap: 10px;
+    grid-template-columns: minmax(0, 1fr);
+  }
+  @media (min-width: 640px) { .ppl-tpl-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+  @media (min-width: 1200px) { .ppl-tpl-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+  .ppl-tpl-group { grid-column: 1 / -1; display: block; line-height: 1.3; margin-top: 10px; margin-bottom: -2px; }
+  .ppl-tpl-grid > :first-child .ppl-tpl-group { margin-top: 0; }
+  /* A grid item will not shrink past its content without this; a long template name would
+     push the column wider than its third. */
+  .ppl-tpl-card { min-width: 0; }
+  .ppl-tpl-card-in { padding: 12px; }
+  .ppl-tpl-name { overflow-wrap: anywhere; }
+  .ppl-tpl-meta { display: block; margin-top: 2px; }
+  .ppl-tpl-actions { margin-top: 8px; display: flex; gap: 6px; flex-wrap: wrap; }
+  .ppl-btn-xs { min-height: 32px; padding-left: 12px; padding-right: 12px; gap: 6px; white-space: nowrap; }
+
+  /* The editor fills the area below the header, as A3105 draws it. */
+  .ppl-ted { display: flex; flex-direction: column; min-height: 100%; }
+  .ppl-ted-head {
+    padding: 14px 16px;
+    border-bottom: 1px solid var(--mui-palette-divider);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+  @media (min-width: 768px) { .ppl-ted-head { padding-left: 28px; padding-right: 28px; } }
+  .ppl-ted-head .ppl-flex1 { flex: 1 1 260px; }
+  .ppl-ted-crumb { margin: 0; }
+  .ppl-ted-h1 { overflow-wrap: anywhere; }
+  .ppl-ted-tools { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  /* Save is first in the DOM so Enter reaches it; Archive is drawn before it, as Next does. */
+  .ppl-ted-arch { order: -1; }
+  .ppl-ted-save { order: 0; }
+  .ppl-ted-status { margin: 0; }
+  .ppl-ted-error { padding: 12px 16px 0; }
+  @media (min-width: 768px) { .ppl-ted-error { padding-left: 28px; padding-right: 28px; } }
+  .ppl-ted-panes { flex: 1; display: grid; grid-template-columns: minmax(0, 1fr); min-height: 0; }
+  @media (min-width: 1024px) { .ppl-ted-panes { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); } }
+  .ppl-ted-left { padding: 18px; display: grid; gap: 12px; align-content: start; }
+  @media (min-width: 1024px) { .ppl-ted-left { border-right: 1px solid var(--mui-palette-divider); } }
+  .ppl-ted-row1 { display: grid; gap: 12px; grid-template-columns: minmax(0, 1fr); }
+  @media (min-width: 640px) { .ppl-ted-row1 { grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); } }
+  /* The artboard sets the body in mono, so a token reads as a token.
+     The line height is the house field's own 1.4375em AT THE 16px BASE, not recomputed at
+     12px: MUI puts that rule on the wrapper and the textarea inherits the 23px it computed
+     to, so twelve rows are 276px there. Here the textarea IS the field, so it has to be
+     said in rem. */
+  .ppl-ted-body { font-family: var(--font-mono); font-size: 12px; line-height: calc(1.4375 * 1rem); }
+  .ppl-ted-fields-label { margin: 0 0 6px; }
+  .ppl-ted-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+  .ppl-ted-chip { font-family: var(--font-mono); font-size: 10.5px; height: 26px; }
+  .ppl-ted-right { padding: 18px; background-color: var(--mui-palette-surface-main); }
+  .ppl-ted-preview-heading { display: block; line-height: 1.3; }
+  .ppl-ted-preview-card { margin-top: 6px; }
+  .ppl-ted-preview-in { padding: 16px; }
+  .ppl-ted-preview { line-height: 1.55; overflow-wrap: anywhere; }
+  /* ── 3.10.3 Template Picker ──────────────────────────────────────────────────────────── */
+
+  /* Next's is a MUI Dialog: a scrim over the page and a 720px paper inside it. This one is
+     drawn by the server, so it is a panel over the pane rather than a true modal — the page
+     behind it still takes a click, which is why the markup does not claim aria-modal. */
+  .ppl-pk-scrim {
+    position: fixed;
+    inset: 0;
+    z-index: 1300;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+    background-color: rgb(0 0 0 / 0.5);
+  }
+  .ppl-pk {
+    position: relative;
+    width: min(720px, calc(100vw - 2rem));
+    max-height: calc(100vh - 2rem);
+    overflow-y: auto;
+    padding: 20px;
+    border-radius: 12px;
+  }
+  .ppl-icon-16 { width: 16px; height: 16px; }
+  .ppl-icon-18 { width: 18px; height: 18px; }
+  .ppl-pk-head { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+  .ppl-pk-spark { color: var(--mui-palette-brand-main); display: inline-flex; }
+  .ppl-pk-title { margin: 0; padding-right: 40px; }
+  /* Last in the form, so Enter in the search box reaches the search button and not this one;
+     drawn where Next's dialog draws it. */
+  .ppl-pk-close { position: absolute; top: 20px; right: 20px; }
+  .ppl-pk-empty { margin: 0; }
+  .ppl-pk-search { margin: 0; }
+  .ppl-pk-search-row { display: flex; gap: 8px; align-items: center; }
+  .ppl-pk-search-row .input { flex: 1; min-width: 0; }
+  .ppl-pk-cols { margin-top: 12px; display: grid; gap: 12px; grid-template-columns: minmax(0, 1fr); }
+  @media (min-width: 640px) { .ppl-pk-cols { grid-template-columns: 240px minmax(0, 1fr); } }
+  .ppl-pk-side {
+    padding: 8px;
+    background-color: var(--mui-palette-surface-2);
+    max-height: 220px;
+    overflow-y: auto;
+  }
+  @media (min-width: 640px) { .ppl-pk-side { max-height: 360px; } }
+  .ppl-pk-nomatch { margin: 0; padding: 8px; }
+  .ppl-pk-list { list-style: none; margin: 0; padding: 0; }
+  .ppl-pk-group {
+    background-color: var(--mui-palette-surface-2);
+    line-height: 2.2;
+    padding: 0 10px;
+    font-size: 11px;
+    margin: 0;
+    color: var(--mui-palette-text-secondary);
+  }
+  .ppl-pk-item {
+    display: block;
+    width: 100%;
+    text-align: left;
+    border: 0;
+    background: none;
+    border-radius: 4px;
+    padding: 6px 10px;
+    margin-bottom: 2px;
+    color: inherit;
+    cursor: pointer;
+    font: inherit;
+  }
+  .ppl-pk-item:hover { background-color: var(--mui-palette-action-hover); }
+  .ppl-pk-on { background-color: var(--mui-palette-action-selected); }
+  .ppl-pk-preview { padding: 14px; min-width: 0; }
+  .ppl-pk-pickone { margin: 0; }
+  .ppl-pk-for { margin: 0; display: block; line-height: 1.3; }
+  .ppl-pk-text { margin: 8px 0 0; line-height: 1.55; overflow-wrap: anywhere; }
+  .ppl-pk-missing { margin: 10px 0 0; display: flex; gap: 4px; align-items: flex-start; }
+  .ppl-pk-foot { margin-top: 14px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .ppl-pk-buttons { margin-left: auto; display: flex; gap: 10px; flex-wrap: wrap; }
+  .ppl-msg-tpl { gap: 8px; }
+}

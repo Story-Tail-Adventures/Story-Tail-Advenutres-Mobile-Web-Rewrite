@@ -7,7 +7,7 @@ Status: **planned, not started.** Decided 2026-10-27 after the Vercel account wa
 > Starter in Virginia is still the host, and these parts of this plan still apply: deploying by
 > `commitId` with Auto-Deploy off, the deploy guards, the client-address rule and the
 > forged-header test (§5.1), Cloudflare in front, and the Supabase auth redirect allowlist.
-> What changes: `render.yaml` becomes `runtime: go` with `rootDir: webgo`, the env vars lose
+> What changes: `render.yaml` becomes `runtime: go` with `rootDir: web`, the env vars lose
 > their `NEXT_PUBLIC_` prefix and are read at runtime, and the first deploy is the Go public
 > pages (Phase 2), not today's Next.js build. Gyasi's setup list is in `docs/GO-MIGRATION.md`
 > section 6.

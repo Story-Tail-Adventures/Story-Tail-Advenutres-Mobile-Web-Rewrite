@@ -3,7 +3,7 @@
 # This file defines the service so it is reviewable and reproducible instead of living only in
 # a dashboard. Create the service from it with Render's "New > Blueprint", pointed at this repo.
 #
-# Only `webgo/` runs here, and it is the whole app now: the server-rendered pages and the API
+# Only `web/` runs here, and it is the whole app now: the server-rendered pages and the API
 # mobile calls at /functions/v1/{name}, one binary. Supabase (database, auth, storage, pg_cron)
 # is unchanged and is not described by this file, and nothing under `mobile/` is deployed at
 # all. The Next.js app and the Edge Functions this file used to describe are gone (Phase 6).
@@ -13,7 +13,8 @@
 # checklist (service, env vars, RENDER_SERVICE_ID, RENDER_API_KEY, Cloudflare, the Supabase
 # auth redirect allowlist, the forged-header test).
 #
-# `webgo/` is renamed to `web/` in a follow-up PR. `rootDir` below moves with it.
+# The directory was `web/` while the Next app still held `web/`; Phase 6 deleted that app
+# and renamed this one over it, so `rootDir` is `web`.
 
 services:
   - type: web
@@ -22,7 +23,7 @@ services:
 
     # The Go module is not at the repo root, so the commands below run from here and their
     # paths are relative to it. Nothing outside this directory is built.
-    rootDir: webgo
+    rootDir: web
 
     # us-east-1 is where the Supabase project lives (ref hlazrvdpyixvtveharqi), and Virginia is
     # Render's region next to it. Every authenticated request makes a Supabase round trip, so
@@ -60,7 +61,7 @@ services:
     # workflow calling Render's API after CI passes, not by Render watching the branch.
     autoDeploy: false
 
-    # The Go toolchain is pinned by webgo/go.mod's `toolchain` line, which `go build` honours
+    # The Go toolchain is pinned by web/go.mod's `toolchain` line, which `go build` honours
     # on its own, so there is no version number to keep in step here. CI reads the same line
     # through setup-go's `go-version-file`. That is the whole reason NODE_VERSION is gone from
     # this file and from deploy.yml: there is no Node in this service.
@@ -70,7 +71,7 @@ services:
       # RESTART, not a rebuild, and a value added after the build is picked up the next time
       # the process starts.
       #
-      # webgo/internal/config/config.go reads the first group once at startup and FAILS
+      # web/internal/config/config.go reads the first group once at startup and FAILS
       # CLOSED: a production boot missing any of them exits with the whole list rather than
       # starting a server that quietly skips auth. STA_ENV is deliberately absent, because
       # unset means production; a forgotten variable cannot drop the service into development

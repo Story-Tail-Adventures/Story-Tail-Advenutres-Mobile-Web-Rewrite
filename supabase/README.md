@@ -1,11 +1,11 @@
 # `supabase/` — Database, RLS, Auth, Storage and cron
 
 **The Edge Functions are gone (Phase 6, 2026-11-26).** All 34 folders were deleted; **33** run
-in Go under `webgo/internal/api/fn/`, at the same `/functions/v1/{name}` paths. The 34th,
+in Go under `web/internal/api/fn/`, at the same `/functions/v1/{name}` paths. The 34th,
 `hotel-search`, was retired rather than ported (PR #48 moved web hotel search into the app). This directory keeps
 Postgres, migrations, RLS, Auth, Storage and pg_cron. See `../docs/GO-MIGRATION.md`.
 
-The Supabase project that hosts the application's database, auth, storage and real-time. The application's own backend logic lives in the Go service (`webgo/`); there is no separate Ktor service and no second backend. See `../docs/GO-MIGRATION.md`.
+The Supabase project that hosts the application's database, auth, storage and real-time. The application's own backend logic lives in the Go service (`web/`); there is no separate Ktor service and no second backend. See `../docs/GO-MIGRATION.md`.
 
 ## Status
 
@@ -89,8 +89,8 @@ supabase gen types typescript --local > ../web/types/supabase.ts
 ## The API is in Go, not here
 
 There are no Edge Functions in this repo any more. A new endpoint is a Go package under
-`webgo/internal/api/fn/<name>/`, registered in `webgo/internal/api/registry.go` and
-`ported.go`. Run it with `go run ./cmd/server` from `webgo/`.
+`web/internal/api/fn/<name>/`, registered in `web/internal/api/registry.go` and
+`ported.go`. Run it with `go run ./cmd/server` from `web/`.
 
 **Still owed (Gyasi):** the four pg_cron jobs below still post to
 `<project-ref>.supabase.co/functions/v1/<name>` with a service-role bearer. They have to be

@@ -15,13 +15,13 @@ Row-Level Security policies, and the SQL tests under `supabase/tests/` that exec
 Supabase still owns Postgres, RLS, Auth, Storage, pg_cron and the migrations. The backend
 *code* that used to sit beside them is gone: `supabase/functions/` was deleted in Phase 6 of
 `docs/GO-MIGRATION.md`, and all 34 functions now run in Go under
-`webgo/internal/api/fn/<name>/`. There is no Deno in the repo and none in CI.
+`web/internal/api/fn/<name>/`. There is no Deno in the repo and none in CI.
 
 That split does not move the CLAUDE.md non-negotiables, it only splits where each one is
 enforced. Rule 1 (no card columns), rule 5 (money is `bigint` cents) and the whole RLS story
 are settled in this tree and nowhere else. Rule 3 (audit every sensitive mutation) is now
 enforced on both sides: the Go handler writes the `audit_event` row through
-`webgo/internal/audit`, and the financial writes do it inside their own SQL transaction,
+`web/internal/audit`, and the financial writes do it inside their own SQL transaction,
 through the RPCs in this tree that take `p_audit_id`. A generic reviewer knows none of this,
 and does not know that this schema ships with RLS enabled and very few policies.
 
@@ -31,13 +31,13 @@ and does not know that this schema ships with RLS enabled and very few policies.
 `seed.sql`, `config.toml` and `scripts/`.
 
 - I review files under `supabase/` only. Asked to review elsewhere, I decline and point at
-  the right reviewer: `go-reviewer` for `webgo/`,
+  the right reviewer: `go-reviewer` for `web/`,
   `mobile-reviewer` for `mobile/`.
 - **Application code of any kind under `supabase/` is a misplacement.** TypeScript, Deno, Go
   or anything else here is a leftover or a mistake. Flag it and name the tree it belongs in.
 - The old rule about not importing across the tree boundary belonged to the Edge Functions,
   and it left with them. `.claude/agents/go-reviewer.md` now carries it, along with the
-  service-role boundary (only `webgo/internal/api/...` may hold the service key) and
+  service-role boundary (only `web/internal/api/...` may hold the service key) and
   contract parity with mobile. Point a reviewer of API handler code there rather than
   reviewing it here.
 

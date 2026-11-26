@@ -8,7 +8,7 @@
 #
 # Deno used to be deliberately absent here (it has no Dependabot ecosystem, and the Edge
 # Functions pinned imports by URL). The Edge Functions are deleted and there is no Deno left
-# in the repo, so that note is history; `gomod` for /webgo covers the backend now.
+# in the repo, so that note is history; `gomod` for /web covers the backend now.
 version: 2
 
 updates:
@@ -103,14 +103,14 @@ updates:
         applies-to: version-updates
         update-types: [minor, patch]
 
-  # ── Go: the web app and API in webgo/ ───────────────────────────────────────────
+  # ── Go: the web app and API in web/ ───────────────────────────────────────────
   #
   # Read htmlx bumps in full before taking them (docs/HTMLX-Library-Security-Review.md §7);
   # it is a one-maintainer library used read-only behind internal/page. golang.org/x/net is
-  # where the real fixes land, so take its bumps promptly. Becomes "/web" when webgo/ is
+  # where the real fixes land, so take its bumps promptly. This was "/web" until Phase 6
   # renamed (GO-MIGRATION Phase 6).
   - package-ecosystem: gomod
-    directory: "/webgo"
+    directory: "/web"
     schedule:
       interval: weekly
       day: monday

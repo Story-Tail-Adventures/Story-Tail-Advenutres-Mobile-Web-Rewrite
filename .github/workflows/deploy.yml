@@ -7,7 +7,7 @@
 # from GitHub. ci.yml's header says "Secrets enter only with the deploy workflow" — there is
 # exactly one here, and it is Render's.
 #
-# The service it deploys is the Go binary in `webgo/`: the web pages AND the API at
+# The service it deploys is the Go binary in `web/`: the web pages AND the API at
 # /functions/v1/{name}, which the Edge Functions used to serve. So this half got bigger when
 # the Next.js app was deleted, even though the file got smaller.
 #
@@ -73,12 +73,12 @@ permissions:
   contents: write
 
 # No NODE_VERSION: there is no Node in this deploy. The Go toolchain comes from
-# webgo/go.mod, which setup-go reads below the same way ci.yml's webgo job does.
+# web/go.mod, which setup-go reads below the same way ci.yml's web job does.
 env:
   # The one origin the whole deploy is measured against — the single place to change it.
   #
   # The Render-assigned URL, decided 2026-10-27. Whatever origin this names is crawlable —
-  # webgo/internal/handlers/public/seo.go writes `Allow: /` — and webgo/internal/content's
+  # web/internal/handlers/public/seo.go writes `Allow: /` — and web/internal/content's
   # claims registry still reports unverified claims, placeholder prices and unlicensed
   # photos. Those do not belong on the brand domain, least of all one that already has
   # traffic. So adventures.story-tail.com waits for the content registry to be clean. Moving
@@ -219,7 +219,7 @@ jobs:
       # The trap this step exists for, in its Go form: `go build` compiles fine with no
       # environment at all, so a green build says nothing about the variables. The binary
       # then reads them at startup and REFUSES TO BOOT without them
-      # (webgo/internal/config/config.go fails closed, on purpose, so a deploy that forgot
+      # (web/internal/config/config.go fails closed, on purpose, so a deploy that forgot
       # its variables never serves pages with auth skipped). Render would report that as a
       # service that will not come up. Fail here instead, where the message names the
       # variable.
@@ -230,7 +230,7 @@ jobs:
       # missing them is not a web-only problem.
       #
       # PUBLIC_CLAIMS_MODE is still deliberately absent, here and on the service. Its gate is
-      # ported (Catalog.AssertProductionReady in webgo/internal/content/proof.go) but nothing
+      # ported (Catalog.AssertProductionReady in web/internal/content/proof.go) but nothing
       # passes it an environment value yet, so setting it on the service does nothing today.
       # The placeholder banner keeps the public pages honest meanwhile. Wire it the day the
       # registry is clean, so the gate lives with the content decision.
@@ -276,20 +276,20 @@ jobs:
       # and building twice would prove nothing about the machine that matters while doubling
       # the chance of a false green from a runner-only difference.
       #
-      # go-version-file rather than a number, exactly as ci.yml's `webgo` job does it, so the
-      # toolchain line in webgo/go.mod is the one place the version lives.
+      # go-version-file rather than a number, exactly as ci.yml's `web` job does it, so the
+      # toolchain line in web/go.mod is the one place the version lives.
       - uses: actions/setup-go@v7
         if: ${{ inputs.dry_run }}
         with:
-          go-version-file: webgo/go.mod
-          cache-dependency-path: webgo/go.sum
+          go-version-file: web/go.mod
+          cache-dependency-path: web/go.sum
 
       # The same command render.yaml gives the service, from the same directory its rootDir
       # names. No environment is set: the build does not read any, and the step above already
       # checked what the running service will need.
       - name: Dry run — build this commit without deploying
         if: ${{ inputs.dry_run }}
-        working-directory: webgo
+        working-directory: web
         run: |
           set -euo pipefail
           go build -o app ./cmd/server
@@ -376,10 +376,10 @@ jobs:
           if [ "$code" -ge 500 ]; then
             echo "::error::Deployment answered $code. Read the service logs: the server logs"
             echo "::error::its whole configuration at startup, secrets as set/unset only"
-            echo "::error::(webgo/internal/config)."
+            echo "::error::(web/internal/config)."
             exit 1
           fi
-          # The sharper assertion: webgo/internal/handlers/public/seo.go writes robots.txt
+          # The sharper assertion: web/internal/handlers/public/seo.go writes robots.txt
           # from the SiteURL the process read at BOOT, so this reads back what is actually
           # serving rather than what the dashboard holds. The step above only proved the
           # dashboard value, and the two differ whenever SITE_URL was corrected without a

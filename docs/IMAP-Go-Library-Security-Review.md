@@ -4,10 +4,10 @@ Written 2026-11-06. CLAUDE.md requires a security review before any new third-pa
 `docs/GO-MIGRATION.md` ruling 15 requires one for each new Go library. The `email-inbox` function
 reads client replies out of the app's IONOS mailbox with imapflow 2.2.1
 (`docs/IMAP-Library-Security-Review.md`). Go has no IMAP client in its standard library, so the port
-in `webgo/` needs one. This picks it.
+in `web/` needs one. This picks it.
 
 Status: **approved by Gyasi 2026-11-25: go-imap v2, pinned to `v2.0.0-beta.8`.** §5 binds the
-build. The pin and its two indirect requirements are already in `webgo/go.mod`; the comment there
+build. The pin and its two indirect requirements are already in `web/go.mod`; the comment there
 now cites this approval instead of asking for it.
 
 Approved with the beta label understood: the alternatives were a v1 with no release since 2022,
@@ -132,12 +132,12 @@ Why not the others:
 
 ## 5. How it must be used (the build follows these)
 
-- **Pin exactly:** `github.com/emersion/go-imap/v2 v2.0.0-beta.8` in `webgo/go.mod`, with
+- **Pin exactly:** `github.com/emersion/go-imap/v2 v2.0.0-beta.8` in `web/go.mod`, with
   `github.com/emersion/go-message v0.18.2` and
   `github.com/emersion/go-sasl v0.0.0-20241020182733-b788ff22d5a6` as its indirect requirements.
   `go.sum` records `h1:5IXZK1E33DyeP526320J3RS7eFlCYGFgtbrfapqDPug=` for go-imap, and the Go
   checksum database vouches for it.
-- **One importer.** Only the `email-inbox` port (`webgo/internal/api/fn/emailinbox`, beside
+- **One importer.** Only the `email-inbox` port (`web/internal/api/fn/emailinbox`, beside
   `fn/cruisesearch`) imports `imap` and `imapclient`. A test like `internal/api/boundary_test.go`
   fails the build if any other package does. Nothing imports `imapserver`.
 - **We dial, the library talks.** `net.Dialer` with a 15 s timeout, then `tls.Client` with
@@ -175,7 +175,7 @@ Why not the others:
   alphabet, as imapflow's decoder does), `mime/quotedprintable`, RFC 3676 `format=flowed` unwrapping
   by hand, and charsets through `golang.org/x/text/encoding/ianaindex` (MIME names; its ISO-8859-1
   matches imapflow's), then `htmlindex` (the labels Deno's `TextDecoder` knows), then UTF-8. That is
-  today's fallback order. `x/text` is already compiled into `webgo` through `x/net`; nothing new.
+  today's fallback order. `x/text` is already compiled into `web` through `x/net`; nothing new.
 - **UIDs for every change.** Sequence numbers only for the first FETCH right after SELECT. Move a
   message only after the database recorded it (as today), so a crash leaves it in INBOX.
 - **Dates in UTC:** the purge cutoff is `time.Now().UTC()` minus 30 days. imapflow formats the date
@@ -192,10 +192,10 @@ Why not the others:
 
 ## 6. Keeping it safe after it ships
 
-- **Bumps are read, not auto-merged.** Dependabot watches `/webgo` (`gomod`). A go-imap, go-message
+- **Bumps are read, not auto-merged.** Dependabot watches `/web` (`gomod`). A go-imap, go-message
   or go-sasl bump moves only to a tag at least two weeks old, after reading the diff to
   `imapclient/` and `internal/imapwire/` and any new advisory.
-- **govulncheck** runs in the `webgo` CI job, so a new advisory in any of the three fails CI.
+- **govulncheck** runs in the `web` CI job, so a new advisory in any of the three fails CI.
 - **Watch #762, #772 and #780.** When they land upstream, keep our deadline wrapper and completeness
   check anyway; they cost nothing.
 - **When v2.0.0 is tagged,** move to it after reading the changes since beta.8.

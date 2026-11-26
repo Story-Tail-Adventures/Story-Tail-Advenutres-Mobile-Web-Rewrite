@@ -493,7 +493,7 @@ storytail/
 
 > **Amended 2026-11-06.** The target tree is now `mobile/`, `web/` (a Go module: pages and the
 > API), `supabase/` (migrations, tests, config; no `functions/`) and `contracts/`. During the
-> move the Go module is built in `webgo/` beside the Next.js `web/` (`docs/GO-MIGRATION.md`).
+> move the Go module is built in `web/` beside the Next.js `web/` (`docs/GO-MIGRATION.md`).
 
 #### Step 2 — Drop in the design system
 
@@ -658,7 +658,7 @@ A few patterns that tend to compound nicely:
 | Observability | Sentry | Free tier covers MVP |
 | ASV scans | ~~Trustwave / SecurityMetrics / Qualys~~ Not needed (since 2026-10-16) | Was a quarterly PCI requirement; no card data now |
 | API contract | OpenAPI spec + generated TS types + generated Kotlin types | One source of truth across mobile + web + backend |
-| Build tool | Turborepo or Nx monorepo · Gradle (mobile) · npm workspaces (web/contracts) · Supabase CLI · Go toolchain (`webgo/`, since 2026-11-06) | Standard for each toolchain |
+| Build tool | Turborepo or Nx monorepo · Gradle (mobile) · npm workspaces (web/contracts) · Supabase CLI · Go toolchain (`web/`, since 2026-11-06) | Standard for each toolchain |
 | CI/CD | GitHub Actions | Standard, free for small repos |
 | Workflow | Claude Code with `CLAUDE.md` + Skills | Documented in Section 5 |
 

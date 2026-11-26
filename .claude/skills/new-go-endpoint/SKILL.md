@@ -1,6 +1,6 @@
 ---
 name: new-go-endpoint
-description: Scaffold a new Go function handler under `webgo/internal/api/fn/`, registered in both the served-name list and the port table, with the caller check, audit write and problem+json errors already in place. Triggers on "new endpoint", "add a function", "new API handler", "we need a server-side handler for X", or whenever backend logic needs a new HTTP entry point at /functions/v1/{name}.
+description: Scaffold a new Go function handler under `web/internal/api/fn/`, registered in both the served-name list and the port table, with the caller check, audit write and problem+json errors already in place. Triggers on "new endpoint", "add a function", "new API handler", "we need a server-side handler for X", or whenever backend logic needs a new HTTP entry point at /functions/v1/{name}.
 ---
 
 # new-go-endpoint
@@ -49,13 +49,13 @@ comment:
 1. **Pick the two names.** The served name is kebab-case and is what the URL says
    (`agent-trip`). The Go package name is the same word with the separators removed
    (`agenttrip`), because Go package names take no hyphens or underscores. The file is
-   `webgo/internal/api/fn/<package>/<package>.go`.
+   `web/internal/api/fn/<package>/<package>.go`.
 
 2. **Write the package doc comment first.** Every package in `fn/` opens with one: what the
    endpoint does, which screen calls it, whether mobile calls it, and the WHY A FUNCTION
    answer from question 1. Anything surprising about the behaviour goes here too, in capitals
    where it would otherwise be rediscovered the hard way. Read
-   `webgo/internal/api/fn/testimonial/testimonial.go` for the house shape.
+   `web/internal/api/fn/testimonial/testimonial.go` for the house shape.
 
 3. **Implement the handler.** The whole contract is one function:
 
@@ -101,9 +101,9 @@ comment:
 
 4. **Register the name in BOTH files, or it does not exist.**
 
-   - `webgo/internal/api/registry.go`, the `Functions` slice: the allowlist of names the
+   - `web/internal/api/registry.go`, the `Functions` slice: the allowlist of names the
      door answers at all. A name outside it is a 404.
-   - `webgo/internal/api/ported.go`, `portTable()`: the name mapped to its gate and its
+   - `web/internal/api/ported.go`, `portTable()`: the name mapped to its gate and its
      `Func`, grouped by area with a comment, as the existing rows are.
 
    The four gates, exactly as `registry.go` defines them:
@@ -118,7 +118,7 @@ comment:
    A port-table row whose name is missing from `Functions` panics the server at startup, on
    purpose.
 
-5. **Keep the two lists equal.** `webgo/internal/api/registry_test.go`'s
+5. **Keep the two lists equal.** `web/internal/api/registry_test.go`'s
    `TestEveryServedNameRunsInGo` asserts that `Functions` and `portTable()` hold exactly the
    same names. This is not tidiness. Before Phase 6 a name in `Functions` with no Go handler
    fell through to the Deno deployment of the same name; that deployment is gone, so the same
@@ -130,13 +130,13 @@ comment:
    the source of truth for both clients. Do not hand-write the response type in `web/` or
    `mobile/`.
 
-7. **Test it beside the handler.** `webgo/internal/api/fn/<package>/<package>_test.go`, table
+7. **Test it beside the handler.** `web/internal/api/fn/<package>/<package>_test.go`, table
    driven, covering the method check, every parse refusal with its exact `detail` sentence,
    and the gate. The older differential tests compared a port against its Deno original and
    went with `supabase/functions/`; a new endpoint has no original to differ from, so its
    package test is the only thing holding its contract.
 
-8. **Verify.** From `webgo/`:
+8. **Verify.** From `web/`:
 
    ```bash
    gofmt -l .          # must print nothing
@@ -180,4 +180,4 @@ comment:
 - Returns a raw error to the caller.
 - Generates an id with anything other than `internal/uuid`.
 - Adds an endpoint without adding it to `contracts/openapi.yaml`.
-- Puts Go code anywhere but `webgo/`, or adds a second backend service.
+- Puts Go code anywhere but `web/`, or adds a second backend service.

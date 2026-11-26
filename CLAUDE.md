@@ -1,6 +1,6 @@
 # Story-Tail Adventures — Claude Code Project Instructions
 
-A custom CRM platform replacing Travefy for Story-Tail Adventures (a travel advisory business hosted by Inteletravel). This is a monorepo with mobile (Kotlin Multiplatform) and one Go service in `webgo/` that serves both the web pages and the API.
+A custom CRM platform replacing Travefy for Story-Tail Adventures (a travel advisory business hosted by Inteletravel). This is a monorepo with mobile (Kotlin Multiplatform) and one Go service in `web/` that serves both the web pages and the API.
 
 ## Read these documents before answering anything substantive
 
@@ -17,15 +17,15 @@ When the user asks about features, screens, entities, payment workflows, design 
 ## Stack
 
 - **Mobile** — Kotlin Multiplatform + Compose Multiplatform (Android + iOS)
-- **Web** — the Go service in `webgo/`: server-rendered HTML pages built with htmlx behind `internal/page`, styled by hand-written CSS in `webgo/assets/css/` whose tokens are pinned to `design/web-tokens/`. The Next.js app, React, MUI and the npm `web` workspace are all GONE (Phase 6, 2026-11-26). `webgo/` becomes `web/` in the rename that follows.
-- **Backend** — the Go service in `webgo/`. The Supabase Edge Functions are GONE: all 34 folders were deleted in Phase 6 (2026-11-26). **33** of them run in Go under `webgo/internal/api/fn/`, served at the same `/functions/v1/{name}` addresses; the 34th, `hotel-search`, was retired rather than ported, because web hotel search moved into the app in PR #48 and nothing calls the function. There is no Deno in this repo. NO Ktor service.
-- **The Go move is done except the rename (adopted 2026-11-06, Phase 6 cleanup 2026-11-26).** One Go service serves the web pages (htmlx, read-only, behind `internal/page`) and the API mobile calls at `/functions/v1/{name}`, as one binary. The Next.js app and the 34 Edge Functions are both deleted. Supabase keeps Postgres, RLS, Auth, Storage, pg_cron and migrations; `mobile/` stays Kotlin. The one step left is `git mv webgo web`. **Read `docs/GO-MIGRATION.md` before touching `webgo/`.**
+- **Web** — the Go service in `web/`: server-rendered HTML pages built with htmlx behind `internal/page`, styled by hand-written CSS in `web/assets/css/` whose tokens are pinned to `design/web-tokens/`. The Next.js app, React, MUI and the npm `web` workspace are all GONE (Phase 6, 2026-11-26); the Go service was built in `web/` while that app still held the name, and was renamed over it.
+- **Backend** — the Go service in `web/`. The Supabase Edge Functions are GONE: all 34 folders were deleted in Phase 6 (2026-11-26). **33** of them run in Go under `web/internal/api/fn/`, served at the same `/functions/v1/{name}` addresses; the 34th, `hotel-search`, was retired rather than ported, because web hotel search moved into the app in PR #48 and nothing calls the function. There is no Deno in this repo. NO Ktor service.
+- **The Go move is COMPLETE (adopted 2026-11-06, finished 2026-11-26).** One Go service serves the web pages (htmlx, read-only, behind `internal/page`) and the API mobile calls at `/functions/v1/{name}`, as one binary. The Next.js app and the 34 Edge Functions are both deleted and `web/` has been renamed to `web/`. Supabase keeps Postgres, RLS, Auth, Storage, pg_cron and migrations; `mobile/` stays Kotlin. **Read `docs/GO-MIGRATION.md` before touching `web/`.**
 - **Database / Auth / Storage / Realtime** — Supabase
 - **Payments**: none. The app holds no cardholder data and has no payment vendor; Stripe left the stack 2026-10-16 (it cannot reveal a stored card number anyway). Clients pay suppliers through a pay link on each payment milestone, and only the advisor marks a milestone paid. See `docs/BRD.md` §10.
 - **API contract** — OpenAPI spec in `contracts/openapi.yaml` → generated TypeScript types → generated Kotlin types
 - **Design source of truth** — the Claude Design project `https://claude.ai/design/p/019e27d4-5f9f-7c8d-b082-db804374dab3` (the older handoff tarball URL under `api.anthropic.com/v1/design/h/…` now returns 404). The local mirror lives at `design/source-prototype/` (read by `new-screen`, `go-reviewer`, `mobile-reviewer`); the design is organised as `pages/` (one section page per Screen Inventory section plus `pages/_sections.json`) and `screens/*.jsx`. To sync: run `/design-login` once in an interactive Claude Code session, then the `sync-design-handoff` skill (it reads the project through the `DesignSync` tool's `list_files` / `get_file`). **Every screen built must be visually faithful to the matching prototype JSX in `design/source-prototype/screens/`.**
 
-**Stack directories are hard boundaries.** All mobile code (Kotlin / KMP / Compose Multiplatform) lives under `mobile/`. All web and API code is Go under `webgo/` (`.go`, `go.mod`, `go.sum`, page templates, CSS and JS assets). `supabase/` holds migrations, RLS and seeds only. Shared API types live under `contracts/`. Cross-contamination, such as Kotlin UI code under `webgo/`, is a defect. The `go-reviewer` and `mobile-reviewer` subagents will flag any code in the wrong tree. There is no React in this repo: the only `.tsx` left is `design/source-prototype/`, which is reference, not shipped code.
+**Stack directories are hard boundaries.** All mobile code (Kotlin / KMP / Compose Multiplatform) lives under `mobile/`. All web and API code is Go under `web/` (`.go`, `go.mod`, `go.sum`, page templates, CSS and JS assets). `supabase/` holds migrations, RLS and seeds only. Shared API types live under `contracts/`. Cross-contamination, such as Kotlin UI code under `web/`, is a defect. The `go-reviewer` and `mobile-reviewer` subagents will flag any code in the wrong tree. There is no React in this repo: the only `.tsx` left is `design/source-prototype/`, which is reference, not shipped code.
 
 ## Critical rules — these are non-negotiable
 
@@ -33,7 +33,7 @@ When the user asks about features, screens, entities, payment workflows, design 
 
 2. **No client-facing billing.** Story-Tail Adventures is contractually prohibited from charging clients planning, consultation, or service fees (per Inteletravel host agency policy). The platform has no Invoice entity, no "charge client" actions, no merchant-of-record flows. A Travefy invoice used as a pay link may carry supplier cost only, never an advisor fee. See `docs/BRD.md` §10.5.
 
-3. **Every mutation goes through audit middleware.** The Go API handlers (`webgo/internal/audit`) writing to sensitive tables (payment_milestone, commission, client) must write an `audit_event` row capturing actor, target, metadata. See `docs/Data-Model.md` §15 and §20.
+3. **Every mutation goes through audit middleware.** The Go API handlers (`web/internal/audit`) writing to sensitive tables (payment_milestone, commission, client) must write an `audit_event` row capturing actor, target, metadata. See `docs/Data-Model.md` §15 and §20.
 
 4. **Pay links are guarded.** A milestone's pay link must be `https://`. Only the advisor can add, change or remove it (clients read it, never write it), and every add, change or removal writes an `audit_event` row, since a swapped link could send a client's money to the wrong place. The client's "I've paid" only posts a trip message; it never marks anything paid. See `docs/BRD.md` §10.
 
@@ -83,7 +83,7 @@ supabase gen types typescript --local > web/types/supabase.ts   # regen DB types
 # Contracts (codegen TS + Kotlin types from openapi.yaml)
 npm run generate -w contracts
 
-# Go web app + API (from webgo/; needs Go 1.27.3+, go.mod pins the toolchain)
+# Go web app + API (from web/; needs Go 1.27.3+, go.mod pins the toolchain)
 go run ./cmd/server                 # serves on :8080 (PORT overrides)
 go test -race ./...
 go vet ./...
@@ -129,7 +129,7 @@ Things that cost real time to rediscover:
 - **`supabase db reset` is the local loop; `supabase db push` targets a linked remote.**
   Don't reach for `push` locally.
 - **Dark mode on web is the `.scheme-dark` class**, not `prefers-color-scheme`. The Go pages
-  set it on `<html>` and the CSS in `webgo/assets/css/` keys off it. (This rule used to be
+  set it on `<html>` and the CSS in `web/assets/css/` keys off it. (This rule used to be
   about keeping MUI from owning the switch; MUI went with the Next app in Phase 6.)
 - **`~/.orbstack/bin` is not on the default non-interactive PATH.** Export it before
   `docker` or `supabase` commands, or they fail with "command not found".
@@ -248,12 +248,12 @@ unfamiliar is staged, another session put it there — leave it alone and commit
 - Don't add fields to the Data Model without first updating `docs/Data-Model.md` and regenerating the docx.
 - Don't introduce new third-party SDKs without a security review (especially anything payment-adjacent).
 - Don't refactor screen-level structure that deviates from the Design System without checking the Screen Inventory's Pattern Mapping (§4.4) first.
-- Don't introduce a separate Kotlin backend service, or any second backend service. The backend is the one Go service in `webgo/` (`docs/GO-MIGRATION.md`). If you find yourself wanting a Ktor service, a new Edge Function or another host, push back and discuss before adding it.
-- Don't let the service-role key reach a page handler in Go. Only `webgo/internal/api/...` may import the service client; pages read with the visitor's own token.
+- Don't introduce a separate Kotlin backend service, or any second backend service. The backend is the one Go service in `web/` (`docs/GO-MIGRATION.md`). If you find yourself wanting a Ktor service, a new Edge Function or another host, push back and discuss before adding it.
+- Don't let the service-role key reach a page handler in Go. Only `web/internal/api/...` may import the service client; pages read with the visitor's own token.
 - Don't paste files into chat — use `@-mentions` (e.g., `@docs/BRD.md`) for cleaner tokenization and a better audit trail.
 - Don't load Google Fonts at runtime in production — bundle Poppins / Caveat / JetBrains Mono in `mobile/shared/src/commonMain/composeResources/font/` for mobile and via `next/font` for web.
 - Don't make a copy decision without checking `docs/Design-System.md` §2 first. The brand voice is load-bearing.
-- Don't bring a CSS framework into `webgo/`. Styling is hand-written CSS in `webgo/assets/css/`, with the design tokens pinned to `design/web-tokens/` by a test in `internal/static`.
+- Don't bring a CSS framework into `web/`. Styling is hand-written CSS in `web/assets/css/`, with the design tokens pinned to `design/web-tokens/` by a test in `internal/static`.
 
 ## How to bootstrap from here
 
