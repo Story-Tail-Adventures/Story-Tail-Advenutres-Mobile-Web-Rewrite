@@ -31,7 +31,13 @@ func main() {
 }
 
 func run(log *slog.Logger) error {
-	cfg, err := config.Load(os.Getenv)
+	// In development only, .env.local (gitignored, in the working directory) fills in what the
+	// shell does not set, such as the local Supabase URL and anon key.
+	getenv, err := config.DevGetenv(os.Getenv, ".env.local")
+	if err != nil {
+		return err
+	}
+	cfg, err := config.Load(getenv)
 	if err != nil {
 		return err // fail closed: a bad or missing variable never starts a server
 	}

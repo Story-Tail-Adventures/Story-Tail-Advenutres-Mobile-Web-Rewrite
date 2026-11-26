@@ -86,7 +86,7 @@ func TestHealthz(t *testing.T) {
 
 func TestUnknownPathsAre404WithNoOutboundCall(t *testing.T) {
 	h, _ := newHandler(t, config.Production)
-	for _, path := range []string{"/", "/wp-login.php", "/.env", "/agent", "/functions/v1/agent-trip", "/_demo"} {
+	for _, path := range []string{"/", "/wp-login.php", "/.env", "/agent", "/dashboard", "/login", "/_demo"} {
 		rec := do(h, http.MethodGet, path, nil)
 		if rec.Code != http.StatusNotFound {
 			t.Errorf("GET %s = %d, want 404", path, rec.Code)

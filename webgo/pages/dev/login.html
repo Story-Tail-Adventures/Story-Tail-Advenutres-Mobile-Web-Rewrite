@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Sign in (development)</title>
+</head>
+<body>
+<main>
+  <!--
+    Development-only sign-in, mounted at /login when STA_ENV=development and Supabase is
+    configured. It proves the session cookie and the gate end to end against the local
+    stack. The real Screen 2.1.1 replaces it in Phase 3 (docs/GO-MIGRATION.md).
+  -->
+  <h1>Sign in</h1>
+  <p>Development sign-in for the local Supabase stack.</p>
+  <p role="alert" data-slot="error">That email and password don't match.</p>
+  <form method="post" action="/login">
+    <input type="hidden" name="next" data-slot="next" value="/dashboard">
+    <p><label>Email <input type="email" name="email" data-slot="email" value="sample@example.com" autocomplete="username" required></label></p>
+    <p><label>Password <input type="password" name="password" autocomplete="current-password" required></label></p>
+    <p><button type="submit">Sign in</button></p>
+  </form>
+</main>
+</body>
+</html>
