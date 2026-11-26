@@ -43,10 +43,15 @@ var messagesSpec = page.Spec{
 		"th-archive-form", "th-archive-flag", "th-archive-btn",
 		"th-truncated", "th-empty", "th-messages",
 		"rp-form", "rp-id", "rp-seen", "rp-draftfor", "rp-error", "rp-label", "rp-text", "rp-note-label", "rp-note", "rp-nologin",
-		"list-error",
+		"rp-picker", "rp-status", "list-error",
+		"pk-scrim", "pk-form", "pk-body", "pk-note", "pk-id", "pk-empty", "pk-empty-new",
+		"pk-search-field", "pk-search", "pk-body-grid", "pk-no-match", "pk-list",
+		"pk-pick-one", "pk-preview", "pk-preview-for", "pk-preview-text", "pk-missing",
+		"pk-missing-text", "pk-insert", "pk-insert-asis", "pk-sel", "pk-remind", "pk-draftfor",
 	},
 	Repeats: map[string][]string{
 		"threads": {"r-item", "r-check", "r-link", "r-name", "r-time", "r-preview", "r-trip", "r-trip-name", "r-replyby", "r-unread"},
+		"pk":      {"pk-group", "pk-item", "pk-item-name"},
 		"tmsg":    {"m-box", "m-day", "m-day-label", "m-note", "m-note-body", "m-note-time", "m-bubble", "m-paper", "m-sender", "m-body", "m-time", "m-attach", "m-attach-name"},
 	},
 }
@@ -70,6 +75,10 @@ type msgState struct {
 	NewQuery newMessageQuery
 	// NotFound: the client named in the URL is not one of theirs, or archived.
 	NotFound bool
+	// Picker is 3.10.3, open over this thread. Nil leaves it closed.
+	Picker *picker
+	// Status is the one-time line the reply box reads out ("Template added…").
+	Status string
 }
 
 // takeArchiveReceipt is what a bulk archive left behind, on whichever messages page loads
@@ -207,7 +216,16 @@ func (a *app) serveThread(w http.ResponseWriter, r *http.Request) {
 			Op: "read", ConversationID: t.Header.ConversationID, SeenUpTo: t.SeenUpTo,
 		}})
 	}
-	a.renderMessages(w, r, v, q, msgState{Thread: &t, Receipt: takeArchiveReceipt(w, r, a.d.SecureCookies)}, http.StatusOK)
+	st := msgState{Thread: &t, Receipt: takeArchiveReceipt(w, r, a.d.SecureCookies)}
+	// Trip Detail's "Remind the client" (§3.4.15) lands here with its milestone and wants the
+	// picker already open on Payment reminder.
+	if remind := uuidOrEmpty(r.URL.Query().Get("remind")); remind != "" {
+		if pk, err := a.loadPicker(r, v, t.Header, remind); err == nil {
+			pk.SelectedID = pk.openOn(pickerStartOn(remind, pk.Values))
+			st.Picker = pk
+		}
+	}
+	a.renderMessages(w, r, v, q, st, http.StatusOK)
 }
 
 func (a *app) renderMessages(w http.ResponseWriter, r *http.Request, v visit, q inboxQuery, st msgState, status int) {
@@ -494,6 +512,19 @@ func fillThreadPane(doc *page.Doc, t threadView, q inboxQuery, st msgState, now 
 		fillThreadMessages(doc, days, t, h)
 	}
 
+	// 3.10.3 over the pane, and the button that opens it. A failed template read offers no
+	// picker rather than an empty one.
+	keepIf(doc, "pk-scrim", st.Picker != nil)
+	doc.Keep("rp-picker")
+	if st.Picker != nil {
+		fillPicker(doc, *st.Picker, st, self)
+	}
+
+	if st.Status == "" {
+		doc.Remove("rp-status")
+	} else {
+		doc.Text("rp-status", st.Status)
+	}
 	doc.URL("rp-form", "action", self)
 	id := st.MessageID
 	if id == "" {
@@ -723,15 +754,89 @@ func (a *app) postThread(w http.ResponseWriter, r *http.Request) {
 		case out.SignIn:
 			web.SeeOther(w, r, web.SignInURL(r))
 		case !out.OK:
-			a.renderThreadError(w, r, v, q, conversationID, msgState{Error: archiveMessageOf(res)}, out.Status)
+			a.redrawThread(w, r, v, q, conversationID, msgState{Error: archiveMessageOf(res)}, out.Status)
 		default:
 			web.SeeOther(w, r, self)
 		}
 	case "send":
 		a.sendMessage(w, r, v, q, conversationID, f)
 	default:
+		if isPickerOp(f.Get("op")) {
+			a.pickTemplate(w, r, v, q, conversationID, f)
+			return
+		}
 		web.Error(w, http.StatusBadRequest)
 	}
+}
+
+// isPickerOp: everything 3.10.3 posts, including a list button's "pick:<id>".
+func isPickerOp(op string) bool {
+	switch pickerOp(op) {
+	case "picker", "pick", "search", "insert", "insert-asis", "close":
+		return true
+	}
+	return false
+}
+
+// pickTemplate is every click inside 3.10.3, and the button that opens it. Each one carries
+// the draft, the note switch and the draft's id back, so nothing typed is lost.
+func (a *app) pickTemplate(w http.ResponseWriter, r *http.Request, v visit, q inboxQuery, conversationID string, f url.Values) {
+	op := pickerOp(f.Get("op"))
+	body := f.Get("body")
+	note := f.Get("internalNote") == "true"
+	st := msgState{Body: body, Note: note, MessageID: draftID(f, body, note)}
+	if op == "close" {
+		a.redrawThread(w, r, v, q, conversationID, st, http.StatusOK)
+		return
+	}
+
+	t, found, err := a.loadThread(r, v, conversationID)
+	switch {
+	case err != nil:
+		a.renderFailed(w, r, v, true)
+		return
+	case !found:
+		web.Error(w, http.StatusNotFound)
+		return
+	}
+	// The milestone rides in the picker's own form, because this is a POST and the door's
+	// ?remind= was on the GET that opened the thread.
+	milestone := uuidOrEmpty(f.Get("remind"))
+	pk, err := a.loadPicker(r, v, t.Header, milestone)
+	if err != nil {
+		// Next offers no picker when the read fails; here the thread comes back without it.
+		a.redrawThread(w, r, v, q, conversationID, st, http.StatusOK)
+		return
+	}
+	pk.Search, pk.SelectedID = pickerFromForm(f)
+	if op == "picker" {
+		pk.SelectedID = pk.openOn(pickerStartOn(milestone, pk.Values))
+	}
+
+	if op == "insert" || op == "insert-asis" {
+		chosen, ok := pk.selected()
+		if !ok {
+			a.redrawThread(w, r, v, q, conversationID, st, http.StatusOK)
+			return
+		}
+		out := renderTemplate(chosen.Body, pk.Values)
+		// "Insert as-is" is off while anything is missing; a post that says otherwise is
+		// not one of our buttons.
+		if op == "insert-asis" && len(out.Missing) > 0 {
+			st.Picker = pk
+			a.redrawThread(w, r, v, q, conversationID, st, http.StatusUnprocessableEntity)
+			return
+		}
+		st.Body = insertTemplate(body, out.Text)
+		// The words changed, so the draft's id is minted afresh for them.
+		st.MessageID = uuid.New()
+		st.Status = tplInserted
+		a.redrawThread(w, r, v, q, conversationID, st, http.StatusOK)
+		return
+	}
+
+	st.Picker = pk
+	a.redrawThread(w, r, v, q, conversationID, st, http.StatusOK)
 }
 
 func (a *app) sendMessage(w http.ResponseWriter, r *http.Request, v visit, q inboxQuery, conversationID string, f url.Values) {
@@ -740,10 +845,16 @@ func (a *app) sendMessage(w http.ResponseWriter, r *http.Request, v visit, q inb
 
 	id := draftID(f, body, note)
 	again := func(msg string, status int) {
-		a.renderThreadError(w, r, v, q, conversationID, msgState{Error: msg, Body: body, Note: note, MessageID: id}, status)
+		a.redrawThread(w, r, v, q, conversationID, msgState{Error: msg, Body: body, Note: note, MessageID: id}, status)
 	}
 	if jsTrim(body) == "" {
 		again(msgSendFailed, http.StatusUnprocessableEntity)
+		return
+	}
+	// A template inserted with "Insert & edit" leaves raw tokens behind. A client never reads
+	// one, so Send refuses until they are replaced — here, and again in agent-message.
+	if left := unfilledFields(body); len(left) > 0 {
+		again(templateUnfilled(left), http.StatusUnprocessableEntity)
 		return
 	}
 	send := sendBody{Op: "send", MessageID: id, Body: body, InternalNote: note, ConversationID: conversationID}
@@ -803,8 +914,9 @@ func draftID(f url.Values, body string, note bool) string {
 	return id
 }
 
-// renderThreadError redraws the page with the thread open and a sentence over the reply box.
-func (a *app) renderThreadError(w http.ResponseWriter, r *http.Request, v visit, q inboxQuery, conversationID string, st msgState, status int) {
+// redrawThread draws the page again with this thread open: a refused send and its sentence,
+// an insert that changed the draft, or the picker opening and closing.
+func (a *app) redrawThread(w http.ResponseWriter, r *http.Request, v visit, q inboxQuery, conversationID string, st msgState, status int) {
 	t, found, err := a.loadThread(r, v, conversationID)
 	switch {
 	case err != nil:

@@ -27,6 +27,8 @@ func detailWorld(t *testing.T) *world {
 	wd.fake.rpc["agent_client_documents"] = `[{"document_id":"d1","kind":"passport","filename":"passport.pdf","mime_type":"application/pdf","size_bytes":"1153434","is_sensitive":true,"trip_title":null}]`
 	wd.fake.rpc["agent_client_notes"] = `[{"note_id":"n1","body":"Wants a <villa>.","author_name":"Gyasi Story","author_is_me":true,"created_at":"2026-09-14T10:00:00Z","updated_at":"2026-09-20T10:00:00Z"},{"note_id":"n2","body":"Not mine.","author_name":"Other","author_is_me":false,"created_at":"2026-09-14T10:00:00Z","updated_at":"2026-09-14T10:00:00Z"}]`
 	wd.fake.rpc["agent_client_activity"] = `[{"event_id":"e1","event_type":"client.tag_added","metadata":{"tag":"vip"},"actor_name":"Gyasi Story","created_at":"2026-09-23T10:00:00Z"}]`
+	// Every tab on this page reads the SAME client.
+	wd.scope("p_client_id", "c-imani")
 	return wd
 }
 

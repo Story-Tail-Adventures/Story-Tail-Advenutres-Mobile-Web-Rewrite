@@ -35,11 +35,14 @@ func messagesWorld(t *testing.T) *world {
 		"client_first_name": "Maya", "trip_id": "t1", "trip_title": "Sandals · Jul", "subject": nil,
 		"agent_unread_count": 2, "reply_due_at": nil, "overdue": false, "archived": false, "client_can_sign_in": false,
 	}})
-	wd.fake.rpc["agent_conversation_messages"] = mustJSON([]map[string]any{
-		{"message_id": "m1", "sender_role": "client", "body": "Yes lock <the> upgrade!", "is_internal_note": false,
-			"created_at": "2026-10-12T18:14:00.123456+00:00", "attachments": []any{map[string]any{"document_id": "d1", "filename": "passport.pdf", "kind": "passport"}},
-			"total_messages": 1, "emailed_at": nil, "channel": "email"},
-	})
+	wd.fake.rpc["agent_conversation_messages"] = mustJSON(
+		[]map[string]any{
+			{"message_id": "m1", "sender_role": "client", "body": "Yes lock <the> upgrade!", "is_internal_note": false,
+				"created_at": "2026-10-12T18:14:00.123456+00:00", "attachments": []any{map[string]any{"document_id": "d1", "filename": "passport.pdf", "kind": "passport"}},
+				"total_messages": 1, "emailed_at": nil, "channel": "email"},
+		})
+	// The fixtures describe ONE thread; a read for another is a read for somebody else.
+	wd.scope("p_conversation_id", convID)
 	return wd
 }
 

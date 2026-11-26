@@ -165,26 +165,95 @@
           </div>
         </div>
 
+        <!-- The op travels on the button that was clicked, never as a hidden field: a hidden
+             op=send would be the FIRST op in the post and would win over "Insert template". -->
         <form class="ppl-msg-reply" method="post" action="/agent/messages/c1" data-submit-once data-slot="rp-form">
-          <input type="hidden" name="op" value="send">
           <input type="hidden" name="messageId" value="" data-slot="rp-id">
           <input type="hidden" name="seenUpTo" value="" data-slot="rp-seen">
           <input type="hidden" name="draftFor" value="" data-slot="rp-draftfor">
+          <span class="visually-hidden" role="status" data-slot="rp-status">Template added. Read it over, then send.</span>
           <p class="type-body2 text-error ppl-mb-1" role="alert" data-slot="rp-error">That didn't send. Try again in a moment.</p>
           <div class="field">
             <label class="field-label" for="reply-body" data-reply-label data-note-label="Internal note" data-slot="rp-label">Reply</label>
             <textarea class="input ppl-msg-text" id="reply-body" name="body" rows="3" required placeholder="Write a reply…" data-reply-text data-note-placeholder="Write a note only you can see…" data-slot="rp-text"></textarea>
           </div>
           <div class="ppl-msg-reply-foot">
+            <button type="submit" formnovalidate class="btn btn-text btn-small ppl-btn-sm ppl-msg-tpl" name="op" value="picker" data-slot="rp-picker"><svg class="icon ppl-icon-14" aria-hidden="true"><use href="/assets/icons.svg#sparkle"></use></svg> Insert template</button>
             <label class="check ppl-msg-note-switch" data-slot="rp-note-label"><input class="check-input ppl-note-switch" type="checkbox" name="internalNote" value="true" data-slot="rp-note"><span class="type-body2">Internal note</span></label>
             <div class="ppl-ml-auto">
-              <button type="submit" class="btn btn-contained st-btn btn-small ppl-msg-send">Send</button>
-              <button type="submit" class="btn btn-contained st-btn btn-small ppl-msg-send-note">Add note</button>
+              <button type="submit" name="op" value="send" class="btn btn-contained st-btn btn-small ppl-msg-send">Send</button>
+              <button type="submit" name="op" value="send" class="btn btn-contained st-btn btn-small ppl-msg-send-note">Add note</button>
             </div>
           </div>
           <p class="type-caption text-secondary ppl-msg-note-hint"><svg class="icon ppl-icon-12" aria-hidden="true"><use href="/assets/icons.svg#lock"></use></svg>Only you can see this note.</p>
           <p class="type-caption text-secondary ppl-block ppl-mt-0_75" data-slot="rp-nologin">Maya hasn't set up a login yet, so this won't be emailed. It will be waiting when they sign in.</p>
         </form>
+
+        <!-- 3.10.3, drawn over the pane. It does not claim aria-modal: with no script the
+             page behind it is still reachable, and saying otherwise would mislead a screen
+             reader. Everything in it is a submit, so the draft survives every click. -->
+        <div class="ppl-pk-scrim" data-slot="pk-scrim">
+          <div class="ppl-pk paper" role="dialog" aria-labelledby="pk-title">
+            <form method="post" action="/agent/messages/c1" data-slot="pk-form">
+              <input type="hidden" name="body" value="" data-slot="pk-body">
+              <input type="hidden" name="internalNote" value="false" data-slot="pk-note">
+              <input type="hidden" name="messageId" value="" data-slot="pk-id">
+              <!-- Which template is showing. A list button says so in its own op; every other
+                   button in here (Search, Insert, Insert as-is) reads it from this field. -->
+              <input type="hidden" name="tpl" value="" data-slot="pk-sel">
+              <!-- Trip Detail's milestone, so every click in here keeps filling payment.*;
+                   and the draft's fingerprint, so a round trip does not re-mint its id. -->
+              <input type="hidden" name="remind" value="" data-slot="pk-remind">
+              <input type="hidden" name="draftFor" value="" data-slot="pk-draftfor">
+              <div class="ppl-pk-head">
+                <span class="ppl-pk-spark" aria-hidden="true"><svg class="icon ppl-icon-18"><use href="/assets/icons.svg#sparkle"></use></svg></span>
+                <h2 class="type-h5 ppl-pk-title" id="pk-title">Insert a template</h2>
+              </div>
+
+              <p class="type-body2 ppl-pk-empty" data-slot="pk-empty">No templates yet. <a class="link" href="/agent/messages/templates/new" data-slot="pk-empty-new">New template</a></p>
+
+              <!-- Next searches as you type. Without a script this needs a button, and it
+                   has to be the FIRST submit in the form: Enter in the box clicks that one. -->
+              <div class="field ppl-pk-search" data-slot="pk-search-field">
+                <label class="field-label" for="pk-q">Search templates</label>
+                <div class="ppl-pk-search-row">
+                  <input class="input" id="pk-q" name="tq" type="search" placeholder="Name, tag or words" value="" data-slot="pk-search">
+                  <button class="btn btn-outlined btn-secondary btn-small ppl-btn-sm" type="submit" name="op" value="search">Search</button>
+                </div>
+              </div>
+
+              <div class="ppl-pk-cols" data-slot="pk-body-grid">
+                <div class="paper paper-outlined ppl-pk-side">
+                  <p class="type-body2 text-secondary ppl-pk-nomatch" data-slot="pk-no-match">No templates match.</p>
+                  <ul class="ppl-pk-list" data-slot="pk-list">
+                    <li class="ppl-contents" data-repeat="pk">
+                      <p class="type-caption ppl-pk-group" data-slot="pk-group">Lead response</p>
+                      <button class="ppl-pk-item" type="submit" name="op" value="pick:" data-slot="pk-item"><span class="type-body2 fw-500" data-slot="pk-item-name">Lead response</span></button>
+                    </li>
+                  </ul>
+                </div>
+                <section class="paper paper-outlined ppl-pk-preview" aria-live="polite">
+                  <p class="type-body2 text-secondary ppl-pk-pickone" data-slot="pk-pick-one">Pick a template to see it here.</p>
+                  <div data-slot="pk-preview">
+                    <p class="type-overline text-secondary ppl-pk-for" data-slot="pk-preview-for">Preview · for Maya</p>
+                    <p class="type-body2 pre-line ppl-pk-text" data-slot="pk-preview-text">Hi Maya,</p>
+                    <p class="type-caption text-secondary ppl-pk-missing" data-slot="pk-missing"><svg class="icon ppl-icon-12" aria-hidden="true"><use href="/assets/icons.svg#info"></use></svg><span data-slot="pk-missing-text">This one needs trip dates.</span></p>
+                  </div>
+                </section>
+              </div>
+
+              <div class="ppl-pk-foot">
+                <a class="link type-body2" href="/agent/messages/templates">Manage templates</a>
+                <div class="ppl-pk-buttons">
+                  <button class="btn btn-text btn-small ppl-btn-sm" type="submit" name="op" value="close">Cancel</button>
+                  <button class="btn btn-tertiary btn-small ppl-btn-sm" type="submit" name="op" value="insert" data-slot="pk-insert">Insert &amp; edit</button>
+                  <button class="btn btn-contained st-btn btn-small ppl-btn-sm" type="submit" name="op" value="insert-asis" data-slot="pk-insert-asis">Insert as-is</button>
+                </div>
+              </div>
+              <button class="icon-btn ppl-pk-close" type="submit" name="op" value="close"><svg class="icon ppl-icon-16" aria-hidden="true"><use href="/assets/icons.svg#close"></use></svg><span class="visually-hidden">Close</span></button>
+            </form>
+          </div>
+        </div>
       </section>
     </div>
   </div>

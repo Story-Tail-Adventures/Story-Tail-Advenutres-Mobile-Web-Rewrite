@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<!--
+  Screen 3.10.5 Template Editor (A3105_TemplateEditor). WEB ONLY.
+  app/(agent)/agent/messages/templates/{new,[templateId]}/page.tsx +
+  components/agent/MessageTemplateEditor.tsx: the form on the left, the preview on the right.
+
+  PLAIN TEXT, NO SUBJECT, EXPLICIT SAVE (Gyasi, 2026-10-14). No auto-save: saving half a
+  template would change what the picker inserts while it is being written.
+
+  THE MERGE FIELD CHIPS ARE SUBMIT BUTTONS. Next inserts at the cursor from a script; here the
+  button posts and the server puts the token at the end of the message, and template.js
+  upgrades that to the cursor when there is a script. An unknown token is named and blocks
+  Save, here and again in the Edge Function and the SQL.
+
+  THE PREVIEW USES A FIXED SAMPLE (Jordan, Nassau), never a real client: the picker is where a
+  real thread's data merges.
+-->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Template · Story-Tail Adventures</title>
+</head>
+<body>
+<main>
+  <form class="ppl-ted" method="post" action="/agent/messages/templates/new" data-template-editor data-slot="ed-form">
+    <input type="hidden" name="templateId" value="" data-slot="ed-id">
+    <header class="ppl-ted-head">
+      <div class="ppl-flex1">
+        <p class="type-caption text-secondary ppl-ted-crumb"><a class="link link-inherit" href="/agent/messages/templates">Templates</a> · <span data-slot="ed-category-label">Lead response</span></p>
+        <h1 class="type-h5 fw-700 ppl-ted-h1" data-slot="ed-h1">New template</h1>
+      </div>
+      <div class="ppl-ted-tools">
+        <p class="type-caption text-secondary ppl-ted-status" role="status" data-slot="ed-status">Saved</p>
+        <!-- Save comes FIRST in the form: Enter in any box clicks the first submit button,
+             and that must not be Archive. .ppl-ted-save draws it back on the right. -->
+        <button class="btn btn-contained btn-small ppl-btn-sm ppl-ted-save" type="submit" name="op" value="save">Save</button>
+        <button class="btn btn-text btn-small ppl-btn-sm ppl-ted-arch" type="submit" name="op" value="archive" data-archive-confirm data-slot="ed-archive">Archive</button>
+      </div>
+    </header>
+
+    <p class="type-body2 text-error ppl-ted-error" role="alert" data-slot="ed-error">That didn't save. Try again in a moment.</p>
+
+    <div class="ppl-ted-panes">
+      <div class="ppl-ted-left">
+        <div class="ppl-ted-row1">
+          <div class="field">
+            <label class="field-label" for="tpl-name">Name</label>
+            <input class="input" id="tpl-name" name="name" type="text" maxlength="80" value="" autocomplete="off" data-slot="ed-name">
+            <p class="field-error" data-slot="ed-name-error">Give this template a name.</p>
+          </div>
+          <div class="field">
+            <label class="field-label" for="tpl-category">Category</label>
+            <div class="select"><select class="input" id="tpl-category" name="category">
+              <option value="lead_response" data-slot="cat-lead-response">Lead response</option>
+              <option value="proposal" data-slot="cat-proposal">Proposal</option>
+              <option value="booking_confirmation" data-slot="cat-booking-confirmation">Booking confirmation</option>
+              <option value="pre_trip" data-slot="cat-pre-trip">Pre-trip</option>
+              <option value="post_trip" data-slot="cat-post-trip">Post-trip</option>
+              <option value="payment_reminder" data-slot="cat-payment-reminder">Payment reminder</option>
+              <option value="other" data-slot="cat-other">Other</option>
+            </select></div>
+          </div>
+        </div>
+
+        <div class="field">
+          <label class="field-label" for="tpl-body">Message</label>
+          <textarea class="input ppl-ted-body" id="tpl-body" name="body" rows="12" maxlength="8000" data-slot="ed-body"></textarea>
+          <p class="field-error" data-slot="ed-body-error">Write the message this template starts from.</p>
+          <p class="field-help" data-slot="ed-body-hint">Add a field from the list below. It goes in where your cursor is.</p>
+        </div>
+
+        <div role="group" aria-labelledby="tpl-fields-label">
+          <p class="type-caption text-secondary ppl-ted-fields-label" id="tpl-fields-label">Merge fields</p>
+          <div class="chip-group ppl-ted-chips">
+            <span class="ppl-contents" data-repeat="field"><button class="chip chip-outlined chip-clickable chip-small ppl-ted-chip" type="submit" name="field" value="client.firstName" data-sample="" data-slot="f-chip"><span class="chip-label" data-slot="f-label">{{client.firstName}}</span></button></span>
+          </div>
+        </div>
+
+        <div class="field">
+          <label class="field-label" for="tpl-tags">Tags</label>
+          <input class="input" id="tpl-tags" name="tags" type="text" value="" list="tpl-tag-list" autocomplete="off" data-slot="ed-tags">
+          <datalist id="tpl-tag-list" data-slot="ed-tag-list"><span class="ppl-contents" data-repeat="tag"><option data-slot="g-tag">beach</option></span></datalist>
+          <p class="field-help">Separate tags with commas.</p>
+        </div>
+      </div>
+
+      <section class="ppl-ted-right" aria-labelledby="tpl-preview-heading">
+        <h2 class="type-overline text-secondary ppl-ted-preview-heading" id="tpl-preview-heading">Preview · with sample data</h2>
+        <div class="card ppl-ted-preview-card">
+          <div class="card-content ppl-ted-preview-in">
+            <p class="type-body2 pre-line ppl-ted-preview" data-slot="ed-preview">Hi Jordan,</p>
+          </div>
+        </div>
+      </section>
+    </div>
+  </form>
+  <script type="module" src="/assets/js/agent/people/templates.js"></script>
+</main>
+</body>
+</html>
