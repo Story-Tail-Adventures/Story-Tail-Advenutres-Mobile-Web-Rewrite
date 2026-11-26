@@ -136,7 +136,11 @@ jobs:
   # bump them by hand. govulncheck is the guard the htmlx review relies on: a new
   # x/net/html advisory fails here.
   web:
-    name: Web (Go)
+    # Named "Web", not "Web (Go)": it IS the web app now, and dev's branch protection has
+    # required a check called "Web" since the Next.js job carried that name. Renaming the
+    # job without renaming the check leaves a required context nothing ever reports, and
+    # the PR blocks on it with every check green.
+    name: Web
     runs-on: ubuntu-latest
     defaults:
       run:
