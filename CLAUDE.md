@@ -159,6 +159,61 @@ Things that cost real time to rediscover:
 - **The dark scheme is a full tropical rebrand, not an inversion** — primary goes burgundy
   to ocean blue, secondary to sunset gold, surfaces to deep navy. Check both schemes on
   every screen.
+- **iCloud evicts file CONTENT, and `git status` stays clean.** This repo lives under
+  iCloud-synced `~/Documents`. Evicted files keep their size in `ls` and in git's index but
+  read back as **zero bytes**, so git sees no change while the compiler sees an empty file.
+  On 2026-11-25 this had **134 tracked files** dataless at once, which produced three
+  separate, misleading failures: `:shared:assembleAndroidMain` failing with ~40 "Unresolved
+  reference" errors (the 73 KB `api/TripRepository.kt` was empty); a Gradle `EOFException`
+  on `.gradle/**/executionHistory.bin`; and an APK that built fine but **crashed at launch**
+  with `NullPointerException: decodeByteArray(...) must not be null` because
+  `composeResources/drawable/*.jpg` were empty when packaged. Detect and fix with:
+  ```bash
+  git ls-files -z | while IFS= read -r -d '' f; do [ -f "$f" ] || continue; s=$(wc -c <"$f"); [ "$s" -gt 0 ] && [ "$(dd if="$f" bs=1 count=1 2>/dev/null | wc -c)" -eq 0 ] && echo "$f"; done
+  ```
+  then `brctl download <file>` each one (it is fast and non-destructive). **Suspect this
+  first** whenever a symbol that plainly exists is "unresolved", or an image crashes at
+  runtime. After fixing, `./gradlew :androidApp:clean :shared:clean` — a previously built
+  APK keeps the empty assets baked in.
+
+### Android CLI (`android`) — installed 2026-11-25
+
+Google's agent-facing CLI, installed from Google's own tap
+(`brew install --cask android/tap/android-cli`; note a *different*, pinned `android-cli`
+cask also exists in homebrew-cask core — use the fully-qualified name). The matching Claude
+Code plugin is `android-cli@android-cli-plugin`; it ships one skill and no MCP server, so it
+costs nothing at startup. `android init` writes only to `~/` (it does not touch this repo).
+
+What it is actually good for here, verified on this project:
+
+- **`android layout` beats a raw `uiautomator dump`.** Measured side by side on the Sign-in
+  screen with the keyboard up: `android layout` returned the live screen with correct bounds
+  (`EditText [162,1589][1182,1757]`, matching the screenshot) and a **precomputed `center`**
+  per element, and it tags semantics (`EDITABLE`, `PASSWORD`, `SCROLLABLE`). The raw
+  `uiautomator dump` at the same moment returned the **previous screen**, with the fields
+  typed as `android.widget.Button` and **no `EditText` at all**. This is the real cause of
+  the old "uiautomator bounds lie when the keyboard is up" note — prefer `android layout`.
+- **Tap/type by selector, not coordinates:** `android input tap "text=Sign in" --match first`.
+- **`android run` does a delta install** (observed 1.12 MB instead of 22.90 MB, ~95% saved).
+- **`android preview render` works without a device or emulator** and *does* render Compose
+  Multiplatform composables out of `shared/commonMain` — the component tree walked
+  `App` → `StoryTailTheme` (App.kt) correctly. **But** the repo's only `@Preview`
+  (`AppAndroidPreview`) renders a **blank cream screen**, because `App()` sits on
+  `SplashScreen` until the background Supabase init completes, which never happens in a
+  static render. To get value from previews, add them on individual screen composables with
+  fake data — not on `App()`.
+
+Permissions for these commands are in `.claude/settings.json`; `android auth`, `create`,
+`update`, `sdk install` and `skills` are on `ask`, and `emulator remove` / `sdk remove` are
+denied.
+
+**Kotlin LSP is installed but NOT usable yet.** `brew install JetBrains/utils/kotlin-lsp`
+plus `kotlin-lsp@claude-plugins-official` are both in place and the binary runs
+(271.2085.0-EAP), but it refuses to start without an accepted JetBrains EULA
+(`--eula=<hash>`); run `kotlin-lsp --show-eula` and accept it yourself if you want it.
+Temper expectations: JetBrains states kotlin-lsp supports **JVM-only** Kotlin Gradle
+projects and lists KMP as planned, so `shared/` may index badly. If it emits bogus
+diagnostics, uninstall rather than live with the noise.
 
 ## Working alongside another session — use a worktree
 

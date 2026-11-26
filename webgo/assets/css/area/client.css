@@ -7,7 +7,1050 @@
  *
  * No inline styles anywhere (the CSP is style-src 'self'): a page that needs a one-off size
  * or colour gets a class here. internal/static/classes_test.go fails on any class a page uses
- * that no stylesheet defines. */
+ * that no stylesheet defines.
+ *
+ * Every value is the sx of the Next component it replaces (web/app/(client)/**,
+ * components/client/*), named beside it, in MUI's 8px spacing: 0.25 = 2px, 0.75 = 6px,
+ * 1.25 = 10px, 1.75 = 14px, 2.5 = 20px, 3.5 = 28px. */
 
 @layer components {
+  /* Two icon sizes ui.css does not carry, because only these screens draw them: the hero's
+     12px arrow and the trip row's 13px chevron, both as <Icon size> set them in Next. */
+  .cl-icon-12 { width: 12px; height: 12px; }
+  .cl-icon-13 { width: 13px; height: 13px; }
+
+  /* ── The page box every traveler screen sits in (PAGE_SX) ─────────────────────────────── */
+  .cl-page {
+    margin: 0 auto;
+    width: 100%;
+    max-width: 1024px;
+    padding: 16px 16px 40px;
+  }
+  .cl-title { margin: 0; }
+  .cl-subtitle { margin: 4px 0 0; max-width: 65ch; }
+
+  /* ── §5's states: the retry card and the empty one ─────────────────────────────────────── */
+  .cl-retry { margin-top: 16px; padding: 20px; text-align: center; }
+  .cl-retry-title { margin: 0; }
+  .cl-retry-body { margin: 6px 0 14px; }
+  .cl-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    margin-top: 16px;
+    border: 1px dashed var(--mui-palette-outline-variant);
+    border-radius: 12px;
+    padding: 28px 20px;
+    text-align: center;
+  }
+  .cl-empty-hero { margin-top: 16px; }
+  .cl-empty-icon { display: inline-flex; color: var(--mui-palette-text-secondary); }
+  .cl-empty-title { margin: 0; }
+  .cl-empty-body { margin: 0 auto 8px; max-width: 48ch; }
+
+  /* ── 2.2.2 All trips: the filter chips and the rows ───────────────────────────────────── */
+  .cl-tabs { display: flex; gap: 8px; margin-top: 16px; overflow-x: auto; padding-bottom: 4px; }
+  .cl-tab { flex-shrink: 0; height: 28px; }
+  .cl-trip-list { display: flex; flex-direction: column; gap: 12px; margin: 16px 0 0; padding: 0; list-style: none; }
+  .cl-trip {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    color: inherit;
+    text-decoration: none;
+  }
+  .cl-trip-photo { position: relative; display: block; height: 140px; overflow: hidden; }
+  .cl-trip-photo img { width: 100%; height: 100%; object-fit: cover; }
+  /* The chip rides the photo below md and moves into the body from it. */
+  .cl-trip-chip-photo { position: absolute; top: 10px; left: 10px; }
+  .cl-trip-body { display: block; padding: 16px; }
+  .cl-trip-title { display: block; margin-top: 6px; }
+  .cl-trip-meta { display: block; }
+  .cl-trip-value {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    border-top: 1px solid var(--mui-palette-divider);
+    padding: 16px;
+  }
+  .cl-trip-value-label { display: block; font-weight: 500; line-height: 1.3; }
+  .cl-trip-value-amount { display: block; }
+  .cl-trip-open { pointer-events: none; }
+
+  /* ── 2.2.1 Dashboard ──────────────────────────────────────────────────────────────────── */
+  .cl-overline { display: block; margin: 0; color: var(--mui-palette-secondary-main); font-weight: 600; line-height: 1.3; }
+  .cl-greeting { margin: 6px 0 0; }
+  .cl-sub-traveling { display: block; margin: 4px 0 0; }
+  .cl-sub-none { margin: 8px 0 0; max-width: 65ch; }
+  .cl-hero-grid { display: grid; gap: 12px; margin-top: 16px; grid-template-columns: minmax(0, 1fr); }
+  .cl-hero { position: relative; min-height: 260px; overflow: hidden; color: var(--mui-palette-common-white); }
+  .cl-hero-photo { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+  /* SCRIM_SX: burgundy 82% into navy 70%, from the theme's own brand-source variables.
+     Scheme-independent on purpose — white copy on a photo stays white in both schemes. */
+  .cl-hero-scrim {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+      150deg,
+      color-mix(in srgb, var(--mui-palette-brandSource-burgundy) 82%, transparent),
+      color-mix(in srgb, var(--mui-palette-brandSource-navy) 70%, transparent)
+    );
+  }
+  .cl-hero-body { position: relative; display: flex; min-height: 260px; flex-direction: column; padding: 20px; }
+  .cl-hero-chip { align-self: flex-start; }
+  .cl-hero-title { margin: 10px 0 0; color: var(--mui-palette-common-white); }
+  .cl-hero-meta { margin: 0; font-weight: 500; opacity: 0.9; }
+  .cl-hero-foot { display: flex; align-items: flex-end; gap: 8px; margin-top: auto; padding-top: 16px; }
+  .cl-countdown {
+    display: block;
+    border: 1px solid color-mix(in srgb, currentColor 20%, transparent);
+    border-radius: 8px;
+    background: color-mix(in srgb, currentColor 15%, transparent);
+    padding: 8px 16px;
+    text-align: center;
+    backdrop-filter: blur(8px);
+  }
+  .cl-countdown-n { display: block; font-weight: 800; line-height: 1; }
+  .cl-countdown-unit {
+    display: block;
+    margin-top: 4px;
+    font-size: 9px;
+    font-weight: 600;
+    line-height: 1;
+    letter-spacing: 1.2px;
+    opacity: 0.85;
+  }
+  .cl-hero-cta,
+  .cl-hero-pending { margin-left: auto; }
+  .cl-hero-pending { font-size: 12px; font-weight: 500; opacity: 0.8; }
+  .cl-hero-side { display: flex; flex-direction: column; gap: 10px; }
+
+  /* The next-payment card and the pay block (§2.2.3, ruled 2026-10-16). */
+  .cl-pay-card { padding: 14px; }
+  .cl-pay-card:last-child { padding-bottom: 14px; }
+  .cl-pay-head { display: flex; align-items: center; gap: 8px; margin: 0; font-weight: 600; line-height: 1.3; }
+  .cl-pay-title { margin: 6px 0 0; font-weight: 600; line-height: 1.3; }
+  .cl-pay-when { display: block; margin: 2px 0 0; }
+  .cl-pay-block { margin-top: 10px; }
+  .cl-pay-link { text-transform: none; font-weight: 600; }
+  .cl-pay-site { display: flex; align-items: center; gap: 6px; margin: 6px 0 0; color: var(--mui-palette-text-secondary); }
+  .cl-pay-note { display: block; margin: 2px 0 0; }
+  .cl-pay-form { margin-top: 4px; }
+  .cl-pay-paid { padding-left: 4px; padding-right: 4px; min-width: 0; text-transform: none; }
+
+  /* The advisor card. */
+  .cl-advisor { padding: 14px; }
+  .cl-advisor:last-child { padding-bottom: 14px; }
+  .cl-advisor-head { display: block; margin: 0 0 6px; line-height: 1.3; }
+  .cl-advisor-row { display: flex; align-items: center; gap: 10px; }
+  .cl-advisor-avatar {
+    width: 40px;
+    height: 40px;
+    font-size: 14px;
+    font-weight: 600;
+    background: var(--mui-palette-tertiary-container);
+    color: var(--mui-palette-tertiary-onContainer);
+  }
+  .cl-advisor-text { min-width: 0; flex: 1; }
+  .cl-advisor-name { margin: 0; line-height: 1.3; }
+  .cl-advisor-reply { display: block; margin: 0; }
+  .cl-advisor-quote { display: block; margin: 8px 0 0; }
+  .cl-advisor-cta { margin-top: 10px; }
+
+  /* The two lists under the hero. */
+  .cl-section { margin-top: 28px; }
+  .cl-section-head {
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
+    border-bottom: 1px solid var(--mui-palette-divider);
+    padding-bottom: 8px;
+  }
+  .cl-section-title { margin: 0; flex: 1; }
+  .cl-section-empty { display: block; margin: 12px 0 0; }
+  .cl-section-empty-title { display: block; }
+  .cl-mini-list { display: grid; gap: 12px; margin: 12px 0 0; padding: 0; list-style: none; }
+  .cl-mini { display: block; padding: 12px; color: inherit; text-decoration: none; }
+  .cl-mini-title { display: block; margin-top: 6px; }
+  .cl-mini-meta { display: block; }
+
+  /* ── The shell's no-access state (AdminNoAccess) ──────────────────────────────────────── */
+  .cl-no-access { margin: 24px auto 0; max-width: 512px; text-align: center; }
+  .cl-no-access-content { padding: 28px; }
+  .cl-no-access-content:last-child { padding-bottom: 28px; }
+  .cl-no-access-icon {
+    width: 56px;
+    height: 56px;
+    margin: 0 auto 12px;
+    background: var(--mui-palette-tertiary-container);
+    color: var(--mui-palette-tertiary-onContainer);
+  }
+  .cl-no-access-body { margin: 8px 0 16px; }
+
+  /* ── 2.2.3 Trip detail ────────────────────────────────────────────────────────────────── */
+  .cl-trip-page { padding-bottom: 40px; }
+  .cl-detail-hero { position: relative; height: 220px; overflow: hidden; }
+  /* A cancelled trip's photograph is greyed, so the page reads as past before a word of it. */
+  .cl-detail-hero-cancelled img { filter: grayscale(0.55) brightness(0.6); }
+  .cl-detail-hero-foot {
+    position: absolute;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 12px;
+    margin: 0 auto;
+    width: 100%;
+    max-width: 1024px;
+    padding: 16px;
+    color: var(--mui-palette-common-white);
+  }
+  .cl-detail-hero-copy { min-width: 0; }
+  /* A scrim behind the label, not just white text: half the photo registry is bright sand. */
+  .cl-back-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--mui-palette-brandSource-navy) 55%, transparent);
+    padding: 4px 10px;
+    color: var(--mui-palette-common-white);
+    font: var(--mui-font-caption);
+    text-decoration: none;
+    backdrop-filter: blur(4px);
+  }
+  .cl-back-pill:hover { text-decoration: underline; }
+  .cl-detail-chip { display: inline-flex; margin-top: 6px; }
+  .cl-detail-title { margin: 6px 0 0; color: var(--mui-palette-common-white); font: var(--mui-font-h5); font-weight: 700; }
+  .cl-detail-meta { margin: 0; color: var(--mui-palette-common-white); opacity: 0.9; }
+  .cl-detail-pdf { flex-shrink: 0; }
+  .cl-detail-grid { display: grid; gap: 16px; margin: 0 auto; width: 100%; max-width: 1024px; padding: 16px; }
+  .cl-detail-aside { display: flex; flex-direction: column; gap: 12px; }
+  .cl-not-found { margin-top: 24px; }
+
+  .cl-tiles { display: grid; gap: 10px; margin: 0; padding: 0; list-style: none; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .cl-tile {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px;
+    color: inherit;
+    text-decoration: none;
+  }
+  .cl-tile-off { opacity: 0.6; }
+  .cl-tile-icon {
+    display: inline-flex;
+    flex-shrink: 0;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+  }
+  .cl-tile-primary { background: var(--mui-palette-primary-container); color: var(--mui-palette-primary-onContainer); }
+  .cl-tile-error { background: var(--mui-palette-error-container); color: var(--mui-palette-error-onContainer); }
+  .cl-tile-secondary { background: var(--mui-palette-secondary-container); color: var(--mui-palette-secondary-onContainer); }
+  .cl-tile-tertiary { background: var(--mui-palette-tertiary-container); color: var(--mui-palette-tertiary-onContainer); }
+  .cl-tile-text { min-width: 0; }
+  .cl-tile-label { display: block; font-weight: 600; line-height: 1.3; }
+  .cl-tile-sub { display: block; }
+
+  .cl-card { margin-top: 12px; }
+  .cl-card-content { padding: 16px; }
+  .cl-card-content:last-child { padding-bottom: 16px; }
+  .cl-card-title { margin: 0; font-weight: 600; line-height: 1.3; }
+  .cl-card-cta { margin-top: 16px; }
+  .cl-glance { display: grid; gap: 14px; margin: 12px 0 0; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .cl-glance-value { margin: 2px 0 0; }
+  .cl-note-body { margin: 6px 0 0; }
+  .cl-ready-again { background: var(--mui-palette-secondary-container); color: var(--mui-palette-secondary-onContainer); }
+  .cl-ready-body { display: block; margin: 4px 0 0; opacity: 0.9; }
+  .cl-advisor-avatar-sm { width: 36px; height: 36px; font-size: 13px; font-weight: 600; }
+
+  .cl-pay-head-plain { display: block; margin: 0; line-height: 1.3; }
+  .cl-pay-none { margin: 6px 0 0; }
+  .cl-milestones { display: flex; flex-direction: column; gap: 6px; margin: 8px 0 0; padding: 0; list-style: none; }
+  .cl-milestone { display: flex; align-items: center; gap: 8px; font-weight: 500; }
+  /* The artboard's C22_MuiDot. */
+  .cl-dot { width: 8px; height: 8px; flex-shrink: 0; border-radius: 50%; background: var(--mui-palette-outline-main); }
+  .cl-dot-paid { background: var(--mui-palette-success-main); }
+  .cl-dot-overdue { background: var(--mui-palette-error-main); }
+  .cl-pay-blocks > .cl-pay-block { margin-top: 10px; border-top: 1px solid var(--mui-palette-divider); padding-top: 10px; }
+  .cl-pay-footnote { margin: 10px 0 0; }
+
+  /* ── 2.2.4 and 2.2.5 Itinerary ────────────────────────────────────────────────────────── */
+  .cl-itin-page { padding-bottom: 40px; }
+  .cl-prose { margin: 0 auto; width: 100%; max-width: 768px; }
+  .cl-itin-body { padding: 16px; }
+  .cl-band { border-bottom: 1px solid var(--mui-palette-divider); background: var(--mui-palette-surface-1); padding: 16px; }
+  .cl-back-link { display: inline-flex; align-items: center; gap: 6px; color: var(--mui-palette-text-secondary); font: var(--mui-font-caption); text-decoration: none; }
+  .cl-back-link:hover { text-decoration: underline; }
+  .cl-band-chip { display: inline-flex; margin-top: 6px; }
+  .cl-band-title { margin: 6px 0 0; }
+  .cl-band-meta { display: block; margin: 0; }
+  .cl-day-strip {
+    position: sticky;
+    top: var(--client-topbar-h);
+    z-index: 20;
+    border-bottom: 1px solid var(--mui-palette-divider);
+    background: color-mix(in srgb, var(--mui-palette-background-default) 95%, transparent);
+    backdrop-filter: blur(8px);
+  }
+  .cl-day-strip-inner { display: flex; gap: 6px; overflow-x: auto; padding: 10px 16px; }
+  .cl-day-chip { flex-shrink: 0; }
+  .cl-intro { max-width: 65ch; margin: 0; }
+  .cl-days { display: flex; flex-direction: column; gap: 12px; margin-top: 24px; }
+  .cl-day-head { display: flex; align-items: baseline; gap: 12px; margin-top: 12px; scroll-margin-top: calc(var(--client-topbar-h) + 56px); }
+  .cl-day-number { color: var(--mui-palette-primary-main); font-size: 32px; }
+  .cl-day-number-lg { color: var(--mui-palette-primary-main); font-size: 36px; }
+  .cl-day-title { font-weight: 600; line-height: 1.3; }
+  .cl-day-open { margin-left: auto; flex-shrink: 0; }
+  .cl-day-headline { display: flex; align-items: baseline; gap: 12px; margin-top: 6px; }
+  .cl-day-summary { max-width: 65ch; margin: 0 0 16px; }
+  .cl-activities { display: flex; flex-direction: column; gap: 12px; margin: 0; padding: 0; list-style: none; }
+  .cl-activity-content { display: flex; gap: 12px; padding: 12px; }
+  .cl-activity-content:last-child { padding-bottom: 12px; }
+  .cl-activity-when { min-width: 52px; }
+  .cl-activity-time { display: block; font-weight: 700; line-height: 1; }
+  .cl-activity-block { display: block; margin-top: 4px; color: var(--mui-palette-brand-main); line-height: 1.3; }
+  .cl-activity-text { min-width: 0; flex: 1; }
+  .cl-activity-title { display: block; font-weight: 600; line-height: 1.3; }
+  .cl-activity-body { display: block; margin-top: 2px; }
+  .cl-activity-conf,
+  .cl-activity-tip { display: block; margin-top: 8px; }
+  .cl-activity-range { display: inline-block; margin-top: 8px; }
+  .cl-activity-actions { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 8px; }
+  /* A ticked activity reads as done without colour alone carrying it: the label says "Done". */
+  .cl-activity.is-done { opacity: 0.65; }
+  .cl-done-button { flex-shrink: 0; }
+  .cl-kbd {
+    display: inline-block;
+    border: 1px solid var(--mui-palette-outline-variant);
+    border-radius: 6px;
+    background: var(--mui-palette-surface-2);
+    padding: 1px 6px;
+    font-size: 12px;
+  }
+  .cl-empty-day { margin-top: 12px; padding: 16px; text-align: center; }
+  .cl-weather { margin-bottom: 16px; }
+  .cl-weather-line { margin: 6px 0 0; }
+  .cl-weather-uv { display: block; margin: 4px 0 0; }
+  .cl-day-nav { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 24px; }
+  .cl-important { margin-top: 24px; }
+
+  /* ── 2.2.6 Documents and 2.5.4 the library ────────────────────────────────────────────── */
+  .cl-doc-page { padding-bottom: 40px; }
+  .cl-doc-body { padding: 16px; }
+  .cl-doc-head { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 12px; }
+  .cl-doc-count { display: block; margin: 4px 0 0; }
+  .cl-doc-groups { display: flex; flex-direction: column; gap: 8px; }
+  .cl-doc-group { margin: 16px 0 0; }
+  .cl-doc-row { display: flex; align-items: center; gap: 12px; padding: 12px; }
+  .cl-doc-badge {
+    display: inline-flex;
+    flex-shrink: 0;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    border-radius: 8px;
+    background: var(--mui-palette-surface-3);
+    color: var(--mui-palette-text-secondary);
+    font-size: 11px;
+    font-weight: 700;
+  }
+  .cl-doc-text { min-width: 0; flex: 1; }
+  .cl-doc-name { display: block; overflow-wrap: anywhere; }
+  .cl-doc-meta { display: block; }
+  .cl-doc-open { flex-shrink: 0; }
+  .cl-doc-privacy { display: block; margin: 24px 0 0; }
+
+  /* ── 2.2.7 Memories ───────────────────────────────────────────────────────────────────── */
+  .cl-mem-page { padding-bottom: 40px; }
+  .cl-mem-body { display: flex; flex-direction: column; gap: 16px; padding: 16px; }
+  .cl-mem-hero { height: 240px; }
+  .cl-mem-note { margin-top: 0; }
+  /* The note is the one place on this screen in Gyasi's own hand. */
+  .cl-mem-script { margin: 8px 0 0; color: var(--mui-palette-primary-main); font-size: 28px; line-height: 1.2; }
+  .cl-mem-section { margin: 0; }
+  .cl-photo-grid { display: grid; gap: 8px; margin: 12px 0 0; padding: 0; list-style: none; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .cl-photo { display: block; }
+  .cl-photo-button {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    border: 1px solid var(--mui-palette-outline-variant);
+    border-radius: 10px;
+    background: var(--mui-palette-surface-1);
+    padding: 8px;
+    text-align: left;
+    cursor: pointer;
+  }
+  .cl-photo-button:hover { background: var(--mui-palette-surface-2); }
+  .cl-photo-name { min-width: 0; }
+  .cl-mem-links { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+  .cl-mem-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+  .cl-mem-sent { margin-top: 8px; }
+  .cl-reflection { min-height: 120px; }
+
+  @media (min-width: 768px) {
+    .cl-page { padding: 24px 24px; }
+    .cl-trip { grid-template-columns: 200px minmax(0, 1fr) auto; }
+    .cl-trip-photo { height: 100%; }
+    .cl-trip-value {
+      min-width: 160px;
+      flex-direction: column;
+      align-items: flex-end;
+      justify-content: flex-start;
+      border-top: 0;
+      border-left: 1px solid var(--mui-palette-divider);
+    }
+    .cl-trip-open { margin-top: auto; }
+    .cl-mini-list { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .cl-detail-hero-foot { padding: 24px; }
+    .cl-detail-grid { padding: 24px; }
+    .cl-detail-title { font: var(--mui-font-h3); font-weight: 700; color: var(--mui-palette-common-white); }
+    .cl-itin-body { padding: 24px; }
+    .cl-band { padding: 24px; }
+    .cl-doc-body { padding: 24px; }
+    .cl-mem-body { padding: 24px; }
+    .cl-photo-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+    .cl-day-strip-inner { padding: 10px 24px; }
+    .cl-glance-wide > div { grid-column: span 2; }
+  }
+
+  @media (min-width: 1200px) {
+    .cl-hero-grid { grid-template-columns: minmax(0, 2.1fr) minmax(0, 1fr); }
+    .cl-detail-grid { grid-template-columns: minmax(0, 1fr) 300px; }
+    .cl-tiles { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+    .cl-glance { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  }
+
+  /* ── Screen 2.2.7 the trip thread ─────────────────────────────────────────────────────
+     The compose bar is a SIBLING of the scroll, not an overlay on it, which is what keeps a
+     long thread from hiding its own last message behind the input. For that the page needs a
+     definite height — the shell is min-height, so a percentage height here resolves against
+     nothing — and the middle region needs min-height: 0, or it grows the column instead of
+     scrolling inside it. */
+  .cl-thread-page {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    height: 100%;
+  }
+
+  .cl-thread {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    flex: 1;
+  }
+
+  .cl-thread-head {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    flex-shrink: 0;
+    padding: 0.875rem 1rem;
+    border-bottom: 1px solid var(--mui-palette-divider);
+  }
+
+  .cl-thread-back {
+    flex-shrink: 0;
+    min-width: 2.75rem;
+    padding-inline: 0.5rem;
+  }
+
+  .cl-thread-avatar {
+    width: 2.25rem;
+    height: 2.25rem;
+    border-radius: 50%;
+    flex-shrink: 0;
+    object-fit: cover;
+  }
+
+  .cl-thread-initials {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--mui-palette-brand-main);
+    color: var(--mui-palette-brand-contrastText);
+    font-size: 0.75rem;
+    font-weight: 700;
+  }
+
+  .cl-thread-who {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    flex: 1;
+  }
+
+  .cl-thread-title,
+  .cl-thread-sub {
+    display: block;
+  }
+
+  .cl-thread-open {
+    flex-shrink: 0;
+  }
+
+  .cl-thread-scroll {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    padding: 1rem;
+  }
+
+  .cl-thread-inner {
+    margin-inline: auto;
+    width: 100%;
+    max-width: 48rem;
+  }
+
+  .cl-bubbles {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  .cl-day-sep {
+    text-align: center;
+  }
+
+  .cl-row {
+    display: flex;
+    gap: 0.5rem;
+    align-items: flex-end;
+  }
+
+  .cl-row-mine {
+    justify-content: flex-end;
+  }
+
+  .cl-row-theirs {
+    justify-content: flex-start;
+  }
+
+  .cl-bubble-avatar {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.625rem;
+    height: 1.625rem;
+    flex-shrink: 0;
+    border-radius: 50%;
+    background: var(--mui-palette-brand-main);
+    color: var(--mui-palette-brand-contrastText);
+    font-size: 0.625rem;
+    font-weight: 700;
+  }
+
+  .cl-bubble-col {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    max-width: 78%;
+  }
+
+  .cl-row-mine .cl-bubble-col {
+    align-items: flex-end;
+  }
+
+  /* The one tight corner points at whoever sent it, as the artboard's C22_MuiBubble draws. */
+  .cl-bubble {
+    padding: 0.625rem 0.875rem;
+    font-size: 0.875rem;
+    line-height: 1.5;
+    /* The compose bar takes shift+enter; swallowing those on the way back out would be a quiet
+       edit of somebody's words. */
+    white-space: pre-line;
+    overflow-wrap: anywhere;
+  }
+
+  .cl-bubble-mine {
+    border-radius: 18px 18px 4px 18px;
+    background: var(--mui-palette-primary-main);
+    color: var(--mui-palette-primary-contrastText);
+  }
+
+  .cl-bubble-theirs {
+    border-radius: 18px 18px 18px 4px;
+    background: var(--mui-palette-background-paper);
+    color: var(--mui-palette-text-primary);
+    border: 1px solid var(--mui-palette-divider);
+  }
+
+  .cl-bubble-time {
+    display: block;
+    margin-top: 0.25rem;
+    font-size: 0.6875rem;
+  }
+
+  .cl-attach {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    max-width: 100%;
+    margin-top: 0.375rem;
+    padding: 0.25rem 0.5rem;
+    font-size: 0.8125rem;
+  }
+
+  .cl-attach-name {
+    min-width: 0;
+  }
+
+  .cl-attach-size {
+    flex-shrink: 0;
+  }
+
+  .cl-compose {
+    flex-shrink: 0;
+    border-top: 1px solid var(--mui-palette-divider);
+    background: var(--mui-palette-background-paper);
+  }
+
+  .cl-compose-alert {
+    margin: 0.75rem 1rem 0;
+  }
+
+  .cl-compose-inner {
+    margin-inline: auto;
+    width: 100%;
+    max-width: 48rem;
+    padding: 0.75rem 1rem;
+  }
+
+  .cl-quick {
+    display: flex;
+    gap: 0.375rem;
+    overflow-x: auto;
+    padding-bottom: 0.5rem;
+  }
+
+  .cl-quick-chip {
+    flex-shrink: 0;
+    white-space: nowrap;
+  }
+
+  .cl-compose-form {
+    display: flex;
+    align-items: flex-end;
+    gap: 0.5rem;
+  }
+
+  .cl-attach-button {
+    flex-shrink: 0;
+  }
+
+  .cl-compose-input {
+    flex: 1;
+    min-height: 2.75rem;
+    max-height: 9rem;
+    resize: none;
+  }
+
+  .cl-send {
+    flex-shrink: 0;
+    min-height: 2.75rem;
+    min-width: 2.75rem;
+    gap: 0.5rem;
+    white-space: nowrap;
+  }
+
+  @media (min-width: 768px) {
+    .cl-thread-head {
+      padding-inline: 1.5rem;
+    }
+
+    .cl-thread-scroll,
+    .cl-compose-inner {
+      padding-inline: 1.5rem;
+    }
+
+    .cl-bubble-col {
+      max-width: 70%;
+    }
+  }
+
+  /* ── Screens 2.6.1 / 2.6.2 the inbox, and 2.6.3 ────────────────────────────────────
+     Master-detail: the list is the whole screen until 1200px, where the thread comes in
+     beside it. Only that breakpoint, never md — the list pane is 340px, which is most of a
+     tablet. */
+  .cl-msg-page {
+    display: flex;
+    min-height: 0;
+    height: 100%;
+  }
+
+  .cl-inbox {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    flex: 1;
+    width: 100%;
+  }
+
+  .cl-inbox-head {
+    flex-shrink: 0;
+    padding: 16px;
+  }
+
+  .cl-inbox-title { margin: 0; }
+
+  .cl-inbox-sub { margin: 2px 0 0; }
+
+  .cl-inbox-new {
+    display: flex;
+    width: 100%;
+    gap: 8px;
+    margin-top: 12px;
+    min-height: 44px;
+  }
+
+  .cl-inbox-search { margin-top: 12px; }
+
+  .cl-search-input { width: 100%; }
+
+  .cl-inbox-scroll {
+    margin-top: 8px;
+    min-height: 0;
+    flex: 1;
+    overflow-y: auto;
+  }
+
+  .cl-search-empty {
+    padding: 24px 16px;
+    text-align: center;
+  }
+
+  .cl-threads {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+
+  .cl-thread-row {
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+    padding: 12px 16px;
+    /* The artboard's 3px brand rule down the open row; transparent keeps every other row
+       the same width, so selecting one does not shift the list. */
+    border-left: 3px solid transparent;
+    color: inherit;
+    text-decoration: none;
+  }
+
+  .cl-thread-row:hover { background: var(--mui-palette-surface-2); }
+
+  .cl-thread-row.is-active {
+    border-left-color: var(--mui-palette-brand-main);
+    background: var(--mui-palette-secondary-container);
+    color: var(--mui-palette-secondary-onContainer);
+  }
+
+  .cl-thread-text {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    flex: 1;
+  }
+
+  .cl-thread-line {
+    display: flex;
+    gap: 8px;
+    align-items: baseline;
+  }
+
+  .cl-thread-name {
+    flex: 1;
+    min-width: 0;
+    color: inherit;
+  }
+
+  .cl-thread-when {
+    flex-shrink: 0;
+    color: var(--mui-palette-text-secondary);
+  }
+
+  .cl-thread-row.is-active .cl-thread-when,
+  .cl-thread-row.is-active .cl-thread-trip,
+  .cl-thread-row.is-active .cl-thread-preview { color: inherit; }
+
+  .cl-thread-trip,
+  .cl-thread-preview { color: var(--mui-palette-text-secondary); }
+
+  .cl-thread-unread { flex-shrink: 0; }
+
+  /* The thread pane shows by default, because below 1200px an open thread IS the screen —
+     §4.4's push. The list hides itself beside it with .is-aside, which the server adds only
+     when a thread is open. */
+  .cl-pane {
+    display: flex;
+    min-height: 0;
+    min-width: 0;
+    flex: 1;
+    flex-direction: column;
+  }
+
+  .cl-inbox.is-aside { display: none; }
+
+  /* "Pick a conversation" has no meaning where the list is the whole screen. */
+  .cl-pane-empty {
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+  }
+
+  /* 2.6.3 */
+  .cl-msg-new { padding-bottom: 40px; }
+
+  .cl-msg-new-title { margin: 12px 0 0; }
+
+  .cl-msg-new-sub { margin: 4px 0 16px; }
+
+  .cl-advisor { margin-bottom: 16px; }
+
+  .cl-advisor-content {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+  }
+
+  .cl-advisor-text {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+  }
+
+  .cl-new-body {
+    width: 100%;
+    resize: vertical;
+  }
+
+  .cl-new-actions {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    margin-top: 12px;
+  }
+
+  @media (min-width: 1200px) {
+    .cl-inbox {
+      flex: 0 0 340px;
+      width: 340px;
+      border-right: 1px solid var(--mui-palette-divider);
+    }
+
+    /* Here both are on screen at once: the list comes back beside the thread, and the
+       "pick one" state finally has somewhere to be. */
+    .cl-inbox.is-aside { display: flex; }
+
+    .cl-pane-empty { display: flex; }
+  }
+
+  /* ── Screen 2.2.9, the status change a notification lands on ───────────────────────── */
+  .cl-update-page > * + * { margin-top: 16px; }
+
+  .cl-update-hero {
+    background: var(--mui-palette-secondary-container);
+    color: var(--mui-palette-secondary-onContainer);
+  }
+
+  .cl-update-hero-content {
+    display: flex;
+    gap: 18px;
+    align-items: center;
+    padding: 22px;
+  }
+
+  .cl-update-mark {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 54px;
+    height: 54px;
+    flex-shrink: 0;
+    border-radius: 50%;
+    background: var(--mui-palette-secondary-onContainer);
+    color: var(--mui-palette-secondary-container);
+  }
+
+  .cl-update-head { min-width: 0; }
+
+  .cl-update-overline { margin: 0; line-height: 1.3; }
+
+  .cl-update-title { margin: 4px 0 2px; }
+
+  .cl-update-body { margin: 0; }
+
+  .cl-update-facts {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    margin: 6px 0 0;
+    padding: 0;
+    list-style: none;
+    color: var(--mui-palette-text-secondary);
+  }
+
+  .cl-update-steps {
+    margin: 6px 0 0;
+    padding-left: 20px;
+    list-style: decimal;
+    line-height: 1.5;
+    color: var(--mui-palette-text-secondary);
+  }
+
+  .cl-update-cta {
+    display: flex;
+    width: 100%;
+  }
+
+  /* ── Screen 2.5.1, the account hub ─────────────────────────────────────────────────── */
+  .cl-account-page {
+    margin-inline: auto;
+    width: 100%;
+    max-width: 672px;
+    padding: 16px;
+  }
+
+  .cl-account-page > * + * { margin-top: 24px; }
+
+  /* The artboard's hero, washed from primary.container into secondary.container. It reads
+     the palette's own variables rather than hexes, so it follows the scheme. */
+  .cl-account-hero {
+    color: var(--mui-palette-primary-onContainer);
+    background: linear-gradient(120deg, var(--mui-palette-primary-container), var(--mui-palette-secondary-container));
+  }
+
+  .cl-account-hero-content {
+    display: flex;
+    gap: 16px;
+    align-items: center;
+    padding: 20px;
+  }
+
+  /* INITIALS, never a photograph: every staImg('avatar*') in the artboards is a stock
+     portrait of a stranger. */
+  .cl-account-avatar {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 56px;
+    height: 56px;
+    flex-shrink: 0;
+    border-radius: 50%;
+    background: var(--mui-palette-primary-main);
+    color: var(--mui-palette-primary-contrastText);
+    font-size: 18px;
+    font-weight: 700;
+  }
+
+  .cl-account-who { min-width: 0; }
+
+  .cl-account-name { margin: 0; }
+
+  .cl-account-since { margin: 2px 0 0; }
+
+  .cl-settings-group > * + * { margin-top: 8px; }
+
+  .cl-settings-label { display: block; margin: 0; }
+
+  .cl-tile-surface {
+    background: var(--mui-palette-surface-3);
+    color: var(--mui-palette-text-secondary);
+  }
+
+  .cl-signout { margin-top: 24px; }
+
+  .cl-signout-button { width: 100%; }
+
+  @media (min-width: 768px) {
+    .cl-account-page { max-width: 768px; padding: 24px; }
+  }
+
+  /* ── Screen 2.5.8, and the chrome the §2.5 sub-pages share ──────────────────────────── */
+  .cl-account-head > * + * { margin-top: 4px; }
+
+  .cl-account-title { margin: 8px 0 0; }
+
+  .cl-account-sub { margin: 0; }
+
+  .cl-account-note { margin: 0; }
+
+  .cl-providers {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .cl-provider {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 16px;
+  }
+
+  .cl-provider-text {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+  }
+
+  /* ── The profile field groups, for Screen 2.5.2 ─────────────────────────────────────
+     These are the onboarding area's rules, with the onboarding area's class names, because
+     2.5.2's markup IS 2.1.10's fields — internal/profileform fills both, and a second set
+     of names here would let the two pages' markup drift apart silently.
+
+     They are duplicated rather than shared because the client layout does not link
+     onboarding.css; the two files are never loaded together, so nothing cascades. The right
+     fix is to move them into ui.css, which belongs in a shared PR rather than this one.
+     NOTE: internal/static/classes_test.go would NOT have caught the omission — it asks
+     whether SOME stylesheet defines a class, and onboarding.css does. */
+  .ob-fields,
+  .ob-group { margin: 0; padding: 0; border: 0; min-width: 0; }
+
+  .ob-fields { display: flex; flex-direction: column; gap: 20px; }
+
+  .ob-note { margin: 0; }
+
+  .ob-legend { margin-bottom: 4px; padding: 0; }
+
+  .ob-group-hint,
+  .ob-group-note { margin: 0 0 12px; }
+
+  .ob-group-error { margin: 0 0 12px; color: var(--mui-palette-error-main); }
+
+  .ob-expired { margin-bottom: 12px; }
+
+  .ob-grid-2,
+  .ob-grid-3 { display: grid; gap: 12px; }
+
+  .ob-relabel { margin-top: 4px; align-self: flex-start; }
+
+  .cl-identity {
+    display: grid;
+    gap: 12px;
+    margin: 0 0 12px;
+  }
+
+  .cl-identity-value { margin: 2px 0 0; }
+
+  @media (min-width: 768px) {
+    .ob-grid-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .ob-grid-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .cl-identity { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  }
 }

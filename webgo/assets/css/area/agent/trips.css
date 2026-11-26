@@ -1,1 +1,438 @@
-/* Agent workspace, trips sub-area: page-only styles (see webgo/internal/handlers/agent/trips). */
+/* Agent workspace, trips sub-area: page-only styles (see webgo/internal/handlers/agent/trips).
+ *
+ * Every class here starts with trp- so it cannot collide with people.css or money.css in the
+ * joined css/area/agent.css bundle. Sizes are the Next pages' own sx values, read off
+ * app/(agent)/agent/trips/** and components/agent/*: MUI's 8px scale, breakpoints md 768,
+ * sm 640, lg 1024. Nothing here is inline (the CSP is style-src 'self'). */
+
+@layer components {
+  /* ── The page column (PAGE_SX): mx auto, max 1336, px 2/4, py 3 ───────────────────────── */
+  .trp-col { margin: 0 auto; width: 100%; max-width: 1336px; padding: 24px 16px; box-sizing: border-box; }
+  .trp-col-narrow { max-width: 760px; }
+  @media (min-width: 768px) { .trp-col { padding-left: 32px; padding-right: 32px; } }
+
+  .trp-block { display: block; min-width: 0; }
+  .trp-mt-1 { margin-top: 8px; }
+  .trp-mt-2 { margin-top: 16px; }
+  .trp-icon-12 { width: 12px; height: 12px; }
+  .trp-icon-13 { width: 13px; height: 13px; }
+  .trp-icon-26 { width: 26px; height: 26px; }
+
+  /* ── The §5 states (components/client/states.tsx, AdminNoAccess) ──────────────────────── */
+  .trp-state { margin: 24px auto 0; max-width: 512px; text-align: center; }
+  .trp-state-body,
+  .trp-state-body:last-child { padding: 28px; }
+  .trp-state-tile {
+    display: flex;
+    margin: 0 auto 12px;
+    width: 56px;
+    height: 56px;
+    background-color: var(--mui-palette-surface-3);
+    color: var(--mui-palette-text-secondary);
+  }
+  .trp-state-tile-error { background-color: var(--mui-palette-error-container); color: var(--mui-palette-error-onContainer); }
+  .trp-state-actions { margin-top: 20px; display: flex; flex-direction: column; align-items: center; gap: 8px; }
+  @media (min-width: 640px) { .trp-state-actions { flex-direction: row; justify-content: center; } }
+
+  /* ── Page header (the list's and the new-trip form's) ──────────────────────────────────── */
+  .trp-head { margin-bottom: 16px; display: flex; flex-wrap: wrap; align-items: flex-start; gap: 12px; }
+  .trp-head-text { min-width: 0; flex: 1; }
+  .trp-sub { margin-top: 2px; }
+
+  /* ── 3.4.1 filters ─────────────────────────────────────────────────────────────────────── */
+  .trp-filters { margin-bottom: 12px; display: flex; flex-direction: column; gap: 10px; }
+  /* OutlinedInput size="small" with no FormControl: 40px, not the Field's 44. */
+  .trp-search,
+  .trp-input-40 { min-height: 40px; padding: 7.5px 13px; }
+  .trp-search { flex: 1; width: auto; min-width: 0; }
+  .trp-chips { margin: 0; padding: 0; border: 0; min-width: 0; display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+  .trp-chip-count { margin-left: 4px; opacity: 0.6; }
+
+  /* ── 3.4.1 rows ────────────────────────────────────────────────────────────────────────── */
+  .trp-table-card { overflow-x: auto; }
+  /* TableCell padding="checkbox" at size="small" (width 24, padding 0 12px 0 16px) holding the
+     theme's small Checkbox: no padding, a 20px icon whose drawn square is 15px. */
+  .trp-cell-check { width: 24px; padding: 0 12px 0 16px; }
+  .trp-check { display: block; width: 15px; height: 15px; margin: 2.5px; border-radius: 2px; background-size: 12px 12px; }
+  .trp-receipt { margin-bottom: 8px; }
+  /* Cell looks: .table td sets the font and colour in the mui layer, so a cell's own type,
+     weight and colour live here, one layer up. */
+  .trp-td-muted { color: var(--mui-palette-text-secondary); }
+  .trp-td-travel { color: var(--mui-palette-text-secondary); font-weight: 500; }
+  .trp-td-value { font-family: var(--font-mono); font-weight: 700; }
+  .trp-td-comm { font-family: var(--font-mono); color: var(--mui-palette-primary-main); }
+
+  /* The bulk bar: there only while something is ticked, and only from md (as the CSS rule
+     it replaced in Next was). :has() needs no script. */
+  .trp-bulk-bar {
+    display: none;
+    margin-top: 8px;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    background-color: var(--mui-palette-surface-2);
+    padding: 8px 12px;
+  }
+  @media (min-width: 768px) {
+    .trp-bulk:has(input[name="trip"]:checked) .trp-bulk-bar { display: flex; }
+  }
+  .trp-select-auto { width: auto; min-width: 0; }
+
+  .trp-pager { margin-top: 12px; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+
+  /* ── 3.4.3 New trip ────────────────────────────────────────────────────────────────────── */
+  .trp-back { display: inline-block; margin-bottom: 12px; color: var(--mui-palette-text-secondary); }
+  .trp-head-new { margin-bottom: 20px; }
+  .trp-form { display: flex; flex-direction: column; gap: 20px; }
+  .trp-fieldset { margin: 0; padding: 0; border: 0; min-width: 0; }
+  .trp-legend { padding: 0; margin-bottom: 8px; font-weight: 600; }
+  .trp-types { display: grid; gap: 8px; grid-template-columns: minmax(0, 1fr); }
+  @media (min-width: 640px) { .trp-types { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+  @media (min-width: 1024px) { .trp-types { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+  /* The tile reads as chosen from its radio, so it needs no script. */
+  .trp-type { border: 1px solid var(--mui-palette-divider); background-color: var(--mui-palette-background-paper); }
+  .trp-type:has(input:checked) { border-color: var(--mui-palette-primary-main); background-color: var(--mui-palette-primary-container); }
+  .trp-type-label { display: flex; cursor: pointer; align-items: flex-start; gap: 12px; padding: 12px 14px; }
+  /* Radio size="small" with p 0 and mt 0.25: a 20px icon box whose drawn ring is ~17px
+     (radius 10 of a 24 viewBox) and whose dot is ~8px, 2px down. */
+  .trp-radio { margin: 3.5px 1.5px 1.5px; width: 17px; height: 17px; flex: none; }
+  .trp-radio:checked { background-image: radial-gradient(circle, var(--mui-palette-primary-main) 0 3.8px, transparent 4.2px); }
+  .trp-type-name { display: flex; align-items: center; gap: 6px; font-weight: 600; }
+  .trp-type-hint { margin-top: 2px; display: block; }
+  .trp-field-heading { display: block; margin-bottom: 4px; font-weight: 600; }
+  .trp-field-hint { margin-bottom: 6px; }
+  .trp-field-error { margin-top: 4px; }
+  .trp-travelers { max-width: 220px; }
+  .trp-note { display: flex; align-items: center; gap: 6px; border-radius: 4px; background-color: var(--mui-palette-surface-2); padding: 8px 12px; }
+  .trp-push-end { margin-left: auto; }
+
+  /* ── Shared small helpers ─────────────────────────────────────────────────────────────── */
+  .trp-minw0 { min-width: 0; }
+  .trp-mt-0_25 { margin-top: 2px; }
+  .trp-mt-0_5 { margin-top: 4px; }
+  .trp-mt-0_75 { margin-top: 6px; }
+  .trp-mt-1_5 { margin-top: 12px; }
+  .trp-mt-1_75 { margin-top: 14px; }
+  .trp-mt-2_5 { margin-top: 20px; }
+  .trp-fw-600 { font-weight: 600; }
+  .trp-fw-700 { font-weight: 700; }
+  .trp-lh-13 { line-height: 1.3; }
+  .trp-pad-12,
+  .trp-pad-12:last-child { padding: 12px; }
+  .trp-pad-14,
+  .trp-pad-14:last-child { padding: 14px; }
+  .trp-anywhere { overflow-wrap: anywhere; }
+  .trp-break-word { overflow-wrap: break-word; }
+  .trp-flat { background-color: var(--mui-palette-surface-2); }
+  .trp-money-12 { font-family: var(--font-mono); font-weight: 700; font-size: 12px; }
+  .trp-minw-70 { min-width: 70px; text-align: right; }
+  .trp-empty { padding: 16px 4px; }
+  /* Shown only with JS off; detail.js marks the document. */
+  .trp-js .trp-nojs { display: none; }
+
+  /* ── 3.4.2 Trip Detail: header ─────────────────────────────────────────────────────────── */
+  .trp-dhead { margin-top: 20px; }
+  .trp-dhead-body,
+  .trp-dhead-body:last-child { padding: 16px; }
+  .trp-dhead-row { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: 16px; }
+  .trp-dhead-title { margin-top: 4px; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+  /* Box mt 1.5 around StageMenu's Box mt 1: the two margins collapse to 12px. */
+  .trp-stage { margin-top: 12px; max-width: 320px; }
+
+  /* TripDetailTabs: chips as links, one URL each. */
+  .trp-tabs { margin-top: 16px; display: flex; flex-wrap: wrap; gap: 6px; }
+  .trp-tab { flex-shrink: 0; }
+
+  /* The two columns: the tab, and the side cards from lg. */
+  .trp-dgrid { margin-top: 16px; display: grid; gap: 16px; grid-template-columns: minmax(0, 1fr); }
+  @media (min-width: 1024px) { .trp-dgrid { grid-template-columns: minmax(0, 1fr) 320px; } }
+  .trp-aside { display: flex; flex-direction: column; gap: 12px; }
+  .trp-tab-action { margin-bottom: 8px; display: flex; justify-content: flex-end; }
+
+  /* AtAGlanceGrid: two columns on a phone, four from sm. */
+  .trp-glance { display: grid; gap: 12px; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  @media (min-width: 640px) { .trp-glance { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+  .trp-glance-label { display: block; font-weight: 500; line-height: 1.3; letter-spacing: 0.4px; color: var(--mui-palette-text-secondary); }
+
+  /* CostCommissionCard. */
+  .trp-kv { display: flex; justify-content: space-between; }
+  .trp-kv-commission { margin-top: 6px; color: var(--mui-palette-primary-main); }
+  .trp-cost-links { margin-top: 4px; display: flex; flex-wrap: wrap; column-gap: 16px; row-gap: 4px; }
+
+  /* PaymentsSummaryCard rows. */
+  .trp-pay-row { display: flex; align-items: center; gap: 8px; padding: 6px 0; }
+  .trp-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+  .trp-dot-good { background-color: var(--mui-palette-success-main); }
+  .trp-dot-warn { background-color: var(--mui-palette-error-main); }
+
+  /* Component and document rows (ROW_SX). */
+  .trp-stack-6 { display: flex; flex-direction: column; gap: 6px; }
+  .trp-stack-8 { display: flex; flex-direction: column; gap: 8px; }
+  .trp-ol { margin: 0; padding: 0; list-style: none; }
+  .trp-row-card,
+  .trp-row-card:last-child { padding: 10px 14px; display: flex; gap: 12px; align-items: center; }
+  .trp-avatar-rounded { border-radius: 4px; }
+  .trp-tile-secondary { background-color: var(--mui-palette-secondary-container); color: var(--mui-palette-secondary-onContainer); }
+  .trp-tile-error { background-color: var(--mui-palette-error-container); color: var(--mui-palette-error-onContainer); }
+  .trp-badge { height: 20px; font-family: var(--font-mono); font-size: 11px; }
+  .trp-doc-icon { display: inline-flex; flex-shrink: 0; color: var(--mui-palette-text-secondary); }
+
+  /* TripItineraryView, flattened: the gaps the nested Next layout had. */
+  .trp-it-badge { margin-bottom: 8px; display: flex; align-items: center; gap: 8px; }
+  .trp-it-dayline { display: flex; align-items: baseline; gap: 8px; }
+  .trp-it-daynum { font-size: 22px; line-height: 1; color: var(--mui-palette-primary-main); }
+  .trp-it-gap-8 { margin-top: 8px; }
+  .trp-it-gap-16 { margin-top: 16px; }
+  .trp-it-gap-24 { margin-top: 24px; }
+  .trp-it-end-16 { margin-bottom: 16px; }
+  .trp-it-end-24 { margin-bottom: 24px; }
+  .trp-tip {
+    --Paper-shadow: none;
+    margin-top: 8px;
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    padding: 8px;
+    background-color: var(--mui-palette-tertiary-container);
+    color: var(--mui-palette-tertiary-onContainer);
+  }
+
+  /* Messages, notes, activity. */
+  .trp-msg-reply { display: flex; justify-content: flex-end; }
+  /* MUI's padding (16.5px 14px) less the 1px border its fieldset draws outside the box. */
+  .trp-notes { padding: 15.5px 13px; }
+  /* A small multiline field (TextareaField): MUI's 8.5px 14px less the same 1px border. */
+  .trp-textarea { padding: 7.5px 13px; }
+  .trp-history { display: flex; align-items: center; gap: 12px; }
+  .trp-history-bar { width: 8px; flex-shrink: 0; align-self: stretch; border-radius: 999px; background-color: var(--mui-palette-primary-container); }
+
+  /* TripNotFound. */
+  .trp-notfound { margin: 0 auto; width: 100%; max-width: 600px; padding: 64px 0; text-align: center; box-sizing: border-box; }
+
+  /* The two dialogs (MUI Dialog with a sized Paper, DialogContent p 2.5). */
+  .trp-dialog-520 { width: min(520px, calc(100vw - 2rem)); max-width: none; margin: auto; }
+  .trp-dialog-560 { width: min(560px, calc(100vw - 2rem)); max-width: 100%; margin: auto; }
+  .trp-dialog-content { padding: 20px; }
+  .trp-dialog-actions { display: flex; align-items: center; justify-content: flex-end; gap: 8px; padding: 0 20px 20px; }
+  .trp-dialog-actions-split { justify-content: space-between; }
+  .trp-dialog-end { margin-top: 14px; display: flex; justify-content: flex-end; }
+  .trp-bullets { margin: 4px 0 0; padding: 0 0 0 20px; list-style: disc; display: flex; flex-direction: column; }
+  .trp-gap-2 { gap: 2px; }
+  .trp-gap-4 { gap: 4px; }
+  .trp-check-label { margin-left: -11px; }
+  .trp-check-sm { width: 15px; height: 15px; margin: 11.5px; background-size: 12px 12px; }
+  .trp-cancel-grid { display: grid; gap: 12px; grid-template-columns: minmax(0, 1fr); }
+  @media (min-width: 640px) { .trp-cancel-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+
+  /* ── 3.4.4 Trip builder ────────────────────────────────────────────────────────────────── */
+  .trp-mb-1 { margin-bottom: 8px; }
+  .trp-mb-1_5 { margin-bottom: 12px; }
+  .trp-mono { font-family: var(--font-mono); }
+  .trp-icon-17 { width: 17px; height: 17px; }
+  .trp-avatar-36 { width: 36px; height: 36px; }
+  .trp-tile-primary { background-color: var(--mui-palette-primary-container); color: var(--mui-palette-primary-onContainer); }
+  .trp-seed { --Paper-shadow: none; margin-top: 20px; padding: 8px 12px; background-color: var(--mui-palette-surface-2); }
+  .trp-figures { margin: 12px 0 0; display: flex; flex-wrap: wrap; column-gap: 32px; row-gap: 8px; }
+  .trp-dt { font-weight: 500; color: var(--mui-palette-text-secondary); }
+  .trp-dd { margin: 0; font-weight: 600; }
+  .trp-hint-line { display: flex; align-items: center; gap: 4px; margin-top: 8px; }
+
+  /* One column, two at lg (the rail spans both), three at xl (1280). */
+  .trp-bgrid { margin-top: 16px; display: grid; gap: 16px; grid-template-columns: minmax(0, 1fr); }
+  @media (min-width: 1024px) {
+    .trp-bgrid { grid-template-columns: minmax(0, 1fr) 360px; }
+    .trp-rail-cell { grid-column: span 2; }
+  }
+  @media (min-width: 1280px) {
+    .trp-bgrid { grid-template-columns: 240px minmax(0, 1fr) 360px; }
+    .trp-rail-cell { grid-column: auto; }
+    .trp-rail { align-self: flex-start; }
+  }
+  .trp-rail-title { margin-bottom: 8px; font-weight: 500; }
+  .trp-rail-list { display: flex; flex-wrap: wrap; gap: 4px; }
+  .trp-rail-item {
+    display: flex;
+    flex-grow: 0;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 8px;
+    border: 1px solid var(--mui-palette-divider);
+    border-radius: 4px;
+    color: inherit;
+    text-decoration: none;
+    transition: background-color 150ms cubic-bezier(0.4, 0, 0.2, 1) 0ms;
+  }
+  .trp-rail-item:hover { background-color: var(--mui-palette-action-hover); }
+  .trp-rail-item:focus-visible { outline: 2px solid var(--mui-palette-primary-main); outline-offset: 2px; }
+  .trp-rail-plus { display: inline-flex; color: var(--mui-palette-text-secondary); }
+  @media (min-width: 1280px) {
+    .trp-rail-list { flex-direction: column; }
+    .trp-rail-item { border-width: 0; }
+    .trp-rail-label { flex: 1; }
+  }
+  .trp-rail-templates { margin-top: 8px; display: block; text-align: center; color: var(--mui-palette-text-secondary); }
+
+  .trp-canvas-empty { text-align: center; }
+  .trp-canvas-empty-body,
+  .trp-canvas-empty-body:last-child { padding: 32px 16px; }
+  .trp-canvas-empty-text { margin: 4px auto 0; max-width: 42ch; }
+  .trp-crow { --Paper-shadow: none; display: flex; flex-wrap: wrap; align-items: center; column-gap: 10px; row-gap: 6px; padding: 10px 12px; }
+  .trp-crow-editing { border-color: var(--mui-palette-primary-main); background-color: var(--mui-palette-primary-container); }
+  .trp-move { display: flex; flex-direction: column; }
+  /* IconButton size="small": 1.125rem, which the visually hidden name inherits. */
+  .trp-icon-btn-20 { width: 20px; height: 20px; padding: 0; font-size: 18px; }
+  .trp-icon-btn-20:disabled { opacity: 0.25; cursor: default; }
+  .trp-icon-btn-28 { width: 28px; height: 28px; padding: 0; font-size: 18px; }
+  .trp-crow-text { min-width: 0; flex: 1 1 100%; }
+  @media (min-width: 640px) { .trp-crow-text { flex-basis: auto; } }
+  .trp-crow-end { margin-left: auto; display: flex; align-items: center; gap: 10px; }
+  .trp-crow-cost { min-width: 70px; text-align: right; font-family: var(--font-mono); font-weight: 700; }
+
+  /* The sheet (Card component="form" p 2). */
+  .trp-sheet { padding: 16px; }
+  .trp-sheet-head { margin-bottom: 12px; display: flex; align-items: center; gap: 10px; }
+  .trp-sheet-fields { display: flex; flex-direction: column; gap: 12px; }
+  .trp-grid-2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+  .trp-pull-up { margin-top: -4px; }
+  .trp-note-paper { --Paper-shadow: none; display: flex; align-items: center; gap: 8px; padding: 8px 12px; background-color: var(--mui-palette-surface-2); color: var(--mui-palette-text-secondary); }
+
+  /* ── 3.4.14 Itinerary editor ───────────────────────────────────────────────────────────── */
+  /* The page's own Box: maxWidth 1280, not PAGE_SX's 1336. */
+  .trp-col-1280 { max-width: 1280px; }
+  .trp-mt-1_25 { margin-top: 10px; }
+  .trp-stack-12 { display: flex; flex-direction: column; gap: 12px; }
+  /* KBD_CHIP: the legacy .kbd tag (11px mono on surface-3, 4px corners) on an outlined Chip. */
+  .trp-kbd { height: 20px; border-radius: 4px; font-family: var(--font-mono); font-size: 11px; font-weight: 500; background-color: var(--mui-palette-surface-3); color: var(--mui-palette-text-secondary); }
+  .trp-kbd .chip-label { padding-left: 6px; padding-right: 6px; }
+  .trp-gen-hint { display: flex; align-items: center; gap: 4px; margin-top: 6px; }
+
+  /* One column, the open form beside the days from xl (1280). */
+  .trp-igrid { margin-top: 16px; display: grid; gap: 16px; grid-template-columns: minmax(0, 1fr); }
+  @media (min-width: 1280px) { .trp-igrid { grid-template-columns: minmax(0, 1fr) 380px; } }
+  .trp-ihead { margin-bottom: 8px; display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+  .trp-iempty-text { margin: 4px auto 0; max-width: 46ch; }
+
+  /* A day card. The open one is marked by an inset outline, so its box never changes. */
+  .trp-it-editing { background-color: var(--mui-palette-primary-container); outline: 1px solid var(--mui-palette-primary-main); outline-offset: -1px; }
+  .trp-iday-head { display: flex; flex-wrap: wrap; align-items: baseline; column-gap: 12px; row-gap: 4px; }
+  .trp-iday-num { font-size: 26px; line-height: 1; color: var(--mui-palette-primary-main); }
+  .trp-iday-actions { margin-left: auto; display: flex; align-items: center; gap: 4px; }
+
+  /* An entry: the artboard's outlined row card. */
+  .trp-iact { display: flex; flex-wrap: wrap; align-items: flex-start; column-gap: 10px; row-gap: 6px; padding: 8px 12px; }
+  .trp-it-act-editing { border-color: var(--mui-palette-primary-main); background-color: var(--mui-palette-surface-2); }
+  .trp-iact-end { margin-left: auto; display: flex; align-items: center; gap: 6px; }
+  .trp-itip { margin-top: 6px; padding: 6px 10px; background-color: var(--mui-palette-tertiary-container); color: var(--mui-palette-tertiary-onContainer); }
+
+  /* ── 3.4.15 Payment schedule, §3.6 pay links and Mark paid, 3.6.6 history ──────────────── */
+  /* PAGE_SX here: maxWidth 1100. */
+  .trp-col-1100 { max-width: 1100px; }
+  .trp-fw-500 { font-weight: 500; }
+  .trp-nowrap { white-space: nowrap; }
+  .trp-inline-flex { display: inline-flex; }
+  .trp-scroll-x { overflow-x: auto; }
+  .trp-pad-16,
+  .trp-pad-16:last-child { padding: 16px; }
+  .trp-pay-hint { margin-top: 8px; display: flex; align-items: center; gap: 6px; }
+
+  /* The schedule beside the form from lg. */
+  .trp-pgrid { margin-top: 16px; display: grid; gap: 16px; grid-template-columns: minmax(0, 1fr); }
+  @media (min-width: 1024px) { .trp-pgrid { grid-template-columns: minmax(0, 1fr) 340px; } }
+  .trp-pempty-text { margin: 4px auto 0; max-width: 44ch; }
+
+  /* PaymentScheduleTable rows. */
+  .trp-pay-editing,
+  .trp-pay-editing:hover { background-color: var(--mui-palette-primary-container); }
+  .trp-pay-cell-label { min-width: 180px; }
+  .trp-pay-cell-link { min-width: 170px; }
+  .trp-pay-amount { font-family: var(--font-mono); font-weight: 700; white-space: nowrap; }
+  .trp-pay-partial { display: block; font-weight: 400; }
+  .trp-status-form { display: flex; align-items: center; gap: 6px; }
+  /* NativeSelect / OutlinedInput size="small": MUI's 40px box, padding less the 1px border. */
+  .trp-select-40 { min-height: 40px; padding: 7.5px 32px 7.5px 13px; }
+  .trp-w-96 { width: 96px; box-sizing: border-box; }
+  .trp-link-has { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; }
+  .trp-link-site { display: inline-flex; align-items: center; gap: 6px; color: var(--mui-palette-text-secondary); }
+  .trp-travefy { height: 20px; font-size: 10.5px; }
+  .trp-btn-change { min-height: 28px; min-width: 0; padding-left: 8px; padding-right: 8px; }
+  .trp-link-none { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .trp-pay-actions { display: inline-flex; align-items: center; gap: 4px; }
+  .trp-direct { --Paper-shadow: none; margin-top: 14px; padding: 12px; display: flex; gap: 10px; align-items: center; background-color: var(--mui-palette-secondary-container); color: var(--mui-palette-secondary-onContainer); }
+
+  /* The two dialogs: Paper m 2 at their own widths, DialogContent p 2.75. */
+  .trp-dialog-600 { width: min(600px, calc(100vw - 2rem)); max-width: none; margin: auto; }
+  .trp-dialog-580 { width: min(580px, calc(100vw - 2rem)); max-width: none; margin: auto; }
+  .trp-dialog-pad { padding: 22px; }
+  .trp-dialog-buttons { margin-top: 14px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .trp-dialog-buttons .btn > .icon { margin-left: -4px; margin-right: 8px; }
+  /* MilestoneSummary. */
+  .trp-msum { margin-top: 12px; padding: 10px; background-color: var(--mui-palette-surface-2); }
+  .trp-msum-row { display: flex; align-items: center; gap: 10px; }
+  .trp-msum-text { flex: 1; min-width: 0; }
+  .trp-msum-end { text-align: right; }
+  /* The pay link preview: a picture of the client's button, not a working one. */
+  .trp-preview { margin-top: 12px; padding: 12px; }
+  .trp-preview[hidden] { display: none; }
+  .trp-preview-row { margin-top: 8px; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+  .trp-pay-pill { display: inline-flex; align-items: center; gap: 6px; padding: 4px 12px; border-radius: 999px; background-color: var(--mui-palette-primary-main); color: var(--mui-palette-primary-contrastText); font: var(--mui-font-button); text-transform: none; }
+  .trp-paid-grid { margin-top: 12px; display: grid; gap: 10px; grid-template-columns: minmax(0, 1fr); }
+  @media (min-width: 640px) {
+    .trp-paid-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .trp-span-2 { grid-column: span 2; }
+  }
+
+  /* 3.6.6 Payment history. */
+  .trp-hhead { margin-top: 20px; display: flex; align-items: flex-start; gap: 16px; flex-wrap: wrap; }
+  .trp-hhead-text { min-width: 0; flex: 1; }
+  .trp-hchips { margin-top: 16px; display: flex; gap: 6px; flex-wrap: wrap; }
+  .trp-hempty,
+  .trp-hempty:last-child { padding: 32px 16px; text-align: center; }
+  .trp-hdetail { font-family: var(--font-mono); font-size: 12px; color: var(--mui-palette-text-secondary); overflow-wrap: anywhere; }
+
+  /* ── 3.2.2 Pipeline ────────────────────────────────────────────────────────────────────── */
+  .trp-col-1400 { max-width: 1400px; }
+  .trp-py-1 { padding-top: 8px; padding-bottom: 8px; }
+  /* AgentViews and the stage-picker: the legacy .agent-view-link pill on a Chip. */
+  .trp-views { display: flex; gap: 6px; flex-wrap: wrap; }
+  .trp-view-link { height: auto; min-height: 34px; border-radius: 999px; font-weight: 600; }
+  .trp-view-link .chip-label { padding-left: 14px; padding-right: 14px; }
+  @media (pointer: coarse) { .trp-view-link { min-height: 44px; } }
+  .trp-picker { margin-top: 16px; display: flex; gap: 6px; flex-wrap: wrap; }
+  @media (min-width: 768px) { .trp-picker { display: none; } }
+
+  /* The board, §4.4's three layouts: a phone shows the chosen stage, a tablet scrolls five
+     272px columns sideways, the web width (1200) fits all five as flexible tracks. */
+  .trp-board { margin-top: 16px; display: flex; flex-direction: column; gap: 10px; }
+  .trp-column { --Paper-shadow: none; display: none; flex-direction: column; gap: 8px; padding: 10px; background-color: var(--mui-palette-surface-2); }
+  .trp-column[data-selected="true"] { display: flex; }
+  .trp-column-head { padding-bottom: 8px; border-bottom: 1px solid var(--mui-palette-divider); }
+  @media (min-width: 768px) {
+    .trp-board { flex-direction: row; align-items: flex-start; overflow-x: auto; padding-bottom: 8px; }
+    .trp-column { display: flex; flex: 0 0 272px; }
+  }
+  @media (min-width: 1200px) {
+    .trp-board { overflow-x: visible; }
+    .trp-column { flex: 1 1 0; min-width: 0; }
+  }
+
+  /* ── 3.4.13 Trip templates ─────────────────────────────────────────────────────────────── */
+  /* The page's own Box: max 1024, 16px sides at every width, 64px below, nothing above. */
+  .trp-tpl-col { margin: 0 auto; width: 100%; max-width: 1024px; padding: 0 16px 64px; box-sizing: border-box; }
+  .trp-tpl-head { margin-top: 20px; display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 12px; }
+  .trp-grow { flex: 1; }
+  /* One column, two from sm, three from xl. */
+  .trp-tgrid { margin-top: 16px; display: grid; gap: 12px; grid-template-columns: minmax(0, 1fr); }
+  @media (min-width: 640px) { .trp-tgrid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+  @media (min-width: 1280px) { .trp-tgrid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+  .trp-tcard { display: flex; flex-direction: column; }
+  .trp-tbody,
+  .trp-tbody:last-child { padding: 16px; display: flex; flex-direction: column; flex: 1; }
+  .trp-thead { display: flex; align-items: flex-start; gap: 8px; }
+  .trp-tchip { height: 22px; font-size: 11px; }
+  .trp-tfoot { margin-top: auto; padding-top: 12px; display: flex; align-items: center; gap: 8px; }
+  .trp-tactions { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+  /* Rename and Retire: Paper m 2 at 480, DialogContent p 2.5, actions split. */
+  .trp-dialog-480 { width: min(480px, calc(100vw - 2rem)); max-width: none; margin: auto; }
+  .trp-tile-warning { background-color: var(--mui-palette-warning-container); color: var(--mui-palette-text-primary); }
+  .trp-text-warning { color: var(--mui-palette-warning-main); }
+}

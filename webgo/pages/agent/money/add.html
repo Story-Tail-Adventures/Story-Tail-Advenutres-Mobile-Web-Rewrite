@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<!--
+  Screen 3.7.4, Add Commission Entry. Ports app/(agent)/agent/commission/ledger/new/page.tsx.
+  Filled by internal/handlers/agent/money (add.go).
+
+  A PAGE, WHERE THE ARTBOARD DRAWS A 540px MODAL — the precedent §3.4.3 set for New Trip. The
+  modal's first field is "Linked trip · Search trips…", which as a page is a GET search that
+  lands on ?trip=, and from there the trip is fixed: the supplier picker can fill gross and
+  rate from THAT trip's bookings, which a modal over the ledger had no trip to read from.
+
+  Two steps, one URL: pick the trip, then fill the line. The back button means what it says.
+-->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Add commission line · Story-Tail Adventures</title>
+</head>
+<body>
+<main>
+  <!-- AdminNoAccess: an admin has no desk here. -->
+  <div class="card mny-state" data-slot="no-access">
+    <div class="card-content mny-state-body">
+      <span class="avatar mny-state-tile" aria-hidden="true"><svg class="icon mny-icon-26" aria-hidden="true"><use href="/assets/icons.svg#shield"></use></svg></span>
+      <h2 class="type-h5">You don’t have access to this view</h2>
+      <p class="type-body2 text-secondary mny-mt-1">Your account is set up as an administrator. Story-Tail has no admin area yet, so there is nothing here for you — the traveler’s side and the advisor’s worklist are both somebody else’s desk.</p>
+      <form method="post" action="/account/sign-out">
+        <button type="submit" class="btn btn-outlined btn-secondary st-btn mny-mt-2">Sign out</button>
+      </form>
+    </div>
+  </div>
+
+  <div class="mny-col" data-slot="page">
+    <div data-slot="body">
+      <nav class="mny-views" aria-label="Commission views">
+        <a class="chip chip-outlined mny-view" href="/agent/commission"><span class="chip-label">Dashboard</span></a>
+        <a class="chip chip-secondary mny-view" href="/agent/commission/ledger"><span class="chip-label">Ledger</span></a>
+        <a class="chip chip-outlined mny-view" href="/agent/commission/import"><span class="chip-label">Statements</span></a>
+        <a class="chip chip-outlined mny-view" href="/agent/commission/forecast"><span class="chip-label">Forecast</span></a>
+      </nav>
+
+      <header class="mny-head">
+        <div class="mny-head-text">
+          <h1 class="type-h5">Add commission line</h1>
+          <p class="type-body2 text-secondary mny-sub">Add one line per supplier on a trip. Expected is gross × rate, worked out when you save.</p>
+        </div>
+      </header>
+
+      <!-- RetryState: a read failed. -->
+      <div class="card mny-state" data-slot="retry">
+        <div class="card-content mny-state-body">
+          <span class="avatar mny-state-tile mny-state-tile-error" aria-hidden="true"><svg class="icon mny-icon-26" aria-hidden="true"><use href="/assets/icons.svg#warning"></use></svg></span>
+          <h2 class="type-h5 text-error">That didn’t load</h2>
+          <p class="type-body2 text-secondary mny-mt-1">Something went wrong on our side, not yours. Trying again usually sorts it.</p>
+          <div class="mny-state-actions">
+            <a class="btn btn-contained st-btn" href="/agent/commission/ledger/new" data-slot="retry-again">Try again</a>
+            <a class="btn btn-outlined st-btn" href="mailto:hello@story-tail.com?subject=Something%20went%20wrong"><svg class="icon icon-14" aria-hidden="true"><use href="/assets/icons.svg#message"></use></svg> Message Gyasi</a>
+          </div>
+        </div>
+      </div>
+
+      <div data-slot="content">
+        <div class="card mny-state" data-slot="not-found">
+          <div class="card-content mny-state-body">
+            <span class="avatar mny-state-tile" aria-hidden="true"><svg class="icon mny-icon-26" aria-hidden="true"><use href="/assets/icons.svg#trip"></use></svg></span>
+            <h2 class="type-h5">That trip isn't available</h2>
+            <p class="type-body2 text-secondary mny-mt-1">It may have been archived, or it belongs to another advisor.</p>
+            <div class="mny-state-actions">
+              <a class="btn btn-contained st-btn" href="/agent/commission/ledger/new">Pick a different trip</a>
+            </div>
+          </div>
+        </div>
+
+        <!-- Step 1: pick the trip. A GET form, like every roster filter: the search lives in
+             the URL, so the result is shareable and the back button works. -->
+        <section class="card mny-add-card" data-slot="pick">
+          <div class="card-content mny-card-18">
+            <h2 class="type-subtitle1 fw-600 mny-card-title">Which trip is it for?</h2>
+            <form class="row gap-1 mny-mb-1" method="get" action="/agent/commission/ledger/new" data-slot="pick-form">
+              <label class="visually-hidden" for="pick-trip-q">Search trips</label>
+              <input class="input mny-input-40 grow" id="pick-trip-q" type="search" name="q" value="" placeholder="Trip, destination, or client…" data-slot="pick-q">
+              <button type="submit" class="btn btn-outlined btn-secondary st-btn">Search trips</button>
+            </form>
+            <p class="type-body2 text-secondary" data-slot="pick-none">No trips match that.</p>
+            <ul class="mny-trip-list" aria-label="Which trip is it for?" data-slot="pick-list">
+              <li data-repeat="trip-pick">
+                <a class="mny-trip-row" href="/agent/commission/ledger/new?trip=sample" data-slot="trip-pick-link">
+                  <span class="type-body2 fw-600 mny-block" data-slot="trip-pick-title">Kyoto in the spring</span>
+                  <span class="type-caption text-secondary mny-block" data-slot="trip-pick-meta">The Rodriguez family · Apr 3, 2027 · booked</span>
+                </a>
+              </li>
+            </ul>
+          </div>
+        </section>
+
+        <!-- Step 2: the trip is fixed, and the line form is the same one §3.7.3 edits with. -->
+        <p class="type-body1 mny-mb-1" data-slot="chosen"><strong data-slot="chosen-trip">Kyoto in the spring</strong> · <span data-slot="chosen-client">The Rodriguez family</span> · <a class="link link-hover type-body2" href="/agent/commission/ledger/new" data-slot="chosen-change">Pick a different trip</a></p>
+
+        <section class="card mny-add-card" data-slot="line-form-card">
+          <div class="card-content mny-card-18">
+            <form method="post" action="/agent/commission/ledger/new" data-slot="line-form" data-submit-once>
+              <input type="hidden" name="tripId" value="" data-slot="line-trip-id">
+
+              <div class="alert alert-error mny-mb-1" role="alert" data-slot="form-error"><div class="alert-message" data-slot="form-error-text">That didn’t save. Try again in a moment.</div></div>
+              <div class="alert alert-info mny-mb-1" data-slot="no-suppliers"><div class="alert-message">No suppliers on file yet. A line needs one to attach to.</div></div>
+
+              <div class="mny-form-grid">
+                <div class="field mny-field mny-span-2">
+                  <label class="field-label" for="line-supplier">Supplier</label>
+                  <div class="select mny-select">
+                    <select class="input mny-input-40" id="line-supplier" name="supplierId" required data-slot="supplier-select">
+                      <option value="">Pick a supplier</option>
+                      <option value="sample" data-repeat="supplier-pick" data-slot="supplier-pick">Sandals Resorts</option>
+                    </select>
+                  </div>
+                  <p class="field-error" id="supplier-error" data-slot="supplier-error">Pick a supplier.</p>
+                  <p class="field-help mny-prefill" id="line-prefill-note" hidden></p>
+                </div>
+
+                <div class="field mny-field">
+                  <label class="field-label" for="line-gross">Gross booking</label>
+                  <div class="mny-adorned">
+                    <span class="mny-adorn" aria-hidden="true">$</span>
+                    <input class="input mny-input-40 type-mono mny-adorned-input" id="line-gross" name="gross" inputmode="decimal" autocomplete="off" placeholder="0.00" value="" data-slot="gross-value">
+                  </div>
+                  <p class="field-help" id="gross-hint" data-slot="gross-hint">The booking total the rate applies to.</p>
+                  <p class="field-error" id="gross-error" data-slot="gross-error">Enter an amount like 6480.00.</p>
+                </div>
+
+                <div class="field mny-field">
+                  <label class="field-label" for="line-rate">Commission rate</label>
+                  <div class="mny-adorned mny-adorned-end">
+                    <input class="input mny-input-40 mny-adorned-input" id="line-rate" name="rate" inputmode="decimal" autocomplete="off" value="" data-slot="rate-value">
+                    <span class="mny-adorn" aria-hidden="true">%</span>
+                  </div>
+                  <p class="field-help" id="rate-hint" data-slot="rate-hint">A percent, 0 to 100.</p>
+                  <p class="field-error" id="rate-error" data-slot="rate-error">Enter a rate from 0 to 100.</p>
+                </div>
+
+                <div class="field mny-field">
+                  <span class="field-label text-secondary" id="line-expected-label">Expected</span>
+                  <output class="mny-expected" for="line-gross line-rate" aria-labelledby="line-expected-label" aria-live="off" data-slot="expected-readout">$0.00</output>
+                  <p class="field-help">Gross × rate. Worked out again when you save.</p>
+                </div>
+
+                <div class="mny-span-2 mny-terms-row">
+                  <div class="field mny-field">
+                    <label class="field-label" for="line-terms">Paid</label>
+                    <div class="select mny-select">
+                      <select class="input mny-input-40" id="line-terms" name="paymentTerms">
+                        <option value="after_travel" data-slot="terms-after-travel">After travel</option>
+                        <option value="at_booking" data-slot="terms-at-booking">At booking</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div class="field mny-field">
+                    <label class="field-label" for="line-lag">Days after</label>
+                    <input class="input mny-input-40" id="line-lag" name="paymentLagDays" inputmode="numeric" autocomplete="off" required value="" data-slot="lag-value">
+                    <p class="field-help" id="lag-hint" data-slot="lag-hint">Whole days, 0 to 365.</p>
+                    <p class="field-error" id="lag-error" data-slot="lag-error">Enter whole days, 0 to 365.</p>
+                  </div>
+                </div>
+
+                <div class="field mny-field">
+                  <label class="field-label" for="line-status">Status</label>
+                  <div class="select mny-select">
+                    <select class="input mny-input-40" id="line-status" name="status">
+                      <option value="expected" data-repeat="status-pick" data-slot="status-pick">Expected</option>
+                    </select>
+                  </div>
+                  <p class="field-help">Received and Disputed are set with Mark received.</p>
+                </div>
+
+                <div class="field mny-field">
+                  <label class="field-label" for="line-reference">Inteletravel reference</label>
+                  <input class="input mny-input-40" id="line-reference" name="inteletravelReference" maxlength="64" autocomplete="off" value="" data-slot="reference-value">
+                  <p class="field-help">From the statement, once there is one. A line with one can't be removed.</p>
+                  <p class="field-error" id="reference-error" data-slot="reference-error">That reference is already on another line.</p>
+                </div>
+
+                <div class="field mny-field mny-span-2">
+                  <label class="field-label" for="line-notes">Notes</label>
+                  <textarea class="input mny-textarea" id="line-notes" name="notes" rows="3" maxlength="4000" data-slot="notes-value"></textarea>
+                </div>
+              </div>
+
+              <div class="row wrap items-baseline gap-1 mny-mt-2">
+                <button type="submit" class="btn btn-contained btn-brand st-btn" data-pending-label="Saving…">Save line</button>
+                <a class="btn btn-outlined btn-secondary st-btn" href="/agent/commission/ledger" data-slot="cancel">Cancel</a>
+              </div>
+            </form>
+          </div>
+        </section>
+      </div>
+    </div>
+  </div>
+  <script type="module" src="/assets/js/agent/money/line-form.js"></script>
+</main>
+</body>
+</html>

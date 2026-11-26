@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<!--
+  Screen 2.2.4 Itinerary Viewer (docs/Screen-Inventory.md §2.2.4). Ports
+  web/app/(client)/trips/[tripId]/itinerary/{page,content}.tsx and the parts of
+  ItineraryParts.tsx this screen uses; copy word for word from ITINERARY.
+
+  ONE FLAT LIST, not days each holding their activities: a repeat cannot nest inside another
+  repeat (internal/page refuses it at boot), so the days and their activities are filled as
+  one sequence of rows where each row is either a day heading or an activity. The rendered
+  HTML is the same shape either way.
+
+  The intro note leads, in the traveler's own words from Gyasi: Design-System §2.4 calls it
+  "the place to let the voice come through", and it is the one part of this screen that is
+  not logistics.
+-->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Itinerary · Story-Tail Adventures</title>
+  <meta name="robots" content="noindex, nofollow">
+</head>
+<body>
+  <main>
+    <div class="cl-itin-page">
+      <div class="cl-empty cl-not-found" data-slot="not-ready">
+        <span class="cl-empty-icon" aria-hidden="true"><svg class="icon icon-24"><use href="/assets/icons.svg#clock"></use></svg></span>
+        <p class="type-subtitle1 text-primary cl-empty-title" data-slot="not-ready-title">Your itinerary isn't ready yet</p>
+        <p class="type-body2 text-secondary cl-empty-body" data-slot="not-ready-body">Gyasi is still writing it. It appears here the moment he publishes, and you'll get an email when it does.</p>
+        <a class="btn btn-contained st-btn btn-small" href="/trips/1" data-slot="not-ready-back">Back to the trip</a>
+      </div>
+
+      <div data-slot="body">
+        <header class="cl-band">
+          <div class="cl-prose">
+            <a class="cl-back-link" href="/trips/1" data-slot="back"><svg class="icon icon-14" aria-hidden="true"><use href="/assets/icons.svg#arrow_left"></use></svg>Back to the trip</a>
+            <span class="status-chip cl-band-chip" data-slot="chip">Booked</span>
+            <h1 class="type-h5 fw-700 text-primary cl-band-title" data-slot="title">Aruba in April</h1>
+            <p class="type-caption text-secondary cl-band-meta" data-slot="meta">Apr 3 – 7, 2027 · 2 travelers</p>
+          </div>
+        </header>
+
+        <nav class="cl-day-strip" aria-label="Days" data-slot="strip">
+          <div class="cl-prose cl-day-strip-inner">
+            <span data-repeat="day-chips"><a class="chip chip-outlined cl-day-chip" href="/trips/1/itinerary/1" data-slot="chip-link">Day 1</a></span>
+          </div>
+        </nav>
+
+        <div class="cl-prose cl-itin-body">
+          <p class="type-body1 text-secondary cl-intro" data-slot="intro">Four nights of nothing to do, which is the point.</p>
+
+          <div class="cl-empty" data-slot="no-days">
+            <span class="cl-empty-icon" aria-hidden="true"><svg class="icon icon-24"><use href="/assets/icons.svg#calendar"></use></svg></span>
+            <p class="type-subtitle1 text-primary cl-empty-title">No days yet</p>
+            <p class="type-body2 text-secondary cl-empty-body">Gyasi adds the days as the pieces of the trip are confirmed.</p>
+          </div>
+
+          <div class="cl-days" data-slot="days">
+            <div data-repeat="rows">
+              <!-- A day heading. -->
+              <div class="cl-day-head" data-slot="day-head">
+                <span class="type-script cl-day-number" data-slot="day-number">Day 01</span>
+                <span class="type-subtitle1 text-primary cl-day-title" data-slot="day-title">Arrival</span>
+                <a class="btn btn-text st-btn btn-small cl-day-open" href="/trips/1/itinerary/1" data-slot="day-open">Open</a>
+              </div>
+              <!-- Or one activity on the day above it. -->
+              <div class="card cl-activity" data-slot="activity">
+                <div class="card-content cl-activity-content">
+                  <div class="cl-activity-when">
+                    <span class="type-subtitle2 cl-activity-time" data-slot="activity-time">14:00</span>
+                    <span class="type-overline cl-activity-block" data-slot="activity-block">AFTERNOON</span>
+                  </div>
+                  <span class="cl-tile-icon cl-tile-secondary" aria-hidden="true"><svg class="icon icon-18"><use href="/assets/icons.svg#sparkle"></use></svg></span>
+                  <div class="cl-activity-text">
+                    <span class="type-subtitle1 text-primary cl-activity-title" data-slot="activity-title">Check in at the resort</span>
+                    <span class="type-caption text-secondary cl-activity-body" data-slot="activity-body">Ask for a room away from the lift.</span>
+                  </div>
+                </div>
+              </div>
+              <!-- Or the day's own empty state. -->
+              <div class="card cl-empty-day" data-slot="day-empty">
+                <p class="type-subtitle1 text-primary cl-empty-title" data-slot="day-empty-title">Day 1 is open</p>
+                <p class="type-body2 text-secondary cl-empty-body">Nothing planned — which is allowed. Tell Gyasi if you'd like a tour, or leave it for the pool.</p>
+              </div>
+            </div>
+          </div>
+
+          <section class="card cl-card cl-important" data-slot="important">
+            <div class="card-content cl-card-content">
+              <h2 class="type-subtitle1 text-primary cl-card-title">Important info</h2>
+              <dl class="cl-glance">
+                <div data-repeat="important">
+                  <dt class="type-overline text-secondary" data-slot="info-label">Insurance</dt>
+                  <dd class="type-body2 cl-glance-value" data-slot="info-value">ABC-123456</dd>
+                </div>
+              </dl>
+              <p class="type-body2 text-secondary cl-note-body" data-slot="no-info">Nothing filed for this trip yet.</p>
+            </div>
+          </section>
+        </div>
+      </div>
+    </div>
+  </main>
+</body>
+</html>

@@ -76,8 +76,56 @@
   src: url("/assets/fonts/jetbrains_mono_variable.ttf") format("truetype");
 }
 
+/* The metric-matched fallbacks, the same three next/font generates for these families.
+ *
+ * Each is Arial reshaped to the real font's metrics, and it does two jobs. While the TTF is
+ * still loading it holds the line boxes still (next/font's own reason: no layout shift). And
+ * for a character the font does not contain it is what the browser falls to, which is the job
+ * that matters here: Poppins has no arrows, so "← Back to sign in" fell to system-ui in Go and
+ * to this face in Next, and measured about 3px narrower.
+ *
+ * The percentages are next/font's, read out of web/.next, and every TTF in /assets/fonts
+ * reproduces them from its own head and hhea tables:
+ *
+ *   ascent-override  = ascender / (unitsPerEm * size-adjust)
+ *   descent-override = |descender| / (unitsPerEm * size-adjust)
+ *   line-gap-override = lineGap / (unitsPerEm * size-adjust)
+ *
+ * So they describe the fonts this app serves, not only the subsets Google serves Next. Check
+ * them again if a TTF here is ever replaced; internal/static/fonts_test.go does it for you.
+ */
+
+@font-face {
+  font-family: "Poppins Fallback";
+  src: local("Arial");
+  ascent-override: 93.62%;
+  descent-override: 31.21%;
+  line-gap-override: 8.92%;
+  size-adjust: 112.16%;
+}
+
+@font-face {
+  font-family: "Caveat Fallback";
+  src: local("Arial");
+  ascent-override: 124.77%;
+  descent-override: 38.99%;
+  line-gap-override: 0%;
+  size-adjust: 76.94%;
+}
+
+@font-face {
+  font-family: "JetBrains Mono Fallback";
+  src: local("Arial");
+  ascent-override: 75.79%;
+  descent-override: 22.29%;
+  line-gap-override: 0%;
+  size-adjust: 134.59%;
+}
+
+/* Each variable carries the family and its fallback, exactly as next/font declares them on
+ * <html>, so base.css's and theme.css's stacks come out identical to the Next app's. */
 :root {
-  --font-poppins: "Poppins";
-  --font-caveat: "Caveat";
-  --font-jetbrains-mono: "JetBrains Mono";
+  --font-poppins: "Poppins", "Poppins Fallback";
+  --font-caveat: "Caveat", "Caveat Fallback";
+  --font-jetbrains-mono: "JetBrains Mono", "JetBrains Mono Fallback";
 }

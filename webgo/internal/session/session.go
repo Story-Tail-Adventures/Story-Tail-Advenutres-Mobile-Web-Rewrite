@@ -31,8 +31,13 @@ import (
 )
 
 const (
-	// CookieName holds the session.
-	CookieName = "sta-session"
+	// CookieName holds the session on a local http:// server. Everywhere else it is
+	// SecureCookieName: the __Host- prefix makes the browser refuse one set by a sibling
+	// subdomain or over plain http, so nobody else can plant a session (theirs, or junk that
+	// makes Load clear the real one) in front of the visitor's. The flash and PKCE cookies
+	// carry the same prefix for the same reason.
+	CookieName       = "sta-session"
+	SecureCookieName = "__Host-sta-session"
 	// FlagCookie and FlagValue are the signed-in chrome flag (web/lib/auth/chrome-flag.ts).
 	FlagCookie = "sta-authed"
 	FlagValue  = "1"
@@ -112,7 +117,7 @@ func decode(v string) (supa.Tokens, bool) {
 // Load checks the visitor's session, refreshing it when it is close to expiry, and writes
 // any new cookie onto w. Call it only on routes that need to know (the gate does).
 func (m *Manager) Load(w http.ResponseWriter, r *http.Request) State {
-	c, err := r.Cookie(CookieName)
+	c, err := r.Cookie(m.cookieName())
 	if err != nil {
 		return State{} // no cookie, no network call
 	}
@@ -188,7 +193,7 @@ func (m *Manager) End(w http.ResponseWriter, r *http.Request) {
 	token := ""
 	if st, ok := From(ctx); ok && st.SignedIn {
 		token = st.AccessToken
-	} else if c, err := r.Cookie(CookieName); err == nil {
+	} else if c, err := r.Cookie(m.cookieName()); err == nil {
 		if tok, ok := decode(c.Value); ok {
 			token = tok.AccessToken
 			if time.Unix(tok.ExpiresAt, 0).Sub(m.now()) < refreshWithin {
@@ -223,20 +228,28 @@ func (m *Manager) SyncFlag(w http.ResponseWriter, r *http.Request, signedIn bool
 	}
 }
 
+// cookieName is the session cookie's name for this server (see SecureCookieName).
+func (m *Manager) cookieName() string {
+	if m.secure {
+		return SecureCookieName
+	}
+	return CookieName
+}
+
 func (m *Manager) write(w http.ResponseWriter, t supa.Tokens) {
 	v := encode(t)
 	if len(v) > 3800 {
 		m.log.Warn("session cookie is near the 4 KB browser limit", "bytes", len(v))
 	}
 	http.SetCookie(w, &http.Cookie{
-		Name: CookieName, Value: v, Path: "/", MaxAge: int(maxAge.Seconds()),
+		Name: m.cookieName(), Value: v, Path: "/", MaxAge: int(maxAge.Seconds()),
 		HttpOnly: true, Secure: m.secure, SameSite: http.SameSiteLaxMode,
 	})
 }
 
 func (m *Manager) clear(w http.ResponseWriter) {
 	http.SetCookie(w, &http.Cookie{
-		Name: CookieName, Value: "", Path: "/", MaxAge: -1,
+		Name: m.cookieName(), Value: "", Path: "/", MaxAge: -1,
 		HttpOnly: true, Secure: m.secure, SameSite: http.SameSiteLaxMode,
 	})
 }

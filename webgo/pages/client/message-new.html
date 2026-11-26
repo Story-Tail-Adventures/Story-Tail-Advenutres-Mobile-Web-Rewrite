@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<!--
+  Screen 2.6.3 New Conversation (docs/Screen-Inventory.md §2.6.3, §4.4 Pattern A). Ports
+  web/app/(client)/messages/new/{page,NewMessageForm}.tsx; copy word for word from MESSAGES.
+
+  THIS SCREEN IS WHY THE EDGE FUNCTION CHANGED. Every other message in the app is addressed
+  by trip; this one is written before a trip exists, so trip-message had to learn to
+  find-or-create against trip_id IS NULL. Sending neither a tripId nor a conversationId is
+  what asks for that, and it is deliberately the ONLY way to reach the general thread — so a
+  traveler who writes twice lands in one conversation rather than two.
+
+  THE SUBTITLE MUST NOT PROMISE A QUOTE. BRD §6.5 routes structured intake through
+  quote-request, which creates a Trip in `inquiry`. This is prose that lands in the inbox;
+  wording it as "get a quote" would make it a second intake queue bypassing the pipeline that
+  decision consolidated onto.
+
+  "Use a template" from the frame is absent: message_template belongs to the agent (§3.10),
+  and a client-side template picker is a different feature nobody has specified.
+-->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>New message · Story-Tail Adventures</title>
+  <meta name="robots" content="noindex, nofollow">
+</head>
+<body>
+  <main>
+    <div class="cl-doc-page cl-msg-new">
+      <a class="btn btn-text st-btn btn-small cl-back-link" href="/messages"><svg class="icon icon-14" aria-hidden="true"><use href="/assets/icons.svg#arrow_left"></use></svg>Messages</a>
+
+      <h1 class="type-h5 text-primary cl-msg-new-title" data-slot="title">New message</h1>
+      <p class="type-body2 text-secondary cl-msg-new-sub" data-slot="subtitle">Anything at all — an idea you can't shake, a date that might work, a question about somewhere you've been reading about. There is never a fee for asking.</p>
+
+      <div class="card cl-card cl-advisor" data-slot="advisor">
+        <div class="card-content cl-advisor-content">
+          <img class="cl-thread-avatar" src="/assets/img/lockup-light.webp" width="36" height="36" alt="" decoding="async" data-slot="advisor-photo">
+          <span class="cl-thread-avatar cl-thread-initials" aria-hidden="true" data-slot="advisor-initials">GS</span>
+          <span class="cl-advisor-text">
+            <span class="type-subtitle1 text-primary" data-slot="advisor-name">Gyasi Story</span>
+            <span class="type-caption text-secondary" data-slot="advisor-status">Usually replies the same day</span>
+          </span>
+        </div>
+      </div>
+
+      <div class="alert alert-error" role="alert" data-slot="send-error"><div class="alert-message" data-slot="send-error-text">That didn't send — your words are still here. Try again in a moment.</div></div>
+
+      <form method="post" action="/messages/new" data-submit-once data-slot="new-form">
+        <div class="field">
+          <label class="field-label" for="body" data-slot="body-label">Message</label>
+          <textarea class="input cl-new-body" id="body" name="body" rows="7" maxlength="4000" placeholder="What's on your mind?" data-slot="body"></textarea>
+        </div>
+        <div class="cl-new-actions">
+          <button class="btn btn-contained st-btn" type="submit" data-pending-label="Sending…" data-slot="send"><svg class="icon icon-14" aria-hidden="true"><use href="/assets/icons.svg#send"></use></svg>Send to Gyasi</button>
+          <span class="btn-tooltip" title="Attaching files arrives with the document upload screen" data-slot="attach-wrap">
+            <button class="btn btn-text st-btn" type="button" disabled tabindex="-1" aria-label="Attach a file" data-slot="attach"><svg class="icon icon-14" aria-hidden="true"><use href="/assets/icons.svg#attach"></use></svg></button>
+          </span>
+        </div>
+      </form>
+    </div>
+  </main>
+</body>
+</html>
