@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<!--
+  Screen 2.1.13 Connect Existing Trips (docs/Screen-Inventory.md §2.1.13, Pattern G). Ports
+  web/app/(onboarding)/onboarding/connect/{page,state,ConnectForm}.tsx; copy word for word
+  from CONNECT_TEXT.
+
+  Step 5 of 6. The alert above the form is page content that is there on arrival, so it is
+  role="status" and not the Alert default of role="alert": with a real refusal rendering a
+  few lines below it, two assertive regions would compete to be the thing a screen reader
+  reads out.
+-->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Connect your trips · Story-Tail Adventures</title>
+  <meta name="robots" content="noindex, nofollow">
+</head>
+<body>
+  <main>
+    <div class="ob-wizard">
+      <aside class="ob-rail from-md">
+        <span class="sta-art brand-80 ob-rail-brand" aria-hidden="true"><img class="sta-art-light" src="/assets/img/lockup-light.webp" width="967" height="384" alt="" decoding="async"><img class="sta-art-dark" src="/assets/img/lockup-dark.webp" width="379" height="384" alt="" decoding="async"></span>
+        <p class="type-overline ob-rail-heading">WELCOME ABOARD</p>
+        <ol class="ob-steps">
+          <li class="ob-step" data-repeat="rail">
+            <span class="ob-step-mark" data-slot="mark" aria-hidden="true"><svg class="icon icon-11"><use href="/assets/icons.svg#check"></use></svg></span>
+            <a class="ob-step-label link link-none" href="/welcome" data-slot="done"><span data-slot="done-label">Welcome</span><span class="visually-hidden"> — completed, go back to this step</span></a>
+            <span class="ob-step-label" data-slot="todo">Welcome</span>
+          </li>
+        </ol>
+      </aside>
+
+      <div class="ob-column">
+        <span class="sta-art brand-80 ob-brand-mobile below-md" aria-hidden="true"><img class="sta-art-light" src="/assets/img/lockup-light.webp" width="967" height="384" alt="" decoding="async"><img class="sta-art-dark" src="/assets/img/lockup-dark.webp" width="379" height="384" alt="" decoding="async"></span>
+
+        <div class="ob-pill below-md">
+          <p class="type-overline ob-overline" data-slot="pill-overline">STEP 05 OF 06 · EXISTING TRIPS</p>
+          <div class="ob-bars" aria-hidden="true">
+            <span class="ob-bar" data-slot="bar-1"></span>
+            <span class="ob-bar" data-slot="bar-2"></span>
+            <span class="ob-bar" data-slot="bar-3"></span>
+            <span class="ob-bar" data-slot="bar-4"></span>
+            <span class="ob-bar" data-slot="bar-5"></span>
+            <span class="ob-bar" data-slot="bar-6"></span>
+          </div>
+          <p class="visually-hidden" data-slot="step-count">Step 5 of 6</p>
+        </div>
+
+        <p class="type-overline ob-overline from-md" data-slot="overline">STEP 05 OF 06</p>
+        <h1 class="type-h4 fw-700 text-primary ob-title">Have I already started planning a trip for you?</h1>
+        <p class="ob-sub text-secondary">If I've already sent you an invitation code, paste it below and I'll link those trips to your account. No code? Skip this — you can add one later from your account settings.</p>
+
+        <div class="ob-connect">
+          <div class="alert alert-success ob-wide" role="status" data-slot="linked"><div class="alert-message"><span data-slot="linked-text">Already linked · Aruba in April — 3 Apr 2027. I started this one before you signed up, and it's waiting on your dashboard.</span> <span class="text-secondary" data-slot="linked-email">Linked to jordan.hayes@example.com.</span></div></div>
+          <div class="alert alert-info ob-wide" role="status" data-slot="none"><div class="alert-message">Nothing linked yet — which is completely normal if this is your first trip with me. If I've already started planning something for you, the code from your invitation email will pull it in.</div></div>
+
+          <form method="post" action="/onboarding/connect" data-submit-once data-slot="connect-form">
+            <fieldset class="ob-fields ob-narrow">
+              <div class="field">
+                <label class="field-label" for="code">Invite code (optional)</label>
+                <input class="input type-mono" id="code" name="code" placeholder="STA-7HX2J9" autocomplete="off" spellcheck="false" autocapitalize="characters" maxlength="40" aria-describedby="code-hint" data-slot="code">
+                <p class="field-help" id="code-hint">Codes look like STA-7HX2J9. Spaces, dashes and lowercase are all fine.</p>
+                <p class="field-help field-error" id="code-error" data-slot="code-error">Something went wrong connecting your trips. Try again in a moment — or message Gyasi and he'll sort it out.</p>
+              </div>
+            </fieldset>
+
+            <div class="ob-actions">
+              <button class="btn btn-contained st-btn btn-large" type="submit" name="action" value="save" data-pending-label="Connecting…" data-slot="primary">Connect my trips<svg class="icon icon-14" aria-hidden="true"><use href="/assets/icons.svg#arrow_right"></use></svg></button>
+              <div class="ob-actions-secondary">
+                <a class="btn btn-text st-btn ob-back" href="/onboarding/companions" data-slot="back"><svg class="icon icon-14" aria-hidden="true"><use href="/assets/icons.svg#arrow_left"></use></svg>Back</a>
+                <button class="btn btn-text st-btn" type="submit" name="action" value="skip" aria-label="Skip for now — you can add a code later" data-slot="skip" data-pending-label="Taking you to the next step…">Skip for now</button>
+              </div>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  </main>
+</body>
+</html>

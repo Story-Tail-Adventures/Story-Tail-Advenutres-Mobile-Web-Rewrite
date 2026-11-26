@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<!--
+  Screen 2.1.14 Onboarding Complete (docs/Screen-Inventory.md §2.1.14, Pattern G). Ports
+  web/app/(onboarding)/onboarding/complete/{page,state,summary,CompleteActions}.tsx; copy
+  word for word from COMPLETE_TEXT.
+
+  Step 6 of 6, and the one screen with no rail: it is a centred column, as C2114 draws it.
+  Reaching it is not the same as finishing — the cursor only clears when "Continue to my
+  trips" is pressed, so somebody who closes the tab here comes back to this page rather
+  than to the dashboard with half a wizard behind them.
+
+  The checklist says "skipped" in words as well as in its icon, because the icon is
+  decoration: without the words a screen reader hears four identical items.
+-->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>You're all set · Story-Tail Adventures</title>
+  <meta name="robots" content="noindex, nofollow">
+</head>
+<body>
+  <main>
+    <div class="ob-complete">
+      <div class="ob-complete-inner">
+        <span class="avatar ob-badge" aria-hidden="true"><svg class="icon icon-36" aria-hidden="true"><use href="/assets/icons.svg#check"></use></svg></span>
+        <p class="type-overline ob-overline">YOU'RE ALL SET</p>
+        <h1 class="ob-complete-title" data-slot="title">That's everything.</h1>
+        <p class="ob-complete-sub text-secondary" data-slot="sub">I've saved your profile, how you like to travel, and who travels with you. When a trip starts taking shape, it'll show up right here.</p>
+
+        <div class="ob-complete-body">
+          <section>
+            <h2 class="type-subtitle1 text-primary ob-checklist-heading">What we set up</h2>
+            <ul class="ob-checklist">
+              <li class="ob-check" data-repeat="checklist">
+                <span class="avatar ob-check-mark" aria-hidden="true" data-slot="check-mark"><svg class="icon icon-11" aria-hidden="true"><use href="/assets/icons.svg#check"></use></svg></span>
+                <span class="type-body2 text-secondary" data-slot="check-label">Your details</span>
+              </li>
+            </ul>
+          </section>
+
+          <ul class="ob-next-cards">
+            <li>
+              <a class="card ob-next-card ob-next-card-primary" href="/dashboard" data-slot="card-trip">
+                <span class="ob-next-icon" aria-hidden="true"><svg class="icon icon-20"><use href="/assets/icons.svg#plane"></use></svg></span>
+                <span class="type-subtitle1 ob-next-title" data-slot="card-trip-title">View your upcoming trip</span>
+                <span class="type-caption ob-next-sub" data-slot="card-trip-sub">Aruba in April · 3 Apr 2027</span>
+              </a>
+            </li>
+            <li>
+              <a class="card ob-next-card" href="/explore">
+                <span class="ob-next-icon ob-next-icon-plain" aria-hidden="true"><svg class="icon icon-20"><use href="/assets/icons.svg#search"></use></svg></span>
+                <span class="type-subtitle1 ob-next-title">See where people are going</span>
+                <span class="type-caption ob-next-sub" data-slot="card-explore-sub">22 trips Gyasi plans often</span>
+              </a>
+            </li>
+            <!-- Only when there is somewhere for it to go: in-app messaging for a traveler
+                 who has not finished signing up is Screen 2.6, and a card that looks like a
+                 way to reach Gyasi and is not one is worse than three columns of two. -->
+            <li data-slot="card-message">
+              <a class="card ob-next-card" href="mailto:gyasi@example.com" data-slot="card-message-link">
+                <span class="ob-next-icon ob-next-icon-plain" aria-hidden="true"><svg class="icon icon-20"><use href="/assets/icons.svg#message"></use></svg></span>
+                <span class="type-subtitle1 ob-next-title">Message Gyasi</span>
+                <span class="type-caption ob-next-sub">He usually replies the same day</span>
+              </a>
+            </li>
+          </ul>
+
+          <div class="ob-complete-actions">
+            <div class="alert alert-error" role="alert" data-slot="finish-error"><div class="alert-message">We couldn't finish that just now — but everything you entered is saved. Try again, or head straight to your dashboard. <a class="link link-inherit ob-error-link" href="/dashboard">Go to my dashboard</a>.</div></div>
+            <form class="ob-complete-form" method="post" action="/onboarding/complete" data-submit-once>
+              <button class="btn btn-contained st-btn btn-large" type="submit" data-pending-label="Opening your dashboard…">Continue to my trips<svg class="icon icon-14" aria-hidden="true"><use href="/assets/icons.svg#arrow_right"></use></svg></button>
+            </form>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+</body>
+</html>

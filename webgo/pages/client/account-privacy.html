@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<!--
+  Screen 2.5.9 Privacy & Data (docs/Screen-Inventory.md §2.5.9). Ports
+  web/app/(client)/account/privacy/{page,content}.tsx; copy word for word from PRIVACY.
+
+  READ-ONLY today. Everything shown is static or already-published content, and the one
+  action is disabled with a reason.
+
+  OF THE ARTBOARD'S THREE TRACKING TOGGLES, NONE IS DRAWN HERE. Essential cookies are not a
+  choice and Marketing does not exist; the Analytics switch is the public area's, rendered
+  only where Firebase is configured, and this surface does not configure it. The paragraph
+  states what is true without offering a control that does nothing.
+
+  trackingBody must stay consistent with the published cookie policy, which says we do not
+  use advertising cookies and lists Google Analytics as the one tracker, opt-in and on the
+  website only. It is shared with the app, which runs no analytics, so it must stay true on
+  both. A privacy claim that drifts from the legal page is worse than no claim.
+-->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Privacy &amp; data · Story-Tail Adventures</title>
+  <meta name="robots" content="noindex, nofollow">
+</head>
+<body>
+  <main>
+    <div class="cl-account-page">
+      <header class="cl-account-head">
+        <a class="btn btn-text st-btn btn-small cl-back-link" href="/account"><svg class="icon icon-14" aria-hidden="true"><use href="/assets/icons.svg#arrow_left"></use></svg>Account</a>
+        <h1 class="type-h5 text-primary cl-account-title" data-slot="title">Privacy &amp; data</h1>
+        <p class="type-body2 text-secondary cl-account-sub" data-slot="subtitle">What we hold, and what we don’t.</p>
+      </header>
+
+      <section class="card cl-card">
+        <div class="card-content cl-card-content">
+          <h2 class="type-subtitle1 text-primary cl-card-title" data-slot="export-title">Download your data</h2>
+          <p class="type-body2 text-secondary cl-account-note" data-slot="export-body">Your profile, your trips, your documents and your messages.</p>
+          <span class="btn-tooltip" title="Coming with the next release" data-slot="export-wrap">
+            <button class="btn btn-outlined btn-secondary st-btn btn-small" type="button" disabled tabindex="-1" aria-disabled="true" data-slot="export-cta">Request an export</button>
+          </span>
+        </div>
+      </section>
+
+      <section class="cl-settings-group">
+        <h2 class="type-overline text-secondary cl-settings-label" data-slot="tracking-heading">TRACKING</h2>
+        <p class="type-body2 text-secondary cl-account-note" data-slot="tracking-body">We don’t run advertising trackers.</p>
+        <a class="link" href="/legal/cookies" data-slot="cookies-link">Read the cookie policy</a>
+      </section>
+
+      <section class="card cl-card">
+        <div class="card-content cl-card-content">
+          <h2 class="type-subtitle1 text-primary cl-card-title" data-slot="close-title">Close your account</h2>
+          <p class="type-body2 text-secondary cl-account-note" data-slot="close-body">Your trips are archived and your personal details are anonymized.</p>
+          <a class="btn btn-outlined btn-secondary st-btn btn-small" href="/account/close" data-slot="close-cta">Close my account</a>
+        </div>
+      </section>
+    </div>
+  </main>
+</body>
+</html>

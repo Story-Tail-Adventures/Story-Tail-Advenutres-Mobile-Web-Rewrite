@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<!--
+  Screen 2.1.2 Registration (docs/Screen-Inventory.md §2.1.2, Pattern A). Ports
+  web/app/(auth)/register/{page,RegisterForm,state}.tsx; copy word for word from REGISTER_TEXT.
+  Two states: the form, and "Check your email" (data-slot="confirm"), which is ALSO what a
+  taken address gets, so the screen never confirms that an account exists.
+-->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Create your account · Story-Tail Adventures</title>
+</head>
+<body>
+  <main>
+    <div>
+      <span class="type-overline auth-overline">JOIN STORY-TAIL</span>
+      <h1 class="type-h4 fw-700">Create your account</h1>
+      <p class="type-body2 text-secondary auth-sub">Takes about 60 seconds. No planning fees, ever.</p>
+    </div>
+
+    <div class="auth-panel" role="status" data-slot="confirm">
+      <h2 class="type-h5">Check your email</h2>
+      <p class="type-body2 text-secondary auth-mt-6">We sent a verification link to <b class="auth-strong" data-slot="confirm-email">jordan@example.com</b>.</p>
+      <div class="auth-mt-14">
+        <div class="card card-flat"><div class="card-content auth-note">
+          <p class="type-subtitle1">Why verify?</p>
+          <p class="type-caption text-secondary auth-mt-4">It links any trips Gyasi has already started planning for you, so you'll see them as soon as you sign in.</p>
+        </div></div>
+      </div>
+      <a class="link type-subtitle2 tap-target auth-tap-link auth-mt-14" href="/verify-email">Didn't get it?</a>
+    </div>
+
+    <form class="auth-form" method="post" action="/register" data-submit-once data-slot="form">
+      <input type="hidden" name="next" value="/dashboard" data-slot="next">
+
+      <div class="alert alert-error" role="alert" aria-live="polite" data-slot="form-error"><div class="alert-message"><span data-slot="form-error-text">Something went sideways on our end. Try again in a moment.</span><span data-slot="form-error-action"> <a class="link link-inherit auth-error-link" href="/login" data-slot="form-error-link">Sign in</a>.</span></div></div>
+
+      <!-- The social pair belongs to the auth-oauth form below (the form attribute), so Enter in
+           a field submits this form rather than "clicking" the first social button. -->
+      <fieldset class="auth-fieldset">
+        <button class="btn btn-outlined st-btn btn-large btn-block" type="submit" form="auth-oauth" name="provider" value="google" data-slot="google-on">Sign up with Google</button>
+        <span class="btn-tooltip btn-block" title="Social sign-up isn't switched on yet — use your email below." data-slot="google-off"><button class="btn btn-outlined st-btn btn-large btn-block" type="submit" form="auth-oauth" disabled tabindex="-1" title="Social sign-up isn't switched on yet — use your email below.">Sign up with Google</button></span>
+        <button class="btn btn-outlined st-btn btn-large btn-block" type="submit" form="auth-oauth" name="provider" value="apple" data-slot="apple-on">Sign up with Apple</button>
+        <span class="btn-tooltip btn-block" title="Social sign-up isn't switched on yet — use your email below." data-slot="apple-off"><button class="btn btn-outlined st-btn btn-large btn-block" type="submit" form="auth-oauth" disabled tabindex="-1" title="Social sign-up isn't switched on yet — use your email below.">Sign up with Apple</button></span>
+      </fieldset>
+
+      <div class="divider-label" role="none"><span>OR EMAIL</span></div>
+
+      <fieldset class="auth-fieldset">
+        <div class="auth-name-row">
+          <div class="field">
+            <label class="field-label" for="firstName">First name</label>
+            <input class="input" id="firstName" name="firstName" autocomplete="given-name" autofocus required data-slot="first-name">
+            <p class="field-help field-error" id="firstName-error" data-slot="first-name-error">Tell us your name</p>
+          </div>
+          <div class="field">
+            <label class="field-label" for="lastName">Last name</label>
+            <input class="input" id="lastName" name="lastName" autocomplete="family-name" required data-slot="last-name">
+            <p class="field-help field-error" id="lastName-error" data-slot="last-name-error">Tell us your name</p>
+          </div>
+        </div>
+
+        <div class="field">
+          <label class="field-label" for="email">Email</label>
+          <input class="input" id="email" name="email" type="email" autocomplete="email" required data-slot="email">
+          <p class="field-help field-error" id="email-error" data-slot="email-error">Don't forget your email</p>
+        </div>
+
+        <div class="field">
+          <label class="field-label" for="password">Password</label>
+          <input class="input" id="password" name="password" type="password" autocomplete="new-password" required data-strength="password-hint" data-slot="password">
+          <div class="auth-meter" aria-hidden="true" data-score="0"><div class="auth-meter-bar"></div></div>
+          <p class="field-help" id="password-hint" data-idle="12+ characters with a number, a capital and a lowercase letter" data-slot="password-hint">12+ characters with a number, a capital and a lowercase letter</p>
+          <p class="field-help field-error" id="password-error" data-slot="password-error">Use at least 12 characters</p>
+        </div>
+
+        <div class="field">
+          <label class="field-label" for="confirmPassword">Confirm password</label>
+          <input class="input" id="confirmPassword" name="confirmPassword" type="password" autocomplete="new-password" required data-slot="confirm-password">
+          <p class="field-help field-error" id="confirmPassword-error" data-slot="confirm-password-error">Type your password once more</p>
+        </div>
+
+        <div>
+          <label class="check auth-check"><input class="check-input" type="checkbox" id="terms" name="terms" required data-slot="terms"><span class="type-body2 text-secondary">I agree to the <a class="link" href="/legal/terms">Terms</a> &amp; <a class="link" href="/legal/privacy">Privacy policy</a></span></label>
+          <p class="field-help field-error auth-terms-error" id="terms-error" data-slot="terms-error">Check the box to agree to our terms</p>
+        </div>
+      </fieldset>
+
+      <button class="btn btn-contained st-btn btn-large btn-block" type="submit" data-pending-label="Creating your account…">Create account</button>
+    </form>
+    <form class="auth-contents" id="auth-oauth" method="post" action="/auth/oauth" data-submit-once><input type="hidden" name="next" value="/dashboard" data-slot="oauth-next"></form>
+
+    <div class="type-caption text-secondary auth-footer">Already a member? <a class="link" href="/login">Sign in</a></div>
+    <script type="module" src="/assets/js/auth/forms.js"></script>
+    <script type="module" src="/assets/js/auth/password-strength.js"></script>
+  </main>
+</body>
+</html>
