@@ -15,6 +15,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/url"
+	"regexp"
 	"strconv"
 	"strings"
 )
@@ -189,6 +190,51 @@ func checkOrigin(raw string, prod bool) error {
 	}
 	if u.Host == "" || u.User != nil || (u.Path != "" && u.Path != "/") || u.RawQuery != "" || u.Fragment != "" {
 		return fmt.Errorf("must be an origin like https://example.com, got %q", raw)
+	}
+	return checkHost(u.Hostname(), prod)
+}
+
+// hostLabel is one label of a hostname: letters, digits and hyphens, not starting or ending
+// with a hyphen.
+var hostLabel = regexp.MustCompile(`^[A-Za-z0-9]([A-Za-z0-9-]*[A-Za-z0-9])?$`)
+
+// reservedHosts are the names RFC 2606 and RFC 6761 set aside for documentation and testing.
+// They resolve nowhere, so a production origin using one is a placeholder somebody forgot.
+var reservedHosts = map[string]bool{
+	"example": true, "example.com": true, "example.org": true, "example.net": true,
+	"test": true, "invalid": true, "localhost": true,
+}
+
+// checkHost rejects a host that cannot be a real one.
+//
+// WHY THIS EXISTS. url.Parse is lenient about the authority: it accepted
+// "https://<your-domain-or-onrender-host>" and reported the angle brackets as the Host,
+// so SITE_URL passed every check above and the service booted on a placeholder. It then
+// served that text as the canonical link, as og:url, as the Sitemap line in robots.txt and
+// in all 33 sitemap entries, and would have built every auth redirect from it. Nothing
+// failed; it was only visible by reading robots.txt on the live site.
+//
+// A placeholder that fails loudly is a placeholder; one that fails quietly is a bug waiting
+// for a deploy (.github/workflows/deploy.yml says the same thing about its own).
+func checkHost(host string, prod bool) error {
+	if host == "" {
+		return fmt.Errorf("has no host")
+	}
+	for _, label := range strings.Split(host, ".") {
+		if !hostLabel.MatchString(label) {
+			return fmt.Errorf("%q is not a hostname (bad label %q) — a leftover placeholder?", host, label)
+		}
+	}
+	if !prod {
+		return nil
+	}
+	// In production the origin is public, so it needs a name that can resolve: a dot, and
+	// not one of the names the RFCs reserve for documentation.
+	if !strings.Contains(host, ".") {
+		return fmt.Errorf("%q has no dot, so it cannot resolve in production — a leftover placeholder?", host)
+	}
+	if reservedHosts[strings.ToLower(host)] {
+		return fmt.Errorf("%q is reserved for documentation and resolves nowhere", host)
 	}
 	return nil
 }

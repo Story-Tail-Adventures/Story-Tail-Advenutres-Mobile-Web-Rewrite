@@ -211,3 +211,50 @@ func TestSecretsNeverPrinted(t *testing.T) {
 		}
 	}
 }
+
+// THE VALUE THIS TEST EXISTS FOR is the first case: production booted on
+// "https://<your-domain-or-onrender-host>" on 2026-11-26, straight out of the .env template,
+// because url.Parse reports the angle brackets as a perfectly good Host. The service came up,
+// served that text as the canonical link, as og:url, as the Sitemap line and in all 33 sitemap
+// entries, and would have built every auth redirect from it. The only way to notice was to read
+// robots.txt on the live site.
+func TestProductionRefusesAPlaceholderHost(t *testing.T) {
+	for _, bad := range []string{
+		"https://<your-domain-or-onrender-host>",
+		"https://<host>",
+		"https://REPLACE-ME",    // no dot: cannot resolve
+		"https://localhost",     // reserved, and not a public origin
+		"https://example.com",   // RFC 2606, resolves nowhere
+		"https://my host.com",   // a space is not a hostname
+		"https://-leading.com",  // a label may not start with a hyphen
+		"https://trailing-.com", // or end with one
+	} {
+		if _, err := Load(env(with(goodProd, "SITE_URL", bad))); err == nil {
+			t.Errorf("SITE_URL %q was accepted in production", bad)
+		}
+	}
+}
+
+// And the real hosts still load, so the check above cannot be satisfied by refusing everything.
+func TestProductionAcceptsRealHosts(t *testing.T) {
+	for _, good := range []string{
+		"https://story-tail-advenutres-mobile-web-rewrite.onrender.com",
+		"https://storytailadventures.com",
+		"https://adventures.story-tail.com",
+		"https://a.co",
+	} {
+		if _, err := Load(env(with(goodProd, "SITE_URL", good))); err != nil {
+			t.Errorf("SITE_URL %q was refused: %v", good, err)
+		}
+	}
+}
+
+// Development keeps its escape hatches: localhost has no dot and is reserved, and both are
+// fine when STA_ENV says development.
+func TestDevelopmentStillAllowsLocalhost(t *testing.T) {
+	for _, ok := range []string{"http://localhost:8080", "http://127.0.0.1:8080"} {
+		if _, err := Load(env(map[string]string{"STA_ENV": "development", "SITE_URL": ok})); err != nil {
+			t.Errorf("SITE_URL %q was refused in development: %v", ok, err)
+		}
+	}
+}
