@@ -7,7 +7,301 @@
  *
  * No inline styles anywhere (the CSP is style-src 'self'): a page that needs a one-off size
  * or colour gets a class here. internal/static/classes_test.go fails on any class a page uses
- * that no stylesheet defines. */
+ * that no stylesheet defines.
+ *
+ * Every value is the sx of the Next component it replaces (web/app/(onboarding)/**,
+ * components/onboarding/*), named beside it, in MUI's 8px spacing: 0.5 = 4px, 0.75 = 6px,
+ * 1.25 = 10px, 1.75 = 14px, 2.5 = 20px, 4.5 = 36px. */
 
 @layer components {
+  /* ── 2.1.9 Welcome (welcome/page.tsx) ───────────────────────────────────────────────────
+     The hero is taller on mobile than on desktop — the ramp inverts, which is why it is
+     written out rather than reusing a shared hero: 260 -> 200, not 220 -> 280. */
+  .ob-hero { position: relative; height: 260px; flex-shrink: 0; overflow: hidden; }
+  .ob-hero-photo { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+  /* SCRIM_SX: the brand burgundy at 40% into the brand navy at 80%, from the theme's own
+     brand-source variables rather than two hex literals. Scheme-independent on purpose:
+     white copy on a photo stays white in both schemes. */
+  .ob-hero-scrim {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--mui-palette-brandSource-burgundy) 40%, transparent),
+      color-mix(in srgb, var(--mui-palette-brandSource-navy) 80%, transparent)
+    );
+  }
+  .ob-hero-copy {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    padding: 20px;
+    color: var(--mui-palette-common-white);
+  }
+  .ob-hero-overline {
+    display: block;
+    color: var(--mui-palette-brandSource-gold);
+    font-weight: 600;
+    line-height: 1.3;
+  }
+  /* HERO_TITLE_SX: .t-headline below md, .t-display-s from it. The band is 260px tall on a
+     phone, which a 48px heading that wraps to three lines does not fit. */
+  .ob-hero-title {
+    margin: 4px 0;
+    color: var(--mui-palette-common-white);
+    font-weight: 700;
+    font-size: 28px;
+    line-height: 1.15;
+    letter-spacing: -0.4px;
+  }
+  .ob-hero-sub {
+    margin: 0;
+    color: var(--mui-palette-common-white);
+    opacity: 0.9;
+    font-style: italic;
+    font-size: 13px;
+    line-height: 1.45;
+  }
+  .ob-welcome-body {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    gap: 20px;
+    padding: 20px;
+  }
+  .ob-cards { display: grid; gap: 12px; margin: 0; padding: 0; list-style: none; }
+  .ob-card { height: 100%; }
+  /* CardContent: icon beside the text below md, stacked above it from md. */
+  .ob-card-content { display: flex; align-items: flex-start; gap: 12px; }
+  .ob-card-content:last-child { padding-bottom: 16px; }
+  .ob-card-icon {
+    display: inline-flex;
+    flex-shrink: 0;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    border-radius: var(--mui-shape-borderRadius, 4px);
+    background: var(--mui-palette-primary-container);
+    color: var(--mui-palette-primary-onContainer);
+  }
+  .ob-card-text { min-width: 0; }
+  .ob-card-title { margin: 0; }
+  .ob-card-body { display: block; margin-top: 2px; }
+  .ob-welcome-actions { display: flex; flex-direction: column; gap: 12px; margin-top: auto; }
+  /* The DOM order is [primary, skip] so Enter cannot end the wizard; these two rules put
+     the primary back where the artboards draw it — at the bottom on a phone, on the right
+     of the row from md. */
+  .ob-welcome-buttons { display: flex; flex-direction: column-reverse; gap: 10px; }
+  .ob-error-link { font-weight: 600; text-underline-offset: 2px; }
+
+  /* ── The wizard chrome (components/onboarding/OnboardingShell.tsx) ─────────────────────── */
+  .ob-wizard { display: flex; flex: 1; flex-direction: column; min-height: 100dvh; }
+  .ob-rail {
+    border-right: 1px solid var(--mui-palette-divider);
+    background: var(--mui-palette-surface-1);
+    padding: 32px 24px;
+  }
+  .ob-rail-brand { display: block; margin-bottom: 20px; }
+  .ob-rail-heading { display: block; margin: 0 0 14px; line-height: 1.3; color: var(--mui-palette-text-secondary); }
+  .ob-steps { display: flex; flex-direction: column; gap: 14px; margin: 0; padding: 0; list-style: none; }
+  .ob-step { display: flex; align-items: center; gap: 10px; }
+  /* MUI's StepIcon, at its own 24px: upcoming is the surface circle, current is primary,
+     completed is primary with the tick. */
+  .ob-step-mark {
+    display: inline-flex;
+    flex-shrink: 0;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background: var(--mui-palette-surface-3);
+    color: transparent;
+  }
+  .ob-step-mark.is-current { background: var(--mui-palette-primary-main); color: transparent; }
+  .ob-step-mark.is-done { background: var(--mui-palette-primary-main); color: var(--mui-palette-common-white); }
+  .ob-step-label { color: var(--mui-palette-text-secondary); font: var(--mui-font-body2); }
+  .ob-step-label[aria-current="step"] { color: var(--mui-palette-text-primary); font-weight: 600; }
+  a.ob-step-label:hover { text-decoration: underline; }
+
+  .ob-column { display: flex; flex: 1; flex-direction: column; padding: 20px 20px 8px; }
+  .ob-brand-mobile { display: block; margin-bottom: 18px; }
+  .ob-pill { margin-bottom: 16px; }
+  .ob-overline { display: block; margin: 0; color: var(--mui-palette-brand-main); font-weight: 600; line-height: 1.3; }
+  .ob-bars { display: flex; gap: 4px; margin-top: 8px; }
+  .ob-bar { height: 4px; flex: 1; border-radius: 2px; background: var(--mui-palette-surface-3); }
+  .ob-bar.is-current { background: var(--mui-palette-primary-main); }
+  .ob-bar.is-done { background: var(--mui-palette-success-main); }
+  .ob-title { margin: 4px 0; }
+  .ob-sub { margin: 0 0 16px; font-size: 13px; line-height: 1.45; }
+
+  /* ── The step forms ────────────────────────────────────────────────────────────────────
+     FIELDSET_SX: a group and nothing else — no box, no inset, free to shrink. */
+  .ob-fields,
+  .ob-group { margin: 0; padding: 0; border: 0; min-width: 0; }
+  .ob-fields { display: flex; flex-direction: column; gap: 20px; }
+  .ob-note { margin: 0; }
+  .ob-legend { margin-bottom: 4px; padding: 0; }
+  .ob-group-hint,
+  .ob-group-note { margin: 0 0 12px; }
+  .ob-group-error { margin: 0 0 12px; color: var(--mui-palette-error-main); }
+  .ob-expired { margin-bottom: 12px; }
+  .ob-grid-2,
+  .ob-grid-3 { display: grid; gap: 12px; }
+  .ob-relabel { margin-top: 4px; align-self: flex-start; }
+
+  /* 2.1.11's narrow and wide boxes: NARROW (max 384 from md) and WIDE (max 640). */
+  .ob-narrow { margin-top: 12px; }
+  .ob-wide,
+  .ob-loyalty { display: flex; flex-direction: column; gap: 12px; }
+
+  /* ── 2.1.12 Companions (CompanionsList.tsx) ────────────────────────────────────────────── */
+  .ob-companions { display: flex; flex-direction: column; gap: 16px; }
+  /* EmptyState: an outlined card on surface.2, centred. */
+  .ob-empty { background: var(--mui-palette-surface-2); padding: 24px 20px; text-align: center; }
+  .ob-empty-title { margin: 0; }
+  .ob-empty-body { margin: 6px auto 16px; max-width: 480px; }
+  .ob-list { display: flex; flex-direction: column; gap: 10px; margin: 0; padding: 0; list-style: none; }
+  .ob-companion-content { display: flex; align-items: center; gap: 12px; }
+  .ob-companion-content:last-child { padding-bottom: 16px; }
+  .ob-companion-avatar {
+    width: 44px;
+    height: 44px;
+    flex-shrink: 0;
+    font-size: 15px;
+    background: var(--mui-palette-tertiary-container);
+    color: var(--mui-palette-tertiary-onContainer);
+  }
+  .ob-companion-text { min-width: 0; flex: 1; }
+  .ob-companion-name { margin: 0; }
+  .ob-companion-meta { display: block; margin: 0; }
+  .ob-companion-actions { display: flex; flex-shrink: 0; align-items: center; gap: 4px; }
+  /* The add/edit form: the same flat card the empty state uses. */
+  .ob-form { background: var(--mui-palette-surface-2); padding: 16px; }
+  .ob-form-title { margin: 0; }
+  .ob-form-sub { margin: 4px 0 16px; }
+  .ob-form-actions { display: flex; align-items: center; gap: 8px; margin-top: 16px; }
+  .ob-unfinished { margin: 16px 0 0; }
+
+  /* OnboardingActions: below md a sticky bar with its own surface, bleeding into the
+     column's 20px gutters so the form scrolls under it. */
+  .ob-actions {
+    display: flex;
+    position: sticky;
+    bottom: 0;
+    flex-direction: column;
+    gap: 6px;
+    margin: 24px -20px 0;
+    border-top: 1px solid var(--mui-palette-divider);
+    background: var(--mui-palette-surface-1);
+    padding: 12px 20px 22px;
+  }
+  .ob-actions-secondary { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+  .ob-back { text-decoration: none; }
+  .ob-skip { align-self: center; }
+
+  /* A card that is a list item or a form keeps the card box without the list marker. */
+  .ob-companion { display: block; }
+
+  /* ── 2.1.13 Connect (connect/page.tsx): alert, then the code field ─────────────────────── */
+  .ob-connect { display: flex; flex-direction: column; gap: 20px; }
+
+  /* ── 2.1.14 Complete (complete/page.tsx): a centred column, no rail ────────────────────── */
+  .ob-complete {
+    display: flex;
+    flex: 1;
+    align-items: center;
+    justify-content: center;
+    min-height: 100dvh;
+    padding: 32px 20px;
+  }
+  .ob-complete-inner { width: 100%; max-width: 640px; }
+  /* The success badge, as C2114 draws it: a 96px avatar on the success container. */
+  .ob-badge {
+    width: 96px;
+    height: 96px;
+    margin-bottom: 16px;
+    background: var(--mui-palette-success-container);
+    color: var(--mui-palette-success-main);
+    box-shadow: var(--mui-shadows-2);
+  }
+  .ob-complete-title {
+    margin: 4px 0 6px;
+    color: var(--mui-palette-text-primary);
+    font-weight: 700;
+    font-size: 28px;
+    line-height: 1.15;
+    letter-spacing: -0.4px;
+  }
+  .ob-complete-sub { margin: 0; font-size: 14px; }
+  .ob-complete-body { display: flex; flex-direction: column; gap: 24px; margin-top: 24px; }
+  .ob-checklist-heading { margin: 0 0 8px; }
+  .ob-checklist { display: flex; flex-direction: column; gap: 6px; margin: 0; padding: 0; list-style: none; }
+  .ob-check { display: flex; align-items: center; gap: 10px; }
+  .ob-check-mark {
+    width: 20px;
+    height: 20px;
+    flex-shrink: 0;
+    background: var(--mui-palette-surface-3);
+    color: var(--mui-palette-text-secondary);
+  }
+  .ob-check-mark.is-done { background: var(--mui-palette-success-main); color: var(--mui-palette-common-white); }
+  .ob-next-cards { display: grid; gap: 12px; margin: 0; padding: 0; list-style: none; }
+  .ob-next-card {
+    display: block;
+    height: 100%;
+    padding: 14px;
+    color: var(--mui-palette-text-primary);
+    text-decoration: none;
+  }
+  .ob-next-card-primary {
+    background: var(--mui-palette-primary-container);
+    color: var(--mui-palette-primary-onContainer);
+  }
+  .ob-next-icon { display: inline-flex; color: inherit; }
+  .ob-next-icon-plain { color: var(--mui-palette-primary-main); }
+  .ob-next-title { display: block; margin-top: 8px; color: inherit; }
+  .ob-next-sub { display: block; color: inherit; opacity: 0.8; }
+  .ob-complete-actions { display: flex; flex-direction: column; gap: 12px; }
+  .ob-complete-form { display: flex; flex-direction: column; }
+
+  @media (min-width: 768px) {
+    .ob-hero { height: 200px; }
+    .ob-hero-copy { padding: 32px 48px; }
+    .ob-hero-title { font-size: 36px; line-height: 1.1; letter-spacing: -0.6px; }
+    .ob-hero-sub { font-size: 14px; line-height: 1.5; }
+    .ob-welcome-body { gap: 24px; padding: 24px 48px; }
+    .ob-cards { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .ob-card-content { display: block; }
+    .ob-card-title { margin-top: 8px; }
+    .ob-welcome-buttons { flex-direction: row-reverse; justify-content: flex-start; gap: 12px; }
+
+    .ob-wizard { display: grid; grid-template-columns: 280px minmax(0, 1fr); }
+    .ob-column { padding: 36px 48px; }
+    .ob-sub { margin-bottom: 20px; font-size: 16px; line-height: 1.5; }
+    .ob-grid-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .ob-grid-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .ob-narrow { max-width: 384px; }
+    .ob-wide { max-width: 640px; }
+    .ob-complete { padding: 32px; }
+    .ob-complete-title { font-size: 36px; line-height: 1.1; letter-spacing: -0.6px; }
+    .ob-complete-sub { font-size: 16px; }
+    .ob-next-cards { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .ob-complete-form { align-items: flex-start; }
+    .ob-span-row { grid-column: 1 / -1; }
+    /* From md it is an ordinary row at the end of the page, primary on the right. */
+    .ob-actions {
+      position: static;
+      flex-direction: row-reverse;
+      justify-content: space-between;
+      gap: 10px;
+      margin: 24px 0 0;
+      border-top: 0;
+      background: transparent;
+      padding: 0;
+    }
+  }
 }

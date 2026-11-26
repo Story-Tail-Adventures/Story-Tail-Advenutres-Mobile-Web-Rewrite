@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<!--
+  Screens 2.2.6 Trip Documents and 2.5.4 the document library. Ports
+  web/app/(client)/trips/[tripId]/documents and web/app/(client)/documents; copy word for
+  word from DOCUMENTS, DOCUMENT_MESSAGES and DOCUMENTS_LIBRARY. One page serves both: they
+  differ in their heading, their empty state, and whether a row names its trip.
+
+  OPENING A FILE IS A FORM, not a link. The href would have to be a signed URL minted when
+  the page rendered — in the history, in a screenshot, in any proxy log, and spent by every
+  prefetch. The button posts, the function mints one, and the response redirects.
+
+  Upload is deliberately disabled rather than absent: the screen it belongs to is not built,
+  and a button that says so is kinder than one that is not there.
+-->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Documents · Story-Tail Adventures</title>
+  <meta name="robots" content="noindex, nofollow">
+</head>
+<body>
+  <main>
+    <div class="cl-doc-page">
+      <header class="cl-band">
+        <div class="cl-prose cl-doc-head">
+          <div>
+            <a class="cl-back-link" href="/trips/1" data-slot="back"><svg class="icon icon-14" aria-hidden="true"><use href="/assets/icons.svg#arrow_left"></use></svg>Back to trip</a>
+            <h1 class="type-h5 fw-700 text-primary cl-band-title" data-slot="title">Documents</h1>
+            <p class="type-body2 text-secondary cl-band-meta" data-slot="subtitle">Everything for Aruba in April, in one place.</p>
+            <p class="type-caption text-secondary cl-doc-count" data-slot="count">3 documents</p>
+          </div>
+          <span class="btn-tooltip" title="Adding documents from the web arrives with the upload screen" data-slot="upload"><button class="btn btn-contained btn-brand st-btn btn-small" type="button" disabled tabindex="-1">Add a document</button></span>
+        </div>
+      </header>
+
+      <div class="cl-prose cl-doc-body">
+        <div class="card cl-retry" role="status" data-slot="error">
+          <p class="type-subtitle1 text-primary cl-retry-title">We couldn't load your documents</p>
+          <p class="type-body2 text-secondary cl-retry-body">Something went wrong on our side, not yours. Try again in a moment.</p>
+        </div>
+
+        <div class="cl-empty" data-slot="empty">
+          <span class="cl-empty-icon" aria-hidden="true"><svg class="icon icon-24"><use href="/assets/icons.svg#passport"></use></svg></span>
+          <p class="type-subtitle1 text-primary cl-empty-title" data-slot="empty-title">Nothing filed yet</p>
+          <p class="type-body2 text-secondary cl-empty-body" data-slot="empty-body">As Gyasi confirms each piece of the trip, the paperwork lands here. Add your passport whenever you have a moment — there is no rush.</p>
+          <a class="btn btn-contained st-btn btn-small" href="/dashboard" data-slot="empty-cta">Back to your trips</a>
+        </div>
+
+        <div class="cl-doc-groups" data-slot="groups">
+          <div data-repeat="groups">
+            <h2 class="type-subtitle1 text-primary cl-doc-group" data-slot="group-label">Passports &amp; visas</h2>
+            <form class="card cl-doc-row" method="post" action="/documents/1/open" data-submit-once data-slot="group-rows">
+              <input type="hidden" name="next" value="/documents" data-slot="doc-next">
+              <span class="cl-doc-badge" aria-hidden="true" data-slot="doc-badge">PDF</span>
+              <span class="cl-doc-text">
+                <span class="type-subtitle2 text-primary cl-doc-name" data-slot="doc-name">passport-jordan.pdf</span>
+                <span class="type-caption text-secondary cl-doc-meta" data-slot="doc-meta">1.2 MB · added by you</span>
+              </span>
+              <button class="btn btn-outlined btn-secondary st-btn btn-small cl-doc-open" type="submit" data-slot="doc-open">Open</button>
+            </form>
+          </div>
+        </div>
+
+        <p class="type-caption text-secondary cl-doc-privacy" data-slot="privacy">Stored encrypted, and only you and Gyasi can open them. Every time one is opened, it is written down.</p>
+      </div>
+    </div>
+  </main>
+</body>
+</html>

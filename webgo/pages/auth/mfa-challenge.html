@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<!--
+  Screen 2.1.7 MFA Challenge (docs/Screen-Inventory.md §2.1.7). Ports
+  web/app/(auth)/login/mfa; copy from MFA_CHALLENGE_TEXT. Reached by the gate's redirect, never
+  a link: a session with a verified factor that has not been challenged yet. The prototype
+  draws six boxes; this is one input styled to read the same way, so paste works, a screen
+  reader hears one field, and autocomplete="one-time-code" lets the phone offer the code.
+-->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Enter your code · Story-Tail Adventures</title>
+</head>
+<body>
+  <main>
+    <div>
+      <span class="type-overline auth-overline">TWO-FACTOR</span>
+      <h1 class="type-h4 fw-700">Enter your code</h1>
+      <p class="type-body2 text-secondary auth-sub">From your authenticator app. It changes every 30 seconds.</p>
+    </div>
+
+    <div class="auth-column">
+      <form class="auth-column" method="post" action="/login/mfa" data-submit-once>
+        <input type="hidden" name="next" value="/dashboard" data-slot="next">
+
+        <div class="alert alert-error" role="alert" aria-live="polite" data-slot="form-error"><div class="alert-message"><span data-slot="form-error-text">That's a few too many tries. Give it a minute, then try again.</span><span data-slot="form-error-action"> <a class="link link-inherit auth-error-link" href="/forgot-password" data-slot="form-error-link">Send a new one</a>.</span></div></div>
+
+        <fieldset class="auth-fieldset">
+          <div class="field auth-code-field">
+            <label class="field-label" for="code">6-digit code</label>
+            <input class="input" id="code" name="code" inputmode="numeric" autocomplete="one-time-code" autofocus required maxlength="8" data-slot="code">
+            <p class="field-help field-error" id="code-error" data-slot="code-error">That code didn't match. Codes roll over every 30 seconds — try the current one.</p>
+          </div>
+        </fieldset>
+
+        <button class="btn btn-contained st-btn btn-large btn-block" type="submit" data-pending-label="Checking that code…">Verify</button>
+      </form>
+
+      <div class="card card-flat"><div class="card-content auth-note">
+        <p class="type-subtitle1">Lost your authenticator?</p>
+        <p class="type-caption text-secondary auth-mt-4">Message Gyasi and he'll send you a fresh sign-in link. He can't see your password or your codes, so this is the way back in.</p>
+      </div></div>
+
+      <form class="auth-center" method="post" action="/account/sign-out">
+        <button class="btn btn-text st-btn btn-small" type="submit">Sign in as someone else</button>
+      </form>
+    </div>
+    <script type="module" src="/assets/js/auth/forms.js"></script>
+  </main>
+</body>
+</html>

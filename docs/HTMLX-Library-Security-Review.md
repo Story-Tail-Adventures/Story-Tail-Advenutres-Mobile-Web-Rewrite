@@ -6,9 +6,9 @@ in on the server. Gyasi picked [mdigger/htmlx](https://github.com/mdigger/htmlx)
 (ruling 2: a pinned dependency behind `internal/page`, after this review). This review read every
 line of htmlx and of the one module it pulls in, and ran the risky parts.
 
-Status: **waiting on Gyasi.** The recommendation is in section 5. Until it is approved, the
-Phase 1 skeleton uses htmlx only in the read-only way section 6 describes, so either answer is a
-small change inside one package.
+Status: **approved by Gyasi 2026-11-06: option A, htmlx at commit `64ce5b8`, read-only behind
+`internal/page`.** Section 6 binds the build. The rules there were tightened while building
+Phase 1 (PR #177): pages are parsed with `x/net/html` directly, so no `htmlx.Node` value exists.
 
 ## 1. What the library will be trusted with
 
@@ -82,18 +82,27 @@ Optional, and Gyasi's call because it is public: report findings 1 to 3 upstream
   `golang.org/x/net v0.62.0` or newer required directly in `webgo/go.mod`. `go.sum` records the
   hashes, and the Go checksum database vouches for them.
 - **Only `internal/page` imports htmlx**, and a test fails the build if any other package does.
-- **Allowed htmlx calls:** `Parse`, `String` (tests), `Find`, `FindAll`, `FindNext`, `FindPrev`,
-  `Tag`, `TagName`, `HasAttrVal`, `ID`, `Class`, `Remove`, `RemoveChilds`, `OuterHTML`, `Attr`
-  (read). **Banned:** `SetHTML`, `SetText`, `SetAttr`, `RemoveAttr`, `AddClass`, `Rename`, `Get`,
-  `Load`, `Text`, `Stats`. A test scans `internal/page` source and fails on any banned name.
+- **Allowed htmlx calls:** the find helpers and matchers (`Find`, `FindAll`, `FindNext`,
+  `FindPrev`, `Tag`, `TagName`, `HasAttrVal`, `ID`, `Class`, `AttrVal`), plus `Remove` and
+  `RemoveChilds`. **Banned:** every writer (`SetHTML`, `SetText`, `SetAttr`, `RemoveAttr`,
+  `AddAttrWord`, `AddClass`, `Rename`), the fetchers (`Get`, `Load`), the double-unescaping
+  readers (`Text`, `WriteText`, `Stats`), `HTML`, and **every way to make an `htmlx.Node`**
+  (`Node`, `New`, `Parse`, `String`). With no `Node` value in the package, none of its methods
+  can be reached, which a source scan can prove without type information. Pages are parsed with
+  `x/net/html`'s own `Parse`. A test scans `internal/page` and fails on any banned name.
 - **Our own writers, on `x/net/html` directly:**
   - Text: make a fresh text node. Refuse when the element or any ancestor is a raw-text element
     (finding 6).
   - Attributes: build a new attribute slice every time, never edit one in place (findings 1, 3).
-  - Links: one setter for `href`, `src`, `action` and `formaction` that allows only relative
-    paths, `https:`, `mailto:` and `tel:`, after trimming and lower-casing the scheme, and
-    refuses anything else (finding 9). Pay links get a stricter setter: absolute `https://` only.
+  - Links: one setter for `href`, `src`, `action` and `formaction`, each only on the elements
+    that take it, that allows only relative paths, `https:`, `mailto:` and `tel:`, after
+    trimming and lower-casing the scheme, and refuses anything else (finding 9). Pay links get
+    a stricter setter: absolute `https://` only, on `<a>` only.
   - Never parse request or database data as markup.
+- **No placeholder ships.** Every slot must be filled, removed or explicitly kept, and every
+  link attribute a slot carries in the HTML must go through the link setters. Setting a link's
+  text alone does not handle its sample `href` (the first build allowed that; an independent
+  review caught it).
 - **Deep copy per request.** Parsed pages are never changed. Each request fills a full copy whose
   nodes and attribute slices are new (finding 3). `go test -race` runs concurrent fills.
 - **Tests check rendered output**, not `Text()` (finding 7).

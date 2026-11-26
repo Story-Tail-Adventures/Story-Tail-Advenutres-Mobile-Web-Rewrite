@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<!--
+  Screen 2.5.8 Connected Accounts (docs/Screen-Inventory.md §2.5.8). Ports
+  web/app/(client)/account/connected/{page,content}.tsx; copy word for word from CONNECTED.
+
+  TWO PROVIDERS, NOT THREE. The artboard adds a Facebook row marked "Not connected ·
+  available"; auth_provider is ENUM ('email','google','apple'), so a provider we do not
+  support cannot be connected and drawing it as available is a promise nothing keeps.
+
+  BOTH ACTIONS ARE DISABLED, with the reason on them. Linking and unlinking need
+  supabase.auth.linkIdentity / unlinkIdentity and a re-authentication story; neither is
+  built, and a button that silently does nothing is worse than one that says why.
+
+  The safety note is doing real work: it answers the question a disabled Unlink button
+  provokes ("so am I stuck?") and states the thing that is actually true. Do not soften it
+  into "manage your sign-in options".
+-->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Connected accounts · Story-Tail Adventures</title>
+  <meta name="robots" content="noindex, nofollow">
+</head>
+<body>
+  <main>
+    <div class="cl-account-page">
+      <header class="cl-account-head">
+        <a class="btn btn-text st-btn btn-small cl-back-link" href="/account"><svg class="icon icon-14" aria-hidden="true"><use href="/assets/icons.svg#arrow_left"></use></svg>Account</a>
+        <h1 class="type-h5 text-primary cl-account-title" data-slot="title">Connected accounts</h1>
+        <p class="type-body2 text-secondary cl-account-sub" data-slot="subtitle">How you sign in.</p>
+      </header>
+
+      <ul class="cl-providers">
+        <li class="card cl-provider" data-repeat="providers">
+          <span class="cl-provider-text">
+            <span class="type-subtitle1 text-primary" data-slot="provider-name">Google</span>
+            <span class="type-caption text-secondary" data-slot="provider-state">Not connected</span>
+          </span>
+          <span class="btn-tooltip" title="Coming with the next release" data-slot="provider-action-wrap">
+            <button class="btn btn-outlined btn-secondary st-btn btn-small" type="button" disabled tabindex="-1" aria-disabled="true" data-slot="provider-action">Link</button>
+          </span>
+        </li>
+      </ul>
+
+      <p class="type-body2 text-secondary cl-account-note" data-slot="account-note">You sign in with an email address and password.</p>
+      <p class="type-body2 text-secondary cl-account-note" data-slot="safety-note">Unlinking never deletes anything.</p>
+    </div>
+  </main>
+</body>
+</html>

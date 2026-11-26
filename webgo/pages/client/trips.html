@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<!--
+  Screen 2.2.2 All Trips List (docs/Screen-Inventory.md §2.2.2). Ports
+  web/app/(client)/trips/{page,content}.tsx; copy word for word from TRIPS.
+
+  The filter is a link per tab, so it lives in the URL: /trips?filter=upcoming. In Next it
+  was the same — a NextLink chip — so nothing is lost by having no JavaScript here.
+
+  THREE STATES, NOT TWO. A read that failed shows the error state ("We couldn't load your
+  trips"), never the empty one: telling somebody with six trips that they have none is a lie
+  the page should not tell.
+-->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>My trips · Story-Tail Adventures</title>
+  <meta name="robots" content="noindex, nofollow">
+</head>
+<body>
+  <main>
+    <div class="cl-page">
+      <h1 class="type-h5 fw-700 text-primary cl-title">My trips</h1>
+      <p class="type-body2 text-secondary cl-subtitle">Everything Story-Tail has built for you — past, present, and in motion.</p>
+
+      <div class="card cl-retry" role="status" data-slot="error">
+        <p class="type-subtitle1 text-primary cl-retry-title">We couldn't load your trips</p>
+        <p class="type-body2 text-secondary cl-retry-body">Something went wrong on our side, not yours. Try again in a moment.</p>
+        <a class="btn btn-outlined btn-secondary st-btn btn-small" href="/trips">Try again</a>
+      </div>
+
+      <nav class="cl-tabs" aria-label="Filter trips" data-slot="tabs">
+        <a class="chip chip-outlined cl-tab" href="/trips" data-slot="tab-all"><span class="chip-label">All · <span data-slot="count-all">0</span></span></a>
+        <a class="chip chip-outlined cl-tab" href="/trips?filter=upcoming" data-slot="tab-upcoming"><span class="chip-label">Upcoming · <span data-slot="count-upcoming">0</span></span></a>
+        <a class="chip chip-outlined cl-tab" href="/trips?filter=planning" data-slot="tab-planning"><span class="chip-label">In planning · <span data-slot="count-planning">0</span></span></a>
+        <a class="chip chip-outlined cl-tab" href="/trips?filter=past" data-slot="tab-past"><span class="chip-label">Past · <span data-slot="count-past">0</span></span></a>
+        <a class="chip chip-outlined cl-tab" href="/trips?filter=cancelled" data-slot="tab-cancelled"><span class="chip-label">Cancelled · <span data-slot="count-cancelled">0</span></span></a>
+      </nav>
+
+      <div class="cl-empty" data-slot="empty">
+        <span class="cl-empty-icon" aria-hidden="true"><svg class="icon icon-24"><use href="/assets/icons.svg#palm"></use></svg></span>
+        <p class="type-subtitle1 text-primary cl-empty-title" data-slot="empty-title">No trips yet</p>
+        <p class="type-body2 text-secondary cl-empty-body" data-slot="empty-body">Tell Gyasi roughly when and where, and the first one will show up here as soon as he starts on it.</p>
+      </div>
+
+      <ul class="cl-trip-list" data-slot="list">
+        <li data-repeat="trips">
+          <a class="card cl-trip" href="/trips/1" data-slot="trip-link">
+            <span class="cl-trip-photo">
+              <img src="https://images.unsplash.com/photo-1738762932370-468a90e0ff68?w=400&amp;q=80&amp;auto=format&amp;fit=crop" alt="" loading="lazy" decoding="async" data-slot="trip-photo">
+              <span class="status-chip cl-trip-chip-photo below-md" data-slot="trip-chip-photo">Booked</span>
+            </span>
+            <span class="cl-trip-body">
+              <span class="status-chip from-md" data-slot="trip-chip">Booked</span>
+              <span class="type-h5 cl-trip-title" data-slot="trip-title">Aruba in April</span>
+              <span class="type-caption text-secondary cl-trip-meta" data-slot="trip-meta">Apr 3 – 7, 2027 · Aruba · 2 travelers</span>
+            </span>
+            <span class="cl-trip-value">
+              <span>
+                <span class="type-caption text-secondary cl-trip-value-label">TRIP VALUE</span>
+                <span class="type-h5 cl-trip-value-amount" data-slot="trip-value">$4,820</span>
+              </span>
+              <span class="btn btn-outlined btn-secondary st-btn btn-small cl-trip-open" role="presentation">Open<svg class="icon cl-icon-13" aria-hidden="true"><use href="/assets/icons.svg#chevron_right"></use></svg></span>
+            </span>
+          </a>
+        </li>
+      </ul>
+    </div>
+  </main>
+</body>
+</html>
