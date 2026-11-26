@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<!--
+  Screen 2.1.6 MFA Setup (docs/Screen-Inventory.md §2.1.6). Ports web/app/(auth)/mfa/setup;
+  copy from MFA_SETUP_TEXT. Two steps: "Show my setup code" (a POST: enrolling is a write, and a
+  GET that enrolled would leave a factor behind on every refresh), then the QR code, the
+  typeable key and the code form. The QR is served by /mfa/setup/qr as an image, never put in
+  this page as markup.
+-->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Set up two-factor · Story-Tail Adventures</title>
+</head>
+<body>
+  <main>
+    <div>
+      <span class="type-overline auth-overline">EXTRA SECURITY</span>
+      <h1 class="type-h4 fw-700">Set up two-factor auth</h1>
+      <p class="type-body2 text-secondary auth-sub" data-slot="sub">Recommended if you'll be storing payment cards.</p>
+    </div>
+
+    <div class="auth-column">
+      <ul class="auth-methods">
+        <li class="paper paper-outlined auth-method auth-method-on">
+          <svg class="icon icon-18" aria-hidden="true"><use href="/assets/icons.svg#sparkle"></use></svg>
+          <p class="type-subtitle1 auth-method-title">Authenticator app</p>
+          <p class="type-caption auth-method-sub">Recommended</p>
+        </li>
+        <li class="paper paper-outlined auth-method auth-method-off">
+          <svg class="icon icon-18" aria-hidden="true"><use href="/assets/icons.svg#phone"></use></svg>
+          <p class="type-subtitle1 auth-method-title">SMS code</p>
+          <p class="type-caption auth-method-sub">Not available yet</p>
+        </li>
+      </ul>
+
+      <form class="auth-column" method="post" action="/mfa/setup" data-submit-once data-slot="begin">
+        <input type="hidden" name="next" value="/dashboard" data-slot="begin-next">
+        <div class="alert alert-error" role="alert" aria-live="polite" data-slot="begin-error"><div class="alert-message"><span data-slot="begin-error-text">Something went sideways on our end. Try again in a moment.</span><span data-slot="begin-error-action"> <a class="link link-inherit auth-error-link" href="/login" data-slot="begin-error-link">Sign in</a>.</span></div></div>
+        <button class="btn btn-contained st-btn btn-large btn-block" type="submit" data-pending-label="Getting your code…">Show my setup code</button>
+      </form>
+
+      <div class="auth-contents" data-slot="enrollment">
+        <div class="card card-flat"><div class="card-content auth-note auth-scan">
+          <img class="auth-qr" src="/mfa/setup/qr" alt="Scan this with your authenticator app" width="112" height="112" data-slot="qr">
+          <div class="auth-scan-copy">
+            <p class="type-subtitle1">Scan this with your authenticator app</p>
+            <p class="type-caption text-secondary auth-mt-4">Authy, 1Password and Google Authenticator all work. Can't scan? Type the key below into your app instead.</p>
+            <p class="type-caption text-secondary fw-500 auth-mt-8">Setup key</p>
+            <code class="type-caption auth-secret" data-slot="secret">JBSWY3DPEHPK3PXP</code>
+          </div>
+        </div></div>
+
+        <form class="auth-column" method="post" action="/mfa/setup/verify" data-submit-once>
+          <input type="hidden" name="next" value="/dashboard" data-slot="verify-next">
+
+          <div class="alert alert-error" role="alert" aria-live="polite" data-slot="verify-error"><div class="alert-message"><span data-slot="verify-error-text">That's a few too many tries. Give it a minute, then try again.</span><span data-slot="verify-error-action"> <a class="link link-inherit auth-error-link" href="/login" data-slot="verify-error-link">Sign in</a>.</span></div></div>
+
+          <fieldset class="auth-fieldset">
+            <div class="field auth-code-field auth-code-field-setup">
+              <label class="field-label" for="code">Enter the 6-digit code</label>
+              <input class="input" id="code" name="code" inputmode="numeric" autocomplete="one-time-code" autofocus required maxlength="8" data-slot="code">
+              <p class="field-help" id="code-hint" data-slot="code-hint">It changes every 30 seconds — if it expires, just use the next one.</p>
+              <p class="field-help field-error" id="code-error" data-slot="code-error">That code didn't match. Codes roll over every 30 seconds — try the current one.</p>
+            </div>
+          </fieldset>
+
+          <button class="btn btn-contained st-btn btn-large btn-block" type="submit" data-pending-label="Checking that code…">Verify &amp; turn on two-factor</button>
+        </form>
+      </div>
+
+      <div class="card card-flat"><div class="card-content auth-note">
+        <p class="type-subtitle1">If you lose your phone</p>
+        <p class="type-caption text-secondary auth-mt-4">Message Gyasi and he'll get you back in. Keep your authenticator app backed up if you can — most of them offer that.</p>
+      </div></div>
+
+      <a class="link type-subtitle2 tap-target auth-tap-link auth-skip" href="/dashboard" data-slot="skip">Not right now</a>
+    </div>
+    <script type="module" src="/assets/js/auth/forms.js"></script>
+  </main>
+</body>
+</html>

@@ -1,14 +1,69 @@
 #!/usr/bin/env python3
 """
-Enforce that the user-facing strings duplicated across web and mobile stay identical.
+Enforce that the user-facing strings duplicated across the Go app and mobile stay identical.
 
-`web/` and `mobile/` deliberately hold parallel implementations of the same validation
-rules and error taxonomy — CLAUDE.md makes the stack directories a hard boundary, and the
-KMP shared module does not run on the web. That duplication is the right call, but nothing
-stops the two copies drifting apart, and drift means a traveler sees one wording on their
-phone and another in the browser.
+`web/` and `mobile/` deliberately hold parallel implementations of the same screens and the
+same error taxonomy. CLAUDE.md makes the stack directories a hard boundary, and the KMP shared
+module does not run on a server. That duplication is the right call, but nothing stops the two
+copies drifting apart, and drift means a traveler sees one wording on their phone and another
+in the browser.
 
 The unit tests on each side cover behaviour. This covers wording.
+
+── WHY THIS READS GO AND NOT `web/` ──────────────────────────────────────────────────────────
+
+Until Phase 6 this compared `web/` against `mobile/`. The Go migration replaces the Next app,
+so the pairing that matters is now Go against mobile, and this script was re-pointed BEFORE
+`web/` was deleted — deliberately, because that is the only moment the re-point could be
+verified. While all three trees existed, web<->mobile passed (this job) and Go<->web passed
+(the per-area copy tests under web/), so Go<->mobile had to pass transitively. Any string
+where it did not was real drift that neither of those checks could see on its own. After `web/`
+is gone there is nothing left to validate a new extractor against.
+
+── HOW IT CHECKS ─────────────────────────────────────────────────────────────────────────────
+
+The mobile side is unchanged: `object NAME { const val KEY = "value" }`, read out of the Kotlin.
+
+The Go side cannot be read the same way. Web held each screen's copy in one flat object whose
+keys matched the Kotlin names; Go holds it as individual `const` identifiers (`labelProposalReady`)
+and as static text inside `web/pages/**/*.html`, because the page IS the template. So instead
+of pairing key to key, each table names the Go files that OWN that screen, and every string
+mobile shows must appear verbatim in one of them.
+
+That is weaker in one way and stronger in another. It cannot notice Go holding an extra string
+mobile lacks — but neither could the key-map version, which only ever compared what it was told
+about. It does catch every way the wording can drift, which is the failure this exists to stop.
+
+**The owner list is the load-bearing part.** Searching the whole Go tree instead would pass on
+coincidence: "Turn on", "Done", "Remove" and "Continue" each appear in some unrelated screen,
+and four tables were silently satisfied that way before the owners were narrowed. If you add a
+string, add it to the file that renders it, or add that file here.
+
+── WHAT THIS DOES NOT CATCH ──────────────────────────────────────────────────────────────────
+
+One Go copy of a string is pinned to mobile: the one in the owner file. Several labels exist
+in more than one Go file, because two screens in different areas show the same word, and the
+other copies are NOT pinned by this script. The known case is the trip status labels, which
+live three times:
+
+    web/internal/handlers/client/format.go          <- pinned here, by "trip status"
+    web/internal/handlers/agent/trips/format.go     <- not pinned
+    web/internal/handlers/agent/people/clientdetail.go  <- not pinned
+
+Changing the unpinned copies alone passes this check. That was measured, not assumed: editing
+`labelProposalReady` in the agent copy produced no failure, while the same edit to the client
+copy did. A general "every Go copy agrees" check was considered and not written, because a
+substring search cannot tell a real duplicate from a short word appearing inside another
+sentence, and a guard built on a measure that noisy reads as coverage without being any.
+
+── not_in_go ─────────────────────────────────────────────────────────────────────────────────
+
+39 strings mobile shows have no Go equivalent at all. They are listed per table with a reason
+rather than dropped, because the thing this script is worst at is silence: a key left out of a
+map is invisible, and the header of the old version said so. Every entry below is a real gap in
+the Go port — mostly empty states, error states and opt-in prompts, which is exactly the set a
+screen test never walks. Treat the list as the punch list it is; deleting an entry without
+building the string turns a known gap back into a silent one.
 
 Run: python3 .github/scripts/check_copy_parity.py
 """
@@ -18,1329 +73,11 @@ import sys
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 
-VALIDATION_DIR = ROOT / "mobile/shared/src/commonMain/kotlin/com/storytail/adventures/domain/validation"
-WEB_ERRORS = ROOT / "web/lib/auth-errors.ts"
+# The Go half of the auth sentences. web/internal/web/messages.go says of itself that
+# check_copy_parity.py pins the shared kinds.
+GO_AUTH_ERRORS = ROOT / "web/internal/web/messages.go"
 KMP_ERRORS = ROOT / "mobile/shared/src/commonMain/kotlin/com/storytail/adventures/api/AuthError.kt"
-SCREENS_DIR = ROOT / "mobile/shared/src/commonMain/kotlin/com/storytail/adventures/ui/screens/auth"
-WIZARD_DIR = ROOT / "mobile/shared/src/commonMain/kotlin/com/storytail/adventures/ui/screens/onboarding"
-DOMAIN_DIR = ROOT / "mobile/shared/src/commonMain/kotlin/com/storytail/adventures/domain/onboarding"
-WEB_WIZARD = ROOT / "web/app/(onboarding)/onboarding"
-TRIP_DOMAIN_DIR = ROOT / "mobile/shared/src/commonMain/kotlin/com/storytail/adventures/domain/trip"
-TRIP_SCREENS_DIR = ROOT / "mobile/shared/src/commonMain/kotlin/com/storytail/adventures/ui/screens/trip"
-ACCOUNT_DOMAIN_DIR = ROOT / "mobile/shared/src/commonMain/kotlin/com/storytail/adventures/domain/account"
-AGENT_DOMAIN_DIR = ROOT / "mobile/shared/src/commonMain/kotlin/com/storytail/adventures/domain/agent"
 
-# Each entry is one pair of parallel modules. The key map is the whole point: this script
-# only compares what it is told about, so a message added on one side and left out of the
-# map is a SILENT gap, not a failure. Add the row when you add the string.
-MESSAGE_TABLES = [
-    {
-        # §3.10's advisor messaging, built on the web in Stages 1 and 2 and on the phone in
-        # Stage 3. The template strings (MESSAGE_TEMPLATE_COPY) are web-only by ruling and
-        # have no twin; the phone-only strings in AgentMessagesCopy (the Reply / Note toggle,
-        # load more, the pushed screens' empty and failed states) have none on the web.
-        "label": "agent 3.10",
-        "web_file": ROOT / "web/lib/agent/content.ts",
-        "web_const": "AGENT_MESSAGES_COPY",
-        "kmp_file": AGENT_DOMAIN_DIR / "AgentMessages.kt",
-        "kmp_object": "AgentMessagesCopy",
-        "keys": {
-            "title": "TITLE",
-            "filterUnread": "FILTER_UNREAD",
-            "filterOverdue": "FILTER_OVERDUE",
-            "viewArchived": "VIEW_ARCHIVED",
-            "viewInbox": "VIEW_INBOX",
-            "searchPlaceholder": "SEARCH_PLACEHOLDER",
-            "caughtUp": "CAUGHT_UP",
-            "emptyInbox": "EMPTY_INBOX",
-            "emptyNarrowed": "EMPTY_NARROWED",
-            "emptyArchived": "EMPTY_ARCHIVED",
-            "generalThread": "GENERAL_THREAD",
-            "youPrefix": "YOU_PREFIX",
-            "overdue": "OVERDUE",
-            "openTrip": "OPEN_TRIP",
-            "openClient": "OPEN_CLIENT",
-            "archiveThread": "ARCHIVE_THREAD",
-            "restoreThread": "RESTORE_THREAD",
-            "archivedTag": "ARCHIVED_TAG",
-            "archivedDone": "ARCHIVED_DONE",
-            "restoredDone": "RESTORED_DONE",
-            "archiveFailed": "ARCHIVE_FAILED",
-            "internalNoteTag": "INTERNAL_NOTE_TAG",
-            "emailedMark": "EMAILED_MARK",
-            "byEmail": "BY_EMAIL",
-            "autoReply": "AUTO_REPLY",
-            "emptyThread": "EMPTY_THREAD",
-            "replyLabel": "REPLY_LABEL",
-            "replyPlaceholder": "REPLY_PLACEHOLDER",
-            "messagePlaceholder": "MESSAGE_PLACEHOLDER",
-            "notePlaceholder": "NOTE_PLACEHOLDER",
-            "noteSwitch": "NOTE_SWITCH",
-            # §3.10.7's opt-in card. "notifyOn" and "notifyBlocked" name the browser, so the
-            # phone has its own wording for those two.
-            "notifyTitle": "NOTIFY_TITLE",
-            "notifyBody": "NOTIFY_BODY",
-            "notifyTurnOn": "NOTIFY_TURN_ON",
-            "notifyNotNow": "NOTIFY_NOT_NOW",
-            "notifyTurningOn": "NOTIFY_TURNING_ON",
-            "notifyFailed": "NOTIFY_FAILED",
-            # The phone's quiet "Sent" after a reply from a notification is the web's "Sent".
-            "sent": "NOTIFY_REPLY_SENT",
-            "noteHint": "NOTE_HINT",
-            "send": "SEND",
-            "addNote": "ADD_NOTE",
-            "sendFailed": "SEND_FAILED",
-            "notFound": "NOT_FOUND",
-            "openInMessages": "OPEN_IN_MESSAGES",
-        },
-    },
-    {
-        # §3.2's copy. The web side's greeting line and cancelled note are FUNCTIONS —
-        # each takes a count and pluralises — and web_messages skips anything that is not a
-        # string literal, so those two are covered by the paired unit tests
-        # (web/lib/agent/content.test.ts) rather than here. There were three until
-        # 20260930100000; the currency note went with §3.2's multi-currency rule, which
-        # Story-Tail's USD-only constraint made unreachable.
-        #
-        # The web module carries more than this: the pipeline and calendar strings belong to
-        # screens §6.6 keeps web-only at MVP, so they have no KMP twin to compare against.
-        # Listed here is exactly the set both surfaces render.
-        "label": "agent 3.2 + 3.4.2",
-        "web_file": ROOT / "web/lib/agent/content.ts",
-        "web_const": "AGENT_COPY",
-        "kmp_file": AGENT_DOMAIN_DIR / "AgentCopy.kt",
-        "kmp_object": "AgentCopy",
-        "keys": {
-            "greetingZero": "GREETING_ZERO",
-            "greetingZeroSub": "GREETING_ZERO_SUB",
-            "greetingOne": "GREETING_ONE",
-            "proposalsTitle": "PROPOSALS_TITLE",
-            "proposalsEmpty": "PROPOSALS_EMPTY",
-            "paymentsTitle": "PAYMENTS_TITLE",
-            "paymentsEmpty": "PAYMENTS_EMPTY",
-            "inquiriesTitle": "INQUIRIES_TITLE",
-            "inquiriesEmpty": "INQUIRIES_EMPTY",
-            "departingTitle": "DEPARTING_TITLE",
-            "departingEmpty": "DEPARTING_EMPTY",
-            "messagesTitle": "MESSAGES_TITLE",
-            "messagesEmpty": "MESSAGES_EMPTY",
-            "cycleTimeUnavailable": "CYCLE_TIME_UNAVAILABLE",
-            # `tripDetailDeferred` / TRIP_DETAIL_DEFERRED was paired here until §3.4.2
-            # shipped on the web, then held by Kotlin alone while the Compose rows had
-            # nowhere to go. Both are gone now: §3.4.2 landed on Compose 2026-09-30, the
-            # three worklist sections and the client detail's Trips tab push
-            # AppRoute.AgentTripDetail, and the constant went with the last of its call
-            # sites. The asymmetry this comment used to explain is closed from both ends.
-            #
-            # This list is the set of strings that must match BYTE FOR BYTE across both
-            # stacks. A string only one stack has does not belong in it — the same reason
-            # the pipeline and calendar keys were never added.
-            # `leadsDeferred` / LEADS_DEFERRED was paired here until §3.8 was revived on
-            # 2026-10-21 (BRD §6.5). The web retired its sentence in §3.8's web PR; the phone's
-            # goes in its Android PR, which replaces it with the "New leads" count.
-            "availabilityDeferred": "AVAILABILITY_DEFERRED",
-
-            # §3.4.2 Trip Detail, which joined this row rather than getting one of its own
-            # because both surfaces keep its copy on the SAME const — AGENT_COPY grew the
-            # trip-detail block when the web screen shipped, and AgentCopy grew the twin
-            # when the Compose screen did.
-            #
-            # THIS IS THE FIRST §3.4 SCREEN WITH A PHONE TWIN. `TRIP_COPY` and
-            # `BUILDER_COPY` both carry a doc comment saying "§3.4 has no phone artboards,
-            # so there is no Kotlin twin" — still true of them, now false of the section,
-            # and both comments were corrected when this landed.
-            #
-            # NOT LISTED, and each for a reason the map records rather than leaves implicit:
-            #   * the eight TAB LABELS — the web reads them from `tripTabs.ts`, a const
-            #     array rather than a copy object, exactly as §3.3's six come from
-            #     `clientTabs.ts`. Nothing on that side to point at.
-            #   * `costCommissionTitle` — the phone draws the three figures with no card
-            #     heading, so it renders on one surface only.
-            #   * `glanceTravelers` / `glanceDates` — the phone header already reads
-            #     "Dec 4 – Dec 11 · 6 travelers", and repeating both in the grid below is
-            #     redundancy a 375pt screen cannot afford.
-            #   * `tripNotesPlaceholder` — a placeholder inside a textarea. The phone's
-            #     Notes tab is read-only, so it has an empty state instead
-            #     (TRIP_NOTES_EMPTY) and no box to prompt.
-            #   * `openBuilder` / `editComponents` / `editSchedule` and every other control
-            #     label — §6.6 keeps the writes on the web, so the phone draws none of them.
-            "tripComponentsEmpty": "TRIP_COMPONENTS_EMPTY",
-            "tripItineraryEmpty": "TRIP_ITINERARY_EMPTY",
-            "tripPaymentsEmpty": "TRIP_PAYMENTS_EMPTY",
-            "tripPaymentsAllSettled": "TRIP_PAYMENTS_ALL_SETTLED",
-            "tripDocumentsEmpty": "TRIP_DOCUMENTS_EMPTY",
-            "tripMessagesEmpty": "TRIP_MESSAGES_EMPTY",
-            "tripActivityEmpty": "TRIP_ACTIVITY_EMPTY",
-            "clientTotalLabel": "CLIENT_TOTAL_LABEL",
-            "paidSoFarLabel": "PAID_SO_FAR_LABEL",
-            "commissionLabel": "COMMISSION_LABEL",
-            "glanceTripType": "GLANCE_TRIP_TYPE",
-            "glanceDestination": "GLANCE_DESTINATION",
-            "glanceLastActivity": "GLANCE_LAST_ACTIVITY",
-            "glanceCancellationReason": "GLANCE_CANCELLATION_REASON",
-            "glanceRefundStatus": "GLANCE_REFUND_STATUS",
-            "glanceRefundDetail": "GLANCE_REFUND_DETAIL",
-            "glanceNotSet": "GLANCE_NOT_SET",
-            "glanceNoActivity": "GLANCE_NO_ACTIVITY",
-            "tripNotFoundTitle": "TRIP_NOT_FOUND_TITLE",
-            "tripNotFoundBody": "TRIP_NOT_FOUND_BODY",
-            "tripNotFoundAction": "TRIP_NOT_FOUND_ACTION",
-        },
-    },
-    {
-        # §3.4.2's three borrowed vocabularies.
-        #
-        # THREE ROWS BECAUSE THE WEB KEEPS THEM IN THREE PLACES, and each place belongs to
-        # the WRITE screen that names them: component kinds to §3.4.4's sheets, milestone
-        # statuses to §3.4.15's editor, itinerary blocks to §3.4.14's form. Every one is
-        # also read-only text on §3.4.2, which is the screen the phone has. So the split
-        # mirrors the web's rather than tidying it — a tidier Kotlin shape would be one this
-        # script could not check, since it pairs one object with one const.
-        #
-        # The Kotlin side keeps all three objects in ONE file, which works because the
-        # reader scopes to the named object and stops at its first line-leading `}`.
-        "label": "agent 3.4.2 · component kinds",
-        "web_file": ROOT / "web/lib/agent/content.ts",
-        "web_const": "BUILDER_COPY",
-        "kmp_file": AGENT_DOMAIN_DIR / "TripDetailSections.kt",
-        "kmp_object": "TripComponentCopy",
-        "keys": {
-            "kindFlight": "KIND_FLIGHT",
-            "kindHotel": "KIND_HOTEL",
-            "kindCruise": "KIND_CRUISE",
-            "kindExcursion": "KIND_EXCURSION",
-            "kindTransfer": "KIND_TRANSFER",
-            "kindInsurance": "KIND_INSURANCE",
-            "kindCustom": "KIND_CUSTOM",
-        },
-    },
-    {
-        # `payment_milestone_status`'s four. The HINTS are not paired: they explain a choice
-        # to somebody making one, and the phone makes none.
-        "label": "agent 3.4.2 · milestone statuses",
-        "web_file": ROOT / "web/lib/agent/content.ts",
-        "web_const": "SCHEDULE_COPY",
-        "kmp_file": AGENT_DOMAIN_DIR / "TripDetailSections.kt",
-        "kmp_object": "TripScheduleCopy",
-        "keys": {
-            "statusScheduled": "STATUS_SCHEDULED",
-            "statusPaid": "STATUS_PAID",
-            "statusOverdue": "STATUS_OVERDUE",
-            "statusWaived": "STATUS_WAIVED",
-        },
-    },
-    {
-        # `itinerary_activity.block`'s four, plus the two lines the day-by-day renders.
-        #
-        # `blockAuto` ("Work it out from the time") is deliberately absent: it is the empty
-        # option on a form's picker, an instruction rather than a label, and
-        # `itineraryBlockLabel` returns null for a null block instead of rendering it.
-        "label": "agent 3.4.2 · itinerary",
-        "web_file": ROOT / "web/lib/agent/content.ts",
-        "web_const": "ITINERARY_COPY",
-        "kmp_file": AGENT_DOMAIN_DIR / "TripDetailSections.kt",
-        "kmp_object": "TripItineraryCopy",
-        "keys": {
-            "blockMorning": "BLOCK_MORNING",
-            "blockAfternoon": "BLOCK_AFTERNOON",
-            "blockEvening": "BLOCK_EVENING",
-            "blockAllDay": "BLOCK_ALL_DAY",
-            "dayEmpty": "DAY_EMPTY",
-            "tipLabel": "TIP_LABEL",
-        },
-    },
-    {
-        # `trip_type`'s five. `web/lib/trips/tripType.ts` was written asking for this row:
-        # "when a Kotlin twin lands, check_copy_parity.py only reads top-level string
-        # literals... There is no twin today — §3.4 is web-only at MVP." §3.4.2 on Compose
-        # is what ended that.
-        #
-        # ONE TABLE FOR BOTH SHELLS, unlike the status labels beside it which are also one
-        # table but for a different reason: a trip TYPE is a fact about the trip rather than
-        # something said to somebody, so the traveler and the advisor read the same five
-        # words. `humaniseTripType` in ui/components/client is a delegate to it now.
-        "label": "trip type",
-        "web_file": ROOT / "web/lib/trips/tripType.ts",
-        "web_const": "TRIP_TYPE_MESSAGES",
-        "kmp_file": TRIP_DOMAIN_DIR / "TripType.kt",
-        "kmp_object": "TripTypeMessages",
-        "keys": {
-            "cruise": "CRUISE",
-            "allInclusive": "ALL_INCLUSIVE",
-            "multiDestination": "MULTI_DESTINATION",
-            "group": "GROUP",
-            "custom": "CUSTOM",
-        },
-    },
-    {
-        # §3.3.1's copy. The web const is the LARGER of the two on purpose: it also carries
-        # the data table's five column headers, the paginator's labels and four per-row
-        # deferrals, and the phone has none of those — §4.4's Pattern B gives the desk a
-        # table and the phone a card list, and §6.6 makes the phone append rather than
-        # paginate. ClientCopy's own LOAD_MORE runs the other way and has no web twin.
-        #
-        # Listed here is exactly the set BOTH surfaces render. A string only one stack has
-        # does not belong in it, for the reason the agent 3.2 row records.
-        "label": "agent 3.3",
-        "web_file": ROOT / "web/lib/agent/content.ts",
-        "web_const": "CLIENT_COPY",
-        "kmp_file": AGENT_DOMAIN_DIR / "ClientCopy.kt",
-        "kmp_object": "ClientCopy",
-        "keys": {
-            "title": "TITLE",
-            "subtitleActive": "SUBTITLE_ACTIVE",
-            "subtitleInMotion": "SUBTITLE_IN_MOTION",
-            "subtitleToQualify": "SUBTITLE_TO_QUALIFY",
-            "searchLabel": "SEARCH_LABEL",
-            "searchPlaceholder": "SEARCH_PLACEHOLDER",
-            "filterActive": "FILTER_ACTIVE",
-            "filterArchived": "FILTER_ARCHIVED",
-            "noEmail": "NO_EMAIL",
-            "noTrip": "NO_TRIP",
-            "noLifetime": "NO_LIFETIME",
-            "travellingNow": "TRAVELLING_NOW",
-            "emptyTitle": "EMPTY_TITLE",
-            "emptyBody": "EMPTY_BODY",
-            "emptyFilteredTitle": "EMPTY_FILTERED_TITLE",
-            "emptyFilteredBody": "EMPTY_FILTERED_BODY",
-            "emptyArchivedTitle": "EMPTY_ARCHIVED_TITLE",
-            "emptyArchivedBody": "EMPTY_ARCHIVED_BODY",
-            # §3.3.2 - §3.3.8. The six TAB LABELS are not here: the web build reads those
-            # from its own tab registry (clientTabs.ts) rather than from CLIENT_COPY, so
-            # there is nothing on that side for this map to point at.
-            "backToRoster": "BACK_TO_ROSTER",
-            "notFoundTitle": "NOT_FOUND_TITLE",
-            "notFoundBody": "NOT_FOUND_BODY",
-            "archivedBanner": "ARCHIVED_BANNER",
-            "snapshotTitle": "SNAPSHOT_TITLE",
-            "preferencesTitle": "PREFERENCES_TITLE",
-            "householdTitle": "HOUSEHOLD_TITLE",
-            "statLifetime": "STAT_LIFETIME",
-            "statTrips": "STAT_TRIPS",
-            "statCommission": "STAT_COMMISSION",
-            "statLastContact": "STAT_LAST_CONTACT",
-            "labelPhone": "LABEL_PHONE",
-            "labelEmail": "LABEL_EMAIL",
-            "labelAddress": "LABEL_ADDRESS",
-            "noPreferences": "NO_PREFERENCES",
-            "noHousehold": "NO_HOUSEHOLD",
-            "noAddress": "NO_ADDRESS",
-            "passportExpiringSoon": "PASSPORT_EXPIRING_SOON",
-            "tripsEmpty": "TRIPS_EMPTY",
-            "tripCommissionPrefix": "TRIP_COMMISSION_PREFIX",
-            "threadsEmpty": "THREADS_EMPTY",
-            "documentsEmpty": "DOCUMENTS_EMPTY",
-            "documentSensitive": "DOCUMENT_SENSITIVE",
-            "notesEmpty": "NOTES_EMPTY",
-            "noteEditedMarker": "NOTE_EDITED_MARKER",
-            "activityEmpty": "ACTIVITY_EMPTY",
-            "activityNote": "ACTIVITY_NOTE",
-        },
-    },
-    {
-        # Screen 2.2.1's copy. Only the plain-string keys are listed: the web side's
-        # greeting variants are functions (the "0 days"/"1 day" special cases need one) and
-        # web_messages skips anything that is not a string literal, so those are covered by
-        # the paired unit tests instead.
-        "label": "dashboard 2.2.1",
-        "web_file": ROOT / "web/app/(client)/dashboard/content.ts",
-        "web_const": "DASHBOARD",
-        "kmp_file": ROOT / "mobile/shared/src/commonMain/kotlin/com/storytail/adventures/ui/screens/dashboard/DashboardUiState.kt",
-        "kmp_object": "DashboardMessages",
-        "keys": {
-            "nextPaymentLabel": "NEXT_PAYMENT_LABEL",
-            "nextPaymentWhenever": "NEXT_PAYMENT_WHENEVER",
-            "overlineRest": "OVERLINE_REST",
-            "overlineNeutral": "OVERLINE_NEUTRAL",
-            "subtitleTraveling": "SUBTITLE_TRAVELING",
-            "subtitleNoTrip": "SUBTITLE_NO_TRIP",
-            "viewItinerary": "VIEW_ITINERARY",
-            "itineraryNotReady": "ITINERARY_NOT_READY",
-            "advisorLabel": "ADVISOR_LABEL",
-            "advisorName": "ADVISOR_NAME",
-            "advisorRole": "ADVISOR_ROLE",
-            "advisorReplyTime": "ADVISOR_REPLY_TIME",
-            "messageAgent": "MESSAGE_AGENT",
-            "emptyPlanningTitle": "EMPTY_PLANNING_TITLE",
-            "emptyPlanningBody": "EMPTY_PLANNING_BODY",
-            "emptyPastTitle": "EMPTY_PAST_TITLE",
-            "emptyPastBody": "EMPTY_PAST_BODY",
-            "startSomethingNew": "START_SOMETHING_NEW",
-            "seeAllTrips": "SEE_ALL_TRIPS",
-        },
-    },
-    {
-        # Two of these seven labels are DERIVED — the trip_status enum has no
-        # "Final payment due" and no "Traveling now" — so this is the table most able to
-        # drift without anything failing to compile on either side.
-        "label": "trip status",
-        "web_file": ROOT / "web/lib/trips/status.ts",
-        "web_const": "TRIP_STATUS_MESSAGES",
-        "kmp_file": TRIP_DOMAIN_DIR / "TripStatus.kt",
-        "kmp_object": "TripStatusMessages",
-        "keys": {
-            "inquiry": "INQUIRY",
-            "proposalReady": "PROPOSAL_READY",
-            "booked": "BOOKED",
-            "finalPaymentDue": "FINAL_PAYMENT_DUE",
-            "travelingNow": "TRAVELING_NOW",
-            "pastTrip": "PAST_TRIP",
-            "cancelled": "CANCELLED",
-        },
-    },
-    {
-        # The six group headings §2.2.6 renders. Six names for ten `document_kind` values,
-        # with passports and visas sharing one drawer — a mapping this table is the only
-        # record of, on either stack.
-        "label": "trip documents",
-        "web_file": ROOT / "web/lib/trips/documents.ts",
-        "web_const": "DOCUMENT_MESSAGES",
-        "kmp_file": TRIP_DOMAIN_DIR / "TripDocuments.kt",
-        "kmp_object": "DocumentMessages",
-        "keys": {
-            "groupConfirmations": "GROUP_CONFIRMATIONS",
-            "groupIdentity": "GROUP_IDENTITY",
-            "groupInsurance": "GROUP_INSURANCE",
-            "groupItinerary": "GROUP_ITINERARY",
-            "groupPhotos": "GROUP_PHOTOS",
-            "groupOther": "GROUP_OTHER",
-            "addedByYou": "ADDED_BY_YOU",
-            "addedByAgent": "ADDED_BY_AGENT",
-            "emptyTitle": "EMPTY_TITLE",
-            "emptyBody": "EMPTY_BODY",
-            "uploadCta": "UPLOAD_CTA",
-            "openFailed": "OPEN_FAILED",
-        },
-    },
-    {
-        # The four suggested-reply chips are the interesting half: §2.2.7 lists tapping them
-        # as a key action and nothing in the schema produces them, so they are pure copy —
-        # and web and native must never offer a traveler two different sets of words to say.
-        "label": "trip thread",
-        "web_file": ROOT / "web/lib/trips/thread.ts",
-        "web_const": "THREAD_MESSAGES",
-        "kmp_file": TRIP_DOMAIN_DIR / "TripThread.kt",
-        "kmp_object": "ThreadMessages",
-        "keys": {
-            "composePlaceholder": "COMPOSE_PLACEHOLDER",
-            "sendLabel": "SEND_LABEL",
-            "attachLabel": "ATTACH_LABEL",
-            "openTrip": "OPEN_TRIP",
-            "today": "TODAY",
-            "yesterday": "YESTERDAY",
-            "emptyTitle": "EMPTY_TITLE",
-            "emptyBody": "EMPTY_BODY",
-            "sendFailed": "SEND_FAILED",
-            "quickSoundsGood": "QUICK_SOUNDS_GOOD",
-            "quickAddPartner": "QUICK_ADD_PARTNER",
-            "quickSendPassport": "QUICK_SEND_PASSPORT",
-            "quickScheduleCall": "QUICK_SCHEDULE_CALL",
-            "replyWindow": "REPLY_WINDOW",
-            "autoReply": "AUTO_REPLY",
-        },
-    },
-    {
-        # 2.2.11 exists for a feeling — Design-System §2.4 names gratitude as its register —
-        # and copy carrying a feeling drifting between stacks is worse than a layout
-        # drifting, because nothing else would catch it.
-        "label": "trip memories",
-        "web_file": ROOT / "web/lib/trips/memories.ts",
-        "web_const": "MEMORIES_MESSAGES",
-        "kmp_file": TRIP_DOMAIN_DIR / "TripMemories.kt",
-        "kmp_object": "MemoriesMessages",
-        "keys": {
-            "noteOverline": "NOTE_OVERLINE",
-            "noteScript": "NOTE_SCRIPT",
-            "photosEmptyTitle": "PHOTOS_EMPTY_TITLE",
-            "photosEmptyBody": "PHOTOS_EMPTY_BODY",
-            "addPhotos": "ADD_PHOTOS",
-            "addPhotosDeferred": "ADD_PHOTOS_DEFERRED",
-            "snapshotHeading": "SNAPSHOT_HEADING",
-            "reflectionHeading": "REFLECTION_HEADING",
-            "reflectionBody": "REFLECTION_BODY",
-            "reflectionCta": "REFLECTION_CTA",
-            "reflectionEditCta": "REFLECTION_EDIT_CTA",
-            "reflectionPlaceholder": "REFLECTION_PLACEHOLDER",
-            "reflectionSave": "REFLECTION_SAVE",
-            "reflectionSubmit": "REFLECTION_SUBMIT",
-            "reflectionSaved": "REFLECTION_SAVED",
-            "reflectionSubmittedHeading": "REFLECTION_SUBMITTED_HEADING",
-            "reflectionSubmittedBody": "REFLECTION_SUBMITTED_BODY",
-            "reflectionFailed": "REFLECTION_FAILED",
-            "againHeading": "AGAIN_HEADING",
-            "againBody": "AGAIN_BODY",
-            "againCta": "AGAIN_CTA",
-            "documentsCta": "DOCUMENTS_CTA",
-            "itineraryCta": "ITINERARY_CTA",
-        },
-    },
-    {
-        # 2.2.9 is reached from a push notification — the one place our words arrive without
-        # being asked for. Two travelers must not be told different things about one event.
-        "label": "trip status change",
-        "web_file": ROOT / "web/lib/trips/statusChange.ts",
-        "web_const": "STATUS_CHANGE_MESSAGES",
-        "kmp_file": TRIP_DOMAIN_DIR / "TripStatusChange.kt",
-        "kmp_object": "StatusChangeMessages",
-        "keys": {
-            "whatChanged": "WHAT_CHANGED",
-            "whatsNext": "WHATS_NEXT",
-            "overlineUpdated": "OVERLINE_UPDATED",
-            "overlineInquiry": "OVERLINE_INQUIRY",
-            "overlineTravelling": "OVERLINE_TRAVELLING",
-            "overlineHome": "OVERLINE_HOME",
-            "headingInquiry": "HEADING_INQUIRY",
-            "headingProposal": "HEADING_PROPOSAL",
-            "headingBooked": "HEADING_BOOKED",
-            "headingTravelling": "HEADING_TRAVELLING",
-            "headingCompleted": "HEADING_COMPLETED",
-            "headingCancelled": "HEADING_CANCELLED",
-            "itineraryLine": "ITINERARY_LINE",
-            "viewProposal": "VIEW_PROPOSAL",
-            "viewItinerary": "VIEW_ITINERARY",
-            "viewTrip": "VIEW_TRIP",
-            "viewSummary": "VIEW_SUMMARY",
-            "viewMemories": "VIEW_MEMORIES",
-            "changedUnknown": "CHANGED_UNKNOWN",
-        },
-    },
-    {
-        # The rail and bar labels Screen-Inventory §6.1/§6.3 were just amended to match.
-        # Six destinations, two surfaces, and the same destination carries a different label
-        # per surface — exactly the shape that drifts silently.
-        "label": "client nav",
-        "web_file": ROOT / "web/lib/client/nav.ts",
-        "web_const": "CLIENT_NAV_MESSAGES",
-        "kmp_file": TRIP_DOMAIN_DIR / "ClientDestinations.kt",
-        "kmp_object": "ClientNavMessages",
-        "keys": {
-            "notYetLabel": "NOT_YET_LABEL",
-            "notYetAria": "NOT_YET_ARIA",
-        },
-    },
-    {
-        # The five filter-tab labels and the four empty/error states. A tab that reads
-        # "In planning" on web and "Planning" on a phone is the cheapest possible bug to
-        # ship and the hardest to notice.
-        "label": "all trips",
-        "web_file": ROOT / "web/app/(client)/trips/content.ts",
-        "web_const": "TRIPS",
-        "kmp_file": TRIP_SCREENS_DIR / "AllTripsScreen.kt",
-        "kmp_object": "AllTripsMessages",
-        "keys": {
-            "title": "TITLE",
-            "subtitle": "SUBTITLE",
-            "tabAll": "TAB_ALL",
-            "tabUpcoming": "TAB_UPCOMING",
-            "tabPlanning": "TAB_PLANNING",
-            "tabPast": "TAB_PAST",
-            "tabCancelled": "TAB_CANCELLED",
-            "emptyAllTitle": "EMPTY_ALL_TITLE",
-            "emptyAllBody": "EMPTY_ALL_BODY",
-            "emptyFilteredTitle": "EMPTY_FILTERED_TITLE",
-            "emptyFilteredBody": "EMPTY_FILTERED_BODY",
-            "errorTitle": "ERROR_TITLE",
-            "errorBody": "ERROR_BODY",
-        },
-    },
-    {
-        # §2.2.3's pay block (2026-10-16). The web keys live in TRIP_DETAIL beside the rest of
-        # the trip page; the phone keeps them in their own object because the dashboard's
-        # next-payment card renders the same block. The two templated lines ("Pay {label}",
-        # "I've paid the {label} ({amount}).") are functions on both stacks and are pinned by
-        # their unit tests, not here.
-        "label": "2.2.3 pay links",
-        "web_file": ROOT / "web/app/(client)/trips/[tripId]/content.ts",
-        "web_const": "TRIP_DETAIL",
-        "kmp_file": ROOT / "mobile/shared/src/commonMain/kotlin/com/storytail/adventures/domain/trip/PayLinks.kt",
-        "kmp_object": "PayLinkMessages",
-        "keys": {
-            "noSchedule": "EMPTY_SCHEDULE",
-            "payDirect": "PAY_DIRECT",
-            "iPaid": "I_HAVE_PAID",
-            "iPaidThanks": "I_HAVE_PAID_THANKS",
-            "iPaidFailed": "I_HAVE_PAID_FAILED",
-        },
-    },
-    {
-        # The biggest per-screen table in §2.2, and it covers 2.2.10 as well — the
-        # cancellation summary labels live here. Thirty-four strings that matched by hand
-        # and by nothing else until now.
-        "label": "trip detail",
-        "web_file": ROOT / "web/app/(client)/trips/[tripId]/content.ts",
-        "web_const": "TRIP_DETAIL",
-        "kmp_file": TRIP_SCREENS_DIR / "TripDetailScreen.kt",
-        "kmp_object": "TripDetailMessages",
-        "keys": {
-            "back": "BACK",
-            "tileItinerary": "TILE_ITINERARY",
-            "tileItineraryPending": "TILE_ITINERARY_PENDING",
-            "tilePayments": "TILE_PAYMENTS",
-            "tileDocuments": "TILE_DOCUMENTS",
-            "tileMessages": "TILE_MESSAGES",
-            "glance": "GLANCE",
-            "glanceTripType": "GLANCE_TRIP_TYPE",
-            "glanceNights": "GLANCE_NIGHTS",
-            "glanceDestination": "GLANCE_DESTINATION",
-            "glanceTravelers": "GLANCE_TRAVELERS",
-            "glanceTotal": "GLANCE_TOTAL",
-            "glanceComponents": "GLANCE_COMPONENTS",
-            "noteHeading": "NOTE_HEADING",
-            "notePending": "NOTE_PENDING",
-            "advisorLabel": "ADVISOR_LABEL",
-            "advisorName": "ADVISOR_NAME",
-            "advisorReplyTime": "ADVISOR_REPLY_TIME",
-            "message": "MESSAGE",
-            "paymentTimeline": "PAYMENT_TIMELINE",
-            "paymentTimelineNote": "PAYMENT_TIMELINE_NOTE",
-            "paid": "PAID",
-            "due": "DUE",
-            "waived": "WAIVED",
-            "overdue": "OVERDUE",
-            "cancelledHeading": "CANCELLED_HEADING",
-            "cancelledReason": "CANCELLED_REASON",
-            "cancelledRefund": "CANCELLED_REFUND",
-            "cancelledNoReason": "CANCELLED_NO_REASON",
-            "cancelledAgainHeading": "CANCELLED_AGAIN_HEADING",
-            "cancelledAgainBody": "CANCELLED_AGAIN_BODY",
-            "notFoundTitle": "NOT_FOUND_TITLE",
-            "notFoundBody": "NOT_FOUND_BODY",
-        },
-    },
-    {
-        # 2.2.4, 2.2.5 and 2.2.8's inline empty states. The §2.2.8 copy is the part
-        # worth pinning: those strings are what a traveler reads about a piece of their
-        # trip that is not booked yet.
-        "label": "itinerary",
-        "web_file": ROOT / "web/app/(client)/trips/[tripId]/itinerary/content.ts",
-        "web_const": "ITINERARY",
-        "kmp_file": TRIP_SCREENS_DIR / "ItineraryScreen.kt",
-        "kmp_object": "ItineraryMessages",
-        "keys": {
-            "heading": "HEADING",
-            "back": "BACK",
-            "downloadPdf": "DOWNLOAD_PDF",
-            "shareNote": "SHARE_NOTE",
-            "notPublishedTitle": "NOT_PUBLISHED_TITLE",
-            "notPublishedBody": "NOT_PUBLISHED_BODY",
-            "blockMorning": "BLOCK_MORNING",
-            "blockAfternoon": "BLOCK_AFTERNOON",
-            "blockEvening": "BLOCK_EVENING",
-            "blockAllDay": "BLOCK_ALL_DAY",
-            "confirmation": "CONFIRMATION",
-            "tip": "TIP",
-            "openInMaps": "OPEN_IN_MAPS",
-            "call": "CALL",
-            "markDone": "MARK_DONE",
-            "markedDone": "MARKED_DONE",
-            "importantInfo": "IMPORTANT_INFO",
-            "insurance": "INSURANCE",
-            "emergency": "EMERGENCY",
-            "visaUnknown": "VISA_UNKNOWN",
-            "noImportantInfo": "NO_IMPORTANT_INFO",
-            "weather": "WEATHER",
-            "emptyFlightsTitle": "EMPTY_FLIGHTS_TITLE",
-            "emptyFlightsBody": "EMPTY_FLIGHTS_BODY",
-            "emptyDiningTitle": "EMPTY_DINING_TITLE",
-            "emptyDiningBody": "EMPTY_DINING_BODY",
-            "emptyDayBody": "EMPTY_DAY_BODY",
-            "askGyasi": "ASK_GYASI",
-            "emptyItineraryTitle": "EMPTY_ITINERARY_TITLE",
-            "emptyItineraryBody": "EMPTY_ITINERARY_BODY",
-        },
-    },
-    {
-        "label": "auth validation",
-        "web_file": ROOT / "web/lib/validation/auth.ts",
-        "web_const": "AUTH_MESSAGES",
-        "kmp_file": VALIDATION_DIR / "AuthValidation.kt",
-        "kmp_object": "Messages",
-        "keys": {
-            "emailRequired": "EMAIL_REQUIRED",
-            "emailInvalid": "EMAIL_INVALID",
-            "passwordRequired": "PASSWORD_REQUIRED",
-            "passwordTooShort": "PASSWORD_TOO_SHORT",
-            "passwordNeedsDigit": "PASSWORD_NEEDS_DIGIT",
-            "passwordNeedsUppercase": "PASSWORD_NEEDS_UPPERCASE",
-            "passwordNeedsLowercase": "PASSWORD_NEEDS_LOWERCASE",
-        },
-    },
-    {
-        "label": "registration",
-        "web_file": ROOT / "web/lib/validation/registration.ts",
-        "web_const": "REGISTRATION_MESSAGES",
-        "kmp_file": VALIDATION_DIR / "RegistrationValidation.kt",
-        "kmp_object": "Messages",
-        "keys": {
-            "nameRequired": "NAME_REQUIRED",
-            "nameTooLong": "NAME_TOO_LONG",
-            "nameInvalid": "NAME_INVALID",
-            "termsRequired": "TERMS_REQUIRED",
-            "confirmRequired": "CONFIRM_REQUIRED",
-            "confirmMismatch": "CONFIRM_MISMATCH",
-        },
-    },
-    {
-        "label": "mfa",
-        "web_file": ROOT / "web/lib/validation/mfa.ts",
-        "web_const": "MFA_MESSAGES",
-        "kmp_file": VALIDATION_DIR / "MfaValidation.kt",
-        "kmp_object": "Messages",
-        "keys": {
-            "codeRequired": "CODE_REQUIRED",
-            "codeShape": "CODE_SHAPE",
-        },
-    },
-    {
-        "label": "password rule labels",
-        "web_file": ROOT / "web/lib/validation/password-strength.ts",
-        "web_const": "PASSWORD_RULE_LABELS",
-        "kmp_file": VALIDATION_DIR / "PasswordStrength.kt",
-        "kmp_object": "Labels",
-        "keys": {
-            "length": "LENGTH",
-            "uppercase": "UPPERCASE",
-            "lowercase": "LOWERCASE",
-            "digit": "DIGIT",
-        },
-    },
-    {
-        "label": "password strength",
-        "web_file": ROOT / "web/lib/validation/password-strength.ts",
-        "web_const": "STRENGTH_MESSAGES",
-        "kmp_file": VALIDATION_DIR / "PasswordStrength.kt",
-        "kmp_object": "Messages",
-        "keys": {
-            "strong": "STRONG",
-            "stillNeedsPrefix": "STILL_NEEDS_PREFIX",
-        },
-    },
-    # ── Screen copy ────────────────────────────────────────────────────────────
-    #
-    # Only the strings that must be IDENTICAL on both surfaces. The mobile artboards
-    # deliberately write shorter subtitles for a narrower column — 2.1.2's sub is "60
-    # seconds. No planning fees, ever." on a phone against "Takes about 60 seconds…" in a
-    # browser — and pinning those would be enforcing a similarity nobody asked for. What is
-    # pinned is what a person would notice differing: titles, field labels, CTAs, and the
-    # explanatory blocks that were written once and copied.
-    {
-        "label": "2.1.2 registration screen",
-        "web_file": ROOT / "web/app/(auth)/register/state.ts",
-        "web_const": "REGISTER_TEXT",
-        "kmp_file": SCREENS_DIR / "RegisterScreen.kt",
-        "kmp_object": "RegisterCopy",
-        "keys": {
-            "overline": "OVERLINE",
-            "title": "TITLE",
-            "google": "GOOGLE",
-            "apple": "APPLE",
-            "socialDisabledTitle": "SOCIAL_DISABLED",
-            "divider": "DIVIDER",
-            "firstName": "FIRST_NAME",
-            "lastName": "LAST_NAME",
-            "email": "EMAIL",
-            "password": "PASSWORD",
-            "confirm": "CONFIRM",
-            "submit": "SUBMIT",
-            "pending": "PENDING",
-            "haveAccount": "HAVE_ACCOUNT",
-            "signIn": "SIGN_IN",
-        },
-    },
-    {
-        "label": "2.1.4 forgot password screen",
-        "web_file": ROOT / "web/app/(auth)/forgot-password/state.ts",
-        "web_const": "FORGOT_TEXT",
-        "kmp_file": SCREENS_DIR / "ForgotPasswordScreen.kt",
-        "kmp_object": "ForgotPasswordCopy",
-        "keys": {
-            "overline": "OVERLINE",
-            "title": "TITLE",
-            "sub": "SUB",
-            "email": "EMAIL",
-            "submit": "SUBMIT",
-            "pending": "PENDING",
-        },
-    },
-    {
-        "label": "2.1.5 reset password screen",
-        "web_file": ROOT / "web/app/(auth)/reset-password/state.ts",
-        "web_const": "RESET_TEXT",
-        "kmp_file": SCREENS_DIR / "ResetPasswordScreen.kt",
-        "kmp_object": "ResetPasswordCopy",
-        "keys": {
-            "overline": "OVERLINE",
-            "title": "TITLE",
-            "sub": "SUB",
-            "password": "PASSWORD",
-            "confirm": "CONFIRM",
-            "submit": "SUBMIT",
-            "pending": "PENDING",
-        },
-    },
-    {
-        "label": "2.1.3 email verification screen",
-        "web_file": ROOT / "web/app/(auth)/verify-email/state.ts",
-        "web_const": "VERIFY_TEXT",
-        "kmp_file": SCREENS_DIR / "VerifyEmailScreen.kt",
-        "kmp_object": "VerifyEmailCopy",
-        "keys": {
-            "title": "TITLE",
-            "whyTitle": "WHY_TITLE",
-            "whyBody": "WHY_BODY",
-            "resend": "RESEND",
-            "signOut": "SIGN_OUT",
-        },
-    },
-    # ── Onboarding wizard, §2.1.9–2.1.14 ──────────────────────────────────────
-    #
-    # The validation rules first. Every message here is one somebody reads under a field
-    # they just filled in, and the two surfaces post to the SAME Edge Function — so a rule
-    # that differs is a screen accepting what the other rejects, not just a wording drift.
-    {
-        "label": "2.1.10 profile validation",
-        "web_file": ROOT / "web/lib/validation/profile.ts",
-        "web_const": "PROFILE_MESSAGES",
-        "kmp_file": VALIDATION_DIR / "ProfileValidation.kt",
-        "kmp_object": "Messages",
-        "keys": {
-            "phoneInvalid": "PHONE_INVALID",
-            "phoneNeedsCountryCode": "PHONE_NEEDS_COUNTRY_CODE",
-            "dobInvalid": "DOB_INVALID",
-            "dobTooEarly": "DOB_TOO_EARLY",
-            "dateInvalid": "DATE_INVALID",
-            "countryInvalid": "COUNTRY_INVALID",
-            "postalInvalid": "POSTAL_INVALID",
-            "tooLong": "TOO_LONG",
-            "invalidChars": "INVALID_CHARS",
-            "addressIncomplete": "ADDRESS_INCOMPLETE",
-            "emergencyIncomplete": "EMERGENCY_INCOMPLETE",
-            "passportIncomplete": "PASSPORT_INCOMPLETE",
-        },
-    },
-    {
-        "label": "2.1.11 preferences validation",
-        "web_file": ROOT / "web/lib/validation/preferences.ts",
-        "web_const": "PREFERENCES_MESSAGES",
-        "kmp_file": VALIDATION_DIR / "PreferencesValidation.kt",
-        "kmp_object": "Messages",
-        "keys": {
-            "destinationsTooMany": "DESTINATIONS_TOO_MANY",
-            "destinationTooLong": "DESTINATION_TOO_LONG",
-            "invalidChars": "INVALID_CHARS",
-            "unknownOption": "UNKNOWN_OPTION",
-            "dietaryNoneAlone": "DIETARY_NONE_ALONE",
-            "dietaryNoneWithNote": "DIETARY_NONE_WITH_NOTE",
-            "accessibilityNoneAlone": "ACCESSIBILITY_NONE_ALONE",
-            "accessibilityNoneWithNote": "ACCESSIBILITY_NONE_WITH_NOTE",
-            "notesTooLong": "NOTES_TOO_LONG",
-            "favoritesTooLong": "FAVOURITES_TOO_LONG",
-            "loyaltyNeedsProgram": "LOYALTY_NEEDS_PROGRAM",
-            "loyaltyNumberShape": "LOYALTY_NUMBER_SHAPE",
-            "loyaltyProgramTooLong": "LOYALTY_PROGRAM_TOO_LONG",
-            "loyaltyTooMany": "LOYALTY_TOO_MANY",
-            "budgetUnknown": "BUDGET_UNKNOWN",
-        },
-    },
-    {
-        "label": "2.1.12 companion validation",
-        "web_file": ROOT / "web/lib/validation/companion.ts",
-        "web_const": "COMPANION_MESSAGES",
-        "kmp_file": VALIDATION_DIR / "CompanionValidation.kt",
-        "kmp_object": "Messages",
-        "keys": {
-            "firstNameRequired": "FIRST_NAME_REQUIRED",
-            "lastNameRequired": "LAST_NAME_REQUIRED",
-            "nameTooLong": "NAME_TOO_LONG",
-            "invalidChars": "INVALID_CHARS",
-            "relationshipTooLong": "RELATIONSHIP_TOO_LONG",
-            "dobInvalid": "DOB_INVALID",
-            "dateInvalid": "DATE_INVALID",
-            "countryInvalid": "COUNTRY_INVALID",
-            "passportNeedsExpiry": "PASSPORT_NEEDS_EXPIRY",
-        },
-    },
-    # Then the screens. Same rule as the auth screens above: only the strings that must be
-    # IDENTICAL. Meta titles, aria labels and the desktop-only rail have no mobile twin and
-    # are left out rather than faked.
-    {
-        "label": "2.1.9 welcome screen",
-        "web_file": ROOT / "web/app/(onboarding)/welcome/state.ts",
-        "web_const": "WELCOME_TEXT",
-        "kmp_file": WIZARD_DIR / "WelcomeScreen.kt",
-        "kmp_object": "WelcomeCopy",
-        "keys": {
-            "overline": "OVERLINE",
-            "sub": "SUB",
-            "sectionHeading": "SECTION",
-            "primaryCta": "PRIMARY",
-            "secondaryCta": "SKIP",
-        },
-    },
-    {
-        "label": "2.1.10 profile screen",
-        "web_file": WEB_WIZARD / "profile/state.ts",
-        "web_const": "PROFILE_TEXT",
-        # ProfileCopy moved to ProfileFields.kt when §2.5.2 mounted the same form. The
-        # labels belong to the fields, not to either screen that wraps them.
-        "kmp_file": WIZARD_DIR / "ProfileFields.kt",
-        "kmp_object": "ProfileCopy",
-        "keys": {
-            "title": "TITLE",
-            "sub": "SUB",
-            "optionalNote": "OPTIONAL",
-            "labelPhone": "PHONE",
-            "hintPhone": "PHONE_HINT",
-            "labelDob": "DOB",
-            "hintDob": "DOB_HINT",
-            "groupAddress": "ADDRESS",
-            "labelAddressLine1": "LINE1",
-            "labelAddressLine2": "LINE2",
-            "labelAddressCity": "CITY",
-            "labelAddressRegion": "REGION",
-            "labelAddressRegionUs": "REGION_US",
-            "labelAddressPostal": "POSTAL",
-            "labelAddressPostalUs": "POSTAL_US",
-            "labelAddressCountry": "COUNTRY",
-            "groupEmergency": "EMERGENCY",
-            "hintEmergency": "EMERGENCY_HINT",
-            "labelEmergencyName": "EMERGENCY_NAME",
-            "labelEmergencyPhone": "EMERGENCY_PHONE",
-            "labelEmergencyRelationship": "EMERGENCY_RELATIONSHIP",
-            "groupPassport": "PASSPORT",
-            "groupPassportOptional": "PASSPORT_OPTIONAL",
-            "hintPassport": "PASSPORT_HINT",
-            "passportExpiredWarning": "PASSPORT_EXPIRED",
-            "labelPassportExpiry": "EXPIRES",
-            "labelPassportCountry": "ISSUING",
-            "primaryCta": "PRIMARY",
-            "pending": "PENDING",
-            "secondaryCta": "SKIP",
-        },
-    },
-    {
-        "label": "2.1.11 preferences screen",
-        "web_file": WEB_WIZARD / "preferences/state.ts",
-        "web_const": "PREFERENCES_TEXT",
-        # PreferencesCopy moved to PreferencesFields.kt with the controls, for the same
-        # reason ProfileCopy moved — §2.5.3 mounts them too.
-        "kmp_file": WIZARD_DIR / "PreferencesFields.kt",
-        "kmp_object": "PreferencesCopy",
-        "keys": {
-            "title": "TITLE",
-            "sub": "SUB",
-            "sectionDestinations": "DESTINATIONS",
-            "hintDestinations": "DESTINATIONS_HINT",
-            "labelDestinationOther": "DESTINATION_OTHER",
-            "sectionStyle": "STYLE",
-            "hintStyle": "STYLE_HINT",
-            "sectionDiet": "DIET",
-            "labelDietNotes": "DIET_NOTES",
-            "sectionAccess": "ACCESS",
-            "labelAccessNotes": "ACCESS_NOTES",
-            "sectionLoyalty": "LOYALTY",
-            "hintLoyalty": "LOYALTY_HINT",
-            "labelLoyaltyProgram": "LOYALTY_PROGRAM",
-            "labelLoyaltyNumber": "LOYALTY_NUMBER",
-            "loyaltyAdd": "LOYALTY_ADD",
-            "loyaltyRemove": "LOYALTY_REMOVE",
-            "sectionBudget": "BUDGET",
-            "hintBudget": "BUDGET_HINT",
-            "primaryCta": "PRIMARY",
-            "pending": "PENDING",
-            "secondaryCta": "SKIP",
-        },
-    },
-    {
-        "label": "2.1.12 companions screen",
-        "web_file": WEB_WIZARD / "companions/state.ts",
-        "web_const": "COMPANIONS_TEXT",
-        "kmp_file": WIZARD_DIR / "CompanionsScreen.kt",
-        "kmp_object": "CompanionsCopy",
-        "keys": {
-            "title": "TITLE",
-            "sub": "SUB",
-            "emptyTitle": "EMPTY_TITLE",
-            "emptyBody": "EMPTY_BODY",
-            "addCta": "ADD",
-            "editAction": "EDIT",
-            "removeAction": "REMOVE",
-            "passportNone": "NO_PASSPORT",
-            "formAddTitle": "FORM_ADD",
-            "formSub": "FORM_SUB",
-            "formSave": "SAVE",
-            "formSaving": "SAVING",
-            "formCancel": "CANCEL",
-            "labelFirstName": "FIRST_NAME",
-            "labelLastName": "LAST_NAME",
-            "labelRelationship": "RELATIONSHIP",
-            "labelDateOfBirth": "DOB",
-            "labelPassportExpiry": "EXPIRES",
-            "labelPassportCountry": "ISSUING",
-            "unfinishedForm": "UNFINISHED",
-            "errorMax": "MAX",
-            "primaryCta": "PRIMARY",
-            "pending": "PENDING",
-            "secondaryCta": "SKIP",
-        },
-    },
-    {
-        "label": "2.1.13 connect screen",
-        "web_file": WEB_WIZARD / "connect/state.ts",
-        "web_const": "CONNECT_TEXT",
-        "kmp_file": WIZARD_DIR / "ConnectScreen.kt",
-        "kmp_object": "ConnectCopy",
-        "keys": {
-            "title": "TITLE",
-            "sub": "SUB",
-            "fieldLabel": "FIELD",
-            "fieldHelp": "HELP",
-            "primaryCta": "PRIMARY",
-            "primaryCtaEmpty": "PRIMARY_EMPTY",
-            "pending": "PENDING",
-            "secondaryCta": "SKIP",
-        },
-    },
-    {
-        "label": "2.1.13 connect banner",
-        "web_file": WEB_WIZARD / "connect/state.ts",
-        "web_const": "CONNECT_TEXT",
-        "kmp_file": DOMAIN_DIR / "ConnectBanner.kt",
-        "kmp_object": "ConnectBannerCopy",
-        "keys": {"noMatch": "NO_MATCH"},
-    },
-    {
-        "label": "2.1.14 complete screen",
-        "web_file": WEB_WIZARD / "complete/state.ts",
-        "web_const": "COMPLETE_TEXT",
-        "kmp_file": WIZARD_DIR / "CompleteScreen.kt",
-        "kmp_object": "CompleteCopy",
-        "keys": {
-            "overline": "OVERLINE",
-            "checklistHeading": "CHECKLIST",
-            "primaryCta": "PRIMARY",
-            "pending": "PENDING",
-        },
-    },
-    {
-        "label": "2.1.14 completion summary",
-        "web_file": WEB_WIZARD / "complete/state.ts",
-        "web_const": "COMPLETE_TEXT",
-        "kmp_file": DOMAIN_DIR / "Completion.kt",
-        "kmp_object": "CompletionCopy",
-        "keys": {
-            "subNoTrip": "SUB_NO_TRIP",
-            "subNothing": "SUB_NOTHING",
-            "profileDone": "PROFILE_DONE",
-            "profileSkipped": "PROFILE_SKIPPED",
-            "preferencesDone": "PREFERENCES_DONE",
-            "preferencesSkipped": "PREFERENCES_SKIPPED",
-            "companionsDone": "COMPANIONS_DONE",
-            "companionsSkipped": "COMPANIONS_SKIPPED",
-            "tripDone": "TRIP_DONE",
-            "tripNone": "TRIP_NONE",
-            "shortProfile": "SHORT_PROFILE",
-            "shortPreferences": "SHORT_PREFERENCES",
-            "shortCompanions": "SHORT_COMPANIONS",
-        },
-    },
-    {
-        # Nine settings rows and three group headings. The subtitles say what is INSIDE, in
-        # data, so a wording change on one stack shows a different drawer label on the other.
-        "label": "2.5.1 account overview",
-        "web_file": ROOT / "web/app/(client)/account/content.ts",
-        "web_const": "ACCOUNT",
-        "kmp_file": ACCOUNT_DOMAIN_DIR / "AccountCopy.kt",
-        "kmp_object": "AccountMessages",
-        "keys": {
-            "title": "TITLE",
-            "fallbackName": "FALLBACK_NAME",
-            "groupYou": "GROUP_YOU",
-            "groupApp": "GROUP_APP",
-            "groupSupport": "GROUP_SUPPORT",
-            "personal": "PERSONAL",
-            "personalSub": "PERSONAL_SUB",
-            "preferences": "PREFERENCES",
-            "preferencesSub": "PREFERENCES_SUB",
-            "documents": "DOCUMENTS",
-            "documentsEmptySub": "DOCUMENTS_EMPTY_SUB",
-            "notifications": "NOTIFICATIONS",
-            "security": "SECURITY",
-            "securitySub": "SECURITY_SUB",
-            "connected": "CONNECTED",
-            "connectedSub": "CONNECTED_SUB",
-            "help": "HELP",
-            "helpSub": "HELP_SUB",
-            "privacy": "PRIVACY",
-            "privacySub": "PRIVACY_SUB",
-            "comingSoon": "COMING_SOON",
-            "signOut": "SIGN_OUT",
-        },
-    },
-    {
-        # `identityNote` explains why two fields are read-only. If one stack softened it, that
-        # stack would be implying an edit the write path cannot take.
-        "label": "2.5.2 personal info",
-        "web_file": ROOT / "web/app/(client)/account/personal/content.ts",
-        "web_const": "PERSONAL",
-        "kmp_file": ACCOUNT_DOMAIN_DIR / "AccountCopy.kt",
-        "kmp_object": "PersonalMessages",
-        "keys": {
-            "title": "TITLE",
-            "subtitle": "SUBTITLE",
-            "identityHeading": "IDENTITY_HEADING",
-            "nameLabel": "NAME_LABEL",
-            "emailLabel": "EMAIL_LABEL",
-            "notSet": "NOT_SET",
-            "identityNote": "IDENTITY_NOTE",
-            "save": "SAVE",
-            "cancel": "CANCEL",
-        },
-    },
-    {
-        # Four strings. The form itself is 2.1.11's and already covered by that row.
-        "label": "2.5.3 preferences edit",
-        "web_file": ROOT / "web/app/(client)/account/preferences/content.ts",
-        "web_const": "ACCOUNT_PREFERENCES",
-        "kmp_file": ACCOUNT_DOMAIN_DIR / "AccountCopy.kt",
-        "kmp_object": "AccountPreferencesMessages",
-        "keys": {
-            "title": "TITLE",
-            "subtitle": "SUBTITLE",
-            "save": "SAVE",
-            "cancel": "CANCEL",
-        },
-    },
-    {
-        # `privacyNote` is a claim about the FILE in Storage — encrypted at rest, reachable
-        # only through the audited signer. A claim like that must not drift.
-        "label": "2.5.4 document library",
-        "web_file": ROOT / "web/app/(client)/documents/content.ts",
-        "web_const": "DOCUMENTS_LIBRARY",
-        "kmp_file": ACCOUNT_DOMAIN_DIR / "AccountCopy.kt",
-        "kmp_object": "DocumentLibraryMessages",
-        "keys": {
-            "title": "TITLE",
-            "subtitle": "SUBTITLE",
-            "uploadCta": "UPLOAD_CTA",
-            "uploadDeferred": "UPLOAD_DEFERRED",
-            "emptyTitle": "EMPTY_TITLE",
-            "emptyBody": "EMPTY_BODY",
-            "emptyCta": "EMPTY_CTA",
-            "privacyNote": "PRIVACY_NOTE",
-        },
-    },
-    {
-        # A placeholder whose whole job is the wording. Both stacks have to answer the reader's
-        # real question — "so how will you reach me?" — the same way.
-        "label": "2.5.6 notifications",
-        "web_file": ROOT / "web/app/(client)/account/notifications/content.ts",
-        "web_const": "NOTIFICATIONS",
-        "kmp_file": ACCOUNT_DOMAIN_DIR / "AccountCopy.kt",
-        "kmp_object": "NotificationsMessages",
-        "keys": {
-            "title": "TITLE",
-            "emptyTitle": "EMPTY_TITLE",
-            "emptyBody": "EMPTY_BODY",
-            "reachYou": "REACH_YOU",
-        },
-    },
-    {
-        # The deferral sentences here are security advice. `sessionsAdvice` tells somebody what
-        # to do if their account is compromised; two versions of that is one too many.
-        "label": "2.5.7 security",
-        "web_file": ROOT / "web/app/(client)/account/security/content.ts",
-        "web_const": "SECURITY",
-        "kmp_file": ACCOUNT_DOMAIN_DIR / "AccountCopy.kt",
-        "kmp_object": "SecurityMessages",
-        "keys": {
-            "title": "TITLE",
-            "subtitle": "SUBTITLE",
-            "passwordTitle": "PASSWORD_TITLE",
-            "passwordBody": "PASSWORD_BODY",
-            "passwordCta": "PASSWORD_CTA",
-            "passwordDeferred": "PASSWORD_DEFERRED",
-            "noPasswordTitle": "NO_PASSWORD_TITLE",
-            "noPasswordCta": "NO_PASSWORD_CTA",
-            "mfaTitle": "MFA_TITLE",
-            "mfaOn": "MFA_ON",
-            "mfaOff": "MFA_OFF",
-            "mfaBody": "MFA_BODY",
-            "mfaEnableCta": "MFA_ENABLE_CTA",
-            "mfaManageCta": "MFA_MANAGE_CTA",
-            "mfaManageDeferred": "MFA_MANAGE_DEFERRED",
-            "sessionsHeading": "SESSIONS_HEADING",
-            "sessionsDeferred": "SESSIONS_DEFERRED",
-            "sessionsAdvice": "SESSIONS_ADVICE",
-        },
-    },
-    {
-        # `safetyNote` answers the question a disabled Unlink button provokes. Do not let
-        # either stack soften it into "manage your sign-in options".
-        "label": "2.5.8 connected accounts",
-        "web_file": ROOT / "web/app/(client)/account/connected/content.ts",
-        "web_const": "CONNECTED",
-        "kmp_file": ACCOUNT_DOMAIN_DIR / "AccountCopy.kt",
-        "kmp_object": "ConnectedMessages",
-        "keys": {
-            "title": "TITLE",
-            "subtitle": "SUBTITLE",
-            "linked": "LINKED",
-            "notLinked": "NOT_LINKED",
-            "linkCta": "LINK_CTA",
-            "unlinkCta": "UNLINK_CTA",
-            "linkDeferred": "LINK_DEFERRED",
-            "unlinkDeferred": "UNLINK_DEFERRED",
-            "emailAccountNote": "EMAIL_ACCOUNT_NOTE",
-            "oauthAccountNote": "OAUTH_ACCOUNT_NOTE",
-            "safetyNote": "SAFETY_NOTE",
-        },
-    },
-    {
-        # `trackingBody` must also stay consistent with the published cookie policy — a privacy
-        # claim that drifts from a legal page is worse than no claim.
-        "label": "2.5.9 privacy",
-        "web_file": ROOT / "web/app/(client)/account/privacy/content.ts",
-        "web_const": "PRIVACY",
-        "kmp_file": ACCOUNT_DOMAIN_DIR / "AccountCopy.kt",
-        "kmp_object": "PrivacyMessages",
-        "keys": {
-            "title": "TITLE",
-            "subtitle": "SUBTITLE",
-            "exportTitle": "EXPORT_TITLE",
-            "exportBody": "EXPORT_BODY",
-            "exportCta": "EXPORT_CTA",
-            "exportDeferred": "EXPORT_DEFERRED",
-            "trackingHeading": "TRACKING_HEADING",
-            "trackingBody": "TRACKING_BODY",
-            "cookiesLink": "COOKIES_LINK",
-            "closeTitle": "CLOSE_TITLE",
-            "closeBody": "CLOSE_BODY",
-            "closeCta": "CLOSE_CTA",
-        },
-    },
-    {
-        # EVERY LINE IS A RETENTION OR LEGAL CLAIM. `whatHappens` is a list and so is skipped by
-        # web_messages — it is covered by the paired unit test instead.
-        "label": "2.5.10 account closure",
-        "web_file": ROOT / "web/app/(client)/account/close/content.ts",
-        "web_const": "CLOSE",
-        "kmp_file": ACCOUNT_DOMAIN_DIR / "AccountCopy.kt",
-        "kmp_object": "CloseMessages",
-        "keys": {
-            "title": "TITLE",
-            "back": "BACK",
-            "heading": "HEADING",
-            "whatHappensLabel": "WHAT_HAPPENS_LABEL",
-            "reconsiderBody": "RECONSIDER_BODY",
-            "reconsiderCta": "RECONSIDER_CTA",
-            "reasonLabel": "REASON_LABEL",
-            "reasonPlaceholder": "REASON_PLACEHOLDER",
-            "confirmLabel": "CONFIRM_LABEL",
-            "confirmPlaceholder": "CONFIRM_PLACEHOLDER",
-            "confirmHint": "CONFIRM_HINT",
-            "confirmCta": "CONFIRM_CTA",
-            "keepCta": "KEEP_CTA",
-            "deferred": "DEFERRED",
-        },
-    },
-    {
-        # `replyWindow` is the settled authenticated-surface string. The public surface's
-        # "< 2h" is unverified and fenced behind PUBLIC_CLAIMS_MODE=strict; it must not
-        # spread here on either stack.
-        "label": "2.5.11 help",
-        "web_file": ROOT / "web/app/(client)/account/help/content.ts",
-        "web_const": "HELP",
-        "kmp_file": ACCOUNT_DOMAIN_DIR / "AccountCopy.kt",
-        "kmp_object": "HelpMessages",
-        "keys": {
-            "title": "TITLE",
-            "subtitle": "SUBTITLE",
-            "advisorName": "ADVISOR_NAME",
-            "advisorInitials": "ADVISOR_INITIALS",
-            "replyWindow": "REPLY_WINDOW",
-            "advisorBody": "ADVISOR_BODY",
-            "messageCta": "MESSAGE_CTA",
-            "faqHeading": "FAQ_HEADING",
-            "legalHeading": "LEGAL_HEADING",
-        },
-    },
-    {
-        # Screen 2.0.12 "Message Gyasi" without an account (§3.8, BRD §6.5, 2026-10-21): the
-        # web form and the phone screen say the same words. The web's metaTitle,
-        # metaDescription, honeypot and quoteInstead have no phone twin (no page metadata, no
-        # hidden field, and the phone's gate already offers the account), so they are left out.
-        "label": "2.0.12 message gyasi",
-        "web_file": ROOT / "web/app/(public)/(plain)/message/state.ts",
-        "web_const": "MESSAGE_TEXT",
-        "kmp_file": ROOT / "mobile/shared/src/commonMain/kotlin/com/storytail/adventures/domain/messages/MessageGyasi.kt",
-        "kmp_object": "MessageGyasiCopy",
-        "keys": {
-            "overline": "OVERLINE",
-            "title": "TITLE",
-            "body": "BODY",
-            "aboutPrefix": "ABOUT_PREFIX",
-            "firstName": "FIRST_NAME",
-            "lastName": "LAST_NAME",
-            "email": "EMAIL",
-            "phone": "PHONE",
-            "message": "MESSAGE",
-            "messageHint": "MESSAGE_HINT",
-            "privacyBefore": "PRIVACY_BEFORE",
-            "privacyLink": "PRIVACY_LINK",
-            "submit": "SUBMIT",
-            "pending": "PENDING",
-            "sentTitle": "SENT_TITLE",
-            "sentBody": "SENT_BODY",
-            "keepExploring": "KEEP_EXPLORING",
-            "throttled": "THROTTLED",
-            "unavailable": "UNAVAILABLE",
-        },
-    },
-    {
-        # §2.6's whole section, all three screens, in one module on each side.
-        #
-        # EVERY plain-string key in MESSAGES is listed here. That is the point: an unlisted key
-        # is not a failure, it is invisible, so a string added to one stack and left out of this
-        # map is exactly the silent gap this file's header warns about.
-        #
-        # "openTrip" is deliberately NOT here — both §2.6.2 and §2.2.7 render
-        # `THREAD_MESSAGES.openTrip` / `ThreadMessages.OPEN_TRIP`, which the "2.2.7 thread" row
-        # above already pins. A second copy of one word would double the surface and give the
-        # two screens somewhere to disagree.
-        "label": "2.6 messaging",
-        "web_file": ROOT / "web/lib/messages/content.ts",
-        "web_const": "MESSAGES",
-        "kmp_file": ROOT / "mobile/shared/src/commonMain/kotlin/com/storytail/adventures/domain/messages/MessagesCopy.kt",
-        "kmp_object": "MessagesMessages",
-        "keys": {
-            "title": "TITLE",
-            "subtitle": "SUBTITLE",
-            "advisorName": "ADVISOR_NAME",
-            "advisorInitials": "ADVISOR_INITIALS",
-            "replyWindow": "REPLY_WINDOW",
-            "searchPlaceholder": "SEARCH_PLACEHOLDER",
-            "searchEmpty": "SEARCH_EMPTY",
-            "generalThreadTitle": "GENERAL_THREAD_TITLE",
-            "emptyTitle": "EMPTY_TITLE",
-            "emptyBody": "EMPTY_BODY",
-            "emptyCta": "EMPTY_CTA",
-            "newCta": "NEW_CTA",
-            "backToMessages": "BACK_TO_MESSAGES",
-            "threadEmptyBody": "THREAD_EMPTY_BODY",
-            "newTitle": "NEW_TITLE",
-            "newBodyLabel": "NEW_BODY_LABEL",
-            "newSubtitle": "NEW_SUBTITLE",
-            "newPlaceholder": "NEW_PLACEHOLDER",
-            "newSend": "NEW_SEND",
-            "newSending": "NEW_SENDING",
-            "newFailed": "NEW_FAILED",
-            "attachDeferred": "ATTACH_DEFERRED",
-        },
-    },
-]
-
-# web BY_KIND key -> kotlin data object
 ERROR_KINDS = {
     "invalid_credentials": "InvalidCredentials",
     "email_not_confirmed": "EmailNotConfirmed",
@@ -1353,67 +90,1258 @@ ERROR_KINDS = {
     "unknown": "Unknown",
 }
 
-# A string literal on a single line — never spanning newlines.
-#
-# BOTH QUOTE STYLES, because TypeScript has both and Prettier picks whichever needs fewer
-# escapes: `'"No restrictions" doesn\'t go…'` is single-quoted precisely BECAUSE the copy
-# contains double quotes. Matching only double-quoted literals made every such string
-# invisible — the key parsed as absent and the script reported it "missing on web" while it
-# sat right there, which is the same silent-gap failure mode as the wrapped-string bug.
-STRING = r'"((?:[^"\\\n]|\\.)*)"' + r"|'((?:[^'\\\n]|\\.)*)'"
-
-# Kotlin has one string syntax, so the Kotlin side reads double quotes only.
 KMP_STRING = r'"((?:[^"\\\n]|\\.)*)"'
 
 
-def literals(text: str) -> list[str]:
-    """Every string literal in `text`, in order, unescaped and with quotes stripped."""
-    return [
-        unescape(double or single)
-        for double, single in re.findall(STRING, text)
-    ]
+TABLES = [
+    {
+        "label": 'agent 3.10',
+        "kmp_file": ROOT / 'mobile/shared/src/commonMain/kotlin/com/storytail/adventures/domain/agent/AgentMessages.kt',
+        "kmp_object": 'AgentMessagesCopy',
+        "go_owners": [
+            ROOT / 'web/internal/handlers/agent/people/messages.go',
+            ROOT / 'web/pages/agent/people/messages.html',
+            ROOT / 'web/internal/handlers/agent/people/messages_page.go',
+            ROOT / 'web/pages/agent/trips/detail.html',
+        ],
+        "keys": [
+            'ADD_NOTE',
+            'ARCHIVED_DONE',
+            'ARCHIVED_TAG',
+            'ARCHIVE_FAILED',
+            'ARCHIVE_THREAD',
+            'AUTO_REPLY',
+            'BY_EMAIL',
+            'CAUGHT_UP',
+            'EMAILED_MARK',
+            'EMPTY_ARCHIVED',
+            'EMPTY_INBOX',
+            'EMPTY_NARROWED',
+            'EMPTY_THREAD',
+            'FILTER_OVERDUE',
+            'FILTER_UNREAD',
+            'GENERAL_THREAD',
+            'INTERNAL_NOTE_TAG',
+            'MESSAGE_PLACEHOLDER',
+            'NOTE_HINT',
+            'NOTE_PLACEHOLDER',
+            'NOTE_SWITCH',
+            'NOTIFY_REPLY_SENT',
+            'NOT_FOUND',
+            'OPEN_CLIENT',
+            'OPEN_IN_MESSAGES',
+            'OPEN_TRIP',
+            'OVERDUE',
+            'REPLY_LABEL',
+            'REPLY_PLACEHOLDER',
+            'RESTORED_DONE',
+            'RESTORE_THREAD',
+            'SEARCH_PLACEHOLDER',
+            'SEND',
+            'SEND_FAILED',
+            'TITLE',
+            'VIEW_ARCHIVED',
+            'VIEW_INBOX',
+            'YOU_PREFIX',
+        ],
+        # NOT IN GO. The Web Push opt-in card (Screen 3.10.7) is not built in Go. The phone has its
+        # own FCM opt-in, so only the browser half is missing.
+        "not_in_go": [
+            'NOTIFY_BODY',
+            'NOTIFY_FAILED',
+            'NOTIFY_NOT_NOW',
+            'NOTIFY_TITLE',
+            'NOTIFY_TURNING_ON',
+            'NOTIFY_TURN_ON',
+        ],
+    },
+    {
+        "label": 'agent 3.2 + 3.4.2',
+        "kmp_file": ROOT / 'mobile/shared/src/commonMain/kotlin/com/storytail/adventures/domain/agent/AgentCopy.kt',
+        "kmp_object": 'AgentCopy',
+        "go_owners": [
+            ROOT / 'web/pages/agent/trips/detail.html',
+            ROOT / 'web/pages/agent/people/worklist.html',
+            ROOT / 'web/internal/handlers/agent/people/worklist.go',
+            ROOT / 'web/internal/handlers/agent/trips/detail.go',
+            ROOT / 'web/pages/agent/people/calendar.html',
+        ],
+        "keys": [
+            'AVAILABILITY_DEFERRED',
+            'CLIENT_TOTAL_LABEL',
+            'COMMISSION_LABEL',
+            'CYCLE_TIME_UNAVAILABLE',
+            'DEPARTING_EMPTY',
+            'DEPARTING_TITLE',
+            'GLANCE_CANCELLATION_REASON',
+            'GLANCE_DESTINATION',
+            'GLANCE_LAST_ACTIVITY',
+            'GLANCE_NOT_SET',
+            'GLANCE_NO_ACTIVITY',
+            'GLANCE_REFUND_DETAIL',
+            'GLANCE_REFUND_STATUS',
+            'GLANCE_TRIP_TYPE',
+            'GREETING_ONE',
+            'GREETING_ZERO',
+            'GREETING_ZERO_SUB',
+            'INQUIRIES_EMPTY',
+            'INQUIRIES_TITLE',
+            'MESSAGES_EMPTY',
+            'MESSAGES_TITLE',
+            'PAID_SO_FAR_LABEL',
+            'PAYMENTS_EMPTY',
+            'PAYMENTS_TITLE',
+            'PROPOSALS_EMPTY',
+            'PROPOSALS_TITLE',
+            'TRIP_ACTIVITY_EMPTY',
+            'TRIP_COMPONENTS_EMPTY',
+            'TRIP_DOCUMENTS_EMPTY',
+            'TRIP_ITINERARY_EMPTY',
+            'TRIP_MESSAGES_EMPTY',
+            'TRIP_NOT_FOUND_ACTION',
+            'TRIP_NOT_FOUND_BODY',
+            'TRIP_NOT_FOUND_TITLE',
+            'TRIP_PAYMENTS_ALL_SETTLED',
+            'TRIP_PAYMENTS_EMPTY',
+        ],
+    },
+    {
+        "label": 'agent 3.4.2 · component kinds',
+        "kmp_file": ROOT / 'mobile/shared/src/commonMain/kotlin/com/storytail/adventures/domain/agent/TripDetailSections.kt',
+        "kmp_object": 'TripComponentCopy',
+        "go_owners": [
+            ROOT / 'web/internal/handlers/agent/trips/components.go',
+        ],
+        "keys": [
+            'KIND_CRUISE',
+            'KIND_CUSTOM',
+            'KIND_EXCURSION',
+            'KIND_FLIGHT',
+            'KIND_HOTEL',
+            'KIND_INSURANCE',
+            'KIND_TRANSFER',
+        ],
+    },
+    {
+        "label": 'agent 3.4.2 · milestone statuses',
+        "kmp_file": ROOT / 'mobile/shared/src/commonMain/kotlin/com/storytail/adventures/domain/agent/TripDetailSections.kt',
+        "kmp_object": 'TripScheduleCopy',
+        "go_owners": [
+            ROOT / 'web/internal/handlers/agent/trips/payments_logic.go',
+        ],
+        "keys": [
+            'STATUS_OVERDUE',
+            'STATUS_PAID',
+            'STATUS_SCHEDULED',
+            'STATUS_WAIVED',
+        ],
+    },
+    {
+        "label": 'agent 3.4.2 · itinerary',
+        "kmp_file": ROOT / 'mobile/shared/src/commonMain/kotlin/com/storytail/adventures/domain/agent/TripDetailSections.kt',
+        "kmp_object": 'TripItineraryCopy',
+        "go_owners": [
+            ROOT / 'web/internal/handlers/agent/trips/itinerary.go',
+            ROOT / 'web/pages/agent/trips/itinerary.html',
+        ],
+        "keys": [
+            'BLOCK_AFTERNOON',
+            'BLOCK_ALL_DAY',
+            'BLOCK_EVENING',
+            'BLOCK_MORNING',
+            'DAY_EMPTY',
+            'TIP_LABEL',
+        ],
+    },
+    {
+        "label": 'trip type',
+        "kmp_file": ROOT / 'mobile/shared/src/commonMain/kotlin/com/storytail/adventures/domain/trip/TripType.kt',
+        "kmp_object": 'TripTypeMessages',
+        "go_owners": [
+            ROOT / 'web/internal/handlers/client/tripdetail.go',
+        ],
+        "keys": [
+            'ALL_INCLUSIVE',
+            'CRUISE',
+            'CUSTOM',
+            'GROUP',
+            'MULTI_DESTINATION',
+        ],
+    },
+    {
+        "label": 'agent 3.3',
+        "kmp_file": ROOT / 'mobile/shared/src/commonMain/kotlin/com/storytail/adventures/domain/agent/ClientCopy.kt',
+        "kmp_object": 'ClientCopy',
+        "go_owners": [
+            ROOT / 'web/pages/agent/people/client.html',
+            ROOT / 'web/internal/handlers/agent/people/roster_page.go',
+            ROOT / 'web/internal/handlers/agent/people/clientdetail_page.go',
+            ROOT / 'web/pages/agent/people/clients.html',
+            ROOT / 'web/pages/agent/people/client-not-found.html',
+            ROOT / 'web/internal/handlers/agent/people/roster.go',
+        ],
+        "keys": [
+            'ACTIVITY_EMPTY',
+            'ACTIVITY_NOTE',
+            'ARCHIVED_BANNER',
+            'BACK_TO_ROSTER',
+            'DOCUMENTS_EMPTY',
+            'DOCUMENT_SENSITIVE',
+            'EMPTY_ARCHIVED_BODY',
+            'EMPTY_ARCHIVED_TITLE',
+            'EMPTY_BODY',
+            'EMPTY_FILTERED_BODY',
+            'EMPTY_FILTERED_TITLE',
+            'EMPTY_TITLE',
+            'FILTER_ACTIVE',
+            'FILTER_ARCHIVED',
+            'HOUSEHOLD_TITLE',
+            'LABEL_ADDRESS',
+            'LABEL_EMAIL',
+            'LABEL_PHONE',
+            'NOTES_EMPTY',
+            'NOTE_EDITED_MARKER',
+            'NOT_FOUND_BODY',
+            'NOT_FOUND_TITLE',
+            'NO_ADDRESS',
+            'NO_EMAIL',
+            'NO_HOUSEHOLD',
+            'NO_LIFETIME',
+            'NO_PREFERENCES',
+            'NO_TRIP',
+            'PASSPORT_EXPIRING_SOON',
+            'PREFERENCES_TITLE',
+            'SEARCH_LABEL',
+            'SEARCH_PLACEHOLDER',
+            'SNAPSHOT_TITLE',
+            'STAT_COMMISSION',
+            'STAT_LAST_CONTACT',
+            'STAT_LIFETIME',
+            'STAT_TRIPS',
+            'SUBTITLE_ACTIVE',
+            'SUBTITLE_IN_MOTION',
+            'SUBTITLE_TO_QUALIFY',
+            'THREADS_EMPTY',
+            'TITLE',
+            'TRAVELLING_NOW',
+            'TRIPS_EMPTY',
+            'TRIP_COMMISSION_PREFIX',
+        ],
+    },
+    {
+        "label": 'dashboard 2.2.1',
+        "kmp_file": ROOT / 'mobile/shared/src/commonMain/kotlin/com/storytail/adventures/ui/screens/dashboard/DashboardUiState.kt',
+        "kmp_object": 'DashboardMessages',
+        "go_owners": [
+            ROOT / 'web/pages/client/dashboard.html',
+            ROOT / 'web/internal/handlers/client/dashboard.go',
+        ],
+        "keys": [
+            'ADVISOR_LABEL',
+            'ADVISOR_NAME',
+            'ADVISOR_REPLY_TIME',
+            'ADVISOR_ROLE',
+            'EMPTY_PAST_TITLE',
+            'EMPTY_PLANNING_BODY',
+            'EMPTY_PLANNING_TITLE',
+            'ITINERARY_NOT_READY',
+            'MESSAGE_AGENT',
+            'NEXT_PAYMENT_LABEL',
+            'NEXT_PAYMENT_WHENEVER',
+            'OVERLINE_NEUTRAL',
+            'OVERLINE_REST',
+            'SEE_ALL_TRIPS',
+            'START_SOMETHING_NEW',
+            'SUBTITLE_TRAVELING',
+            'VIEW_ITINERARY',
+        ],
+        # NOT IN GO. Two empty-state sentences the Go dashboard does not render.
+        "not_in_go": [
+            'EMPTY_PAST_BODY',
+            'SUBTITLE_NO_TRIP',
+        ],
+    },
+    {
+        "label": 'trip status',
+        "kmp_file": ROOT / 'mobile/shared/src/commonMain/kotlin/com/storytail/adventures/domain/trip/TripStatus.kt',
+        "kmp_object": 'TripStatusMessages',
+        "go_owners": [
+            ROOT / 'web/internal/handlers/client/format.go',
+        ],
+        "keys": [
+            'BOOKED',
+            'CANCELLED',
+            'FINAL_PAYMENT_DUE',
+            'INQUIRY',
+            'PAST_TRIP',
+            'PROPOSAL_READY',
+            'TRAVELING_NOW',
+        ],
+    },
+    {
+        "label": 'trip documents',
+        "kmp_file": ROOT / 'mobile/shared/src/commonMain/kotlin/com/storytail/adventures/domain/trip/TripDocuments.kt',
+        "kmp_object": 'DocumentMessages',
+        "go_owners": [
+            ROOT / 'web/internal/handlers/client/documents.go',
+            ROOT / 'web/pages/client/documents.html',
+        ],
+        "keys": [
+            'ADDED_BY_AGENT',
+            'ADDED_BY_YOU',
+            'EMPTY_BODY',
+            'EMPTY_TITLE',
+            'GROUP_CONFIRMATIONS',
+            'GROUP_IDENTITY',
+            'GROUP_INSURANCE',
+            'GROUP_ITINERARY',
+            'GROUP_OTHER',
+            'GROUP_PHOTOS',
+            'OPEN_FAILED',
+            'UPLOAD_CTA',
+        ],
+    },
+    {
+        "label": 'trip thread',
+        "kmp_file": ROOT / 'mobile/shared/src/commonMain/kotlin/com/storytail/adventures/domain/trip/TripThread.kt',
+        "kmp_object": 'ThreadMessages',
+        "go_owners": [
+            ROOT / 'web/internal/handlers/client/thread.go',
+        ],
+        "keys": [
+            'ATTACH_LABEL',
+            'AUTO_REPLY',
+            'COMPOSE_PLACEHOLDER',
+            'EMPTY_BODY',
+            'EMPTY_TITLE',
+            'OPEN_TRIP',
+            'QUICK_ADD_PARTNER',
+            'QUICK_SCHEDULE_CALL',
+            'QUICK_SEND_PASSPORT',
+            'QUICK_SOUNDS_GOOD',
+            'REPLY_WINDOW',
+            'SEND_FAILED',
+            'SEND_LABEL',
+            'TODAY',
+            'YESTERDAY',
+        ],
+    },
+    {
+        "label": 'trip memories',
+        "kmp_file": ROOT / 'mobile/shared/src/commonMain/kotlin/com/storytail/adventures/domain/trip/TripMemories.kt',
+        "kmp_object": 'MemoriesMessages',
+        "go_owners": [
+            ROOT / 'web/pages/client/memories.html',
+            ROOT / 'web/internal/handlers/client/memories.go',
+        ],
+        "keys": [
+            'ADD_PHOTOS',
+            'ADD_PHOTOS_DEFERRED',
+            'AGAIN_BODY',
+            'AGAIN_CTA',
+            'AGAIN_HEADING',
+            'DOCUMENTS_CTA',
+            'ITINERARY_CTA',
+            'NOTE_OVERLINE',
+            'NOTE_SCRIPT',
+            'PHOTOS_EMPTY_BODY',
+            'PHOTOS_EMPTY_TITLE',
+            'REFLECTION_BODY',
+            'REFLECTION_FAILED',
+            'REFLECTION_HEADING',
+            'REFLECTION_PLACEHOLDER',
+            'REFLECTION_SAVE',
+            'REFLECTION_SAVED',
+            'REFLECTION_SUBMIT',
+            'REFLECTION_SUBMITTED_BODY',
+            'REFLECTION_SUBMITTED_HEADING',
+            'SNAPSHOT_HEADING',
+        ],
+        # NOT IN GO. The reflection call to action. Go shows memories but offers no way in.
+        "not_in_go": [
+            'REFLECTION_CTA',
+            'REFLECTION_EDIT_CTA',
+        ],
+    },
+    {
+        "label": 'trip status change',
+        "kmp_file": ROOT / 'mobile/shared/src/commonMain/kotlin/com/storytail/adventures/domain/trip/TripStatusChange.kt',
+        "kmp_object": 'StatusChangeMessages',
+        "go_owners": [
+            ROOT / 'web/internal/handlers/client/statuschange.go',
+        ],
+        "keys": [
+            'CHANGED_UNKNOWN',
+            'HEADING_BOOKED',
+            'HEADING_CANCELLED',
+            'HEADING_COMPLETED',
+            'HEADING_INQUIRY',
+            'HEADING_PROPOSAL',
+            'HEADING_TRAVELLING',
+            'ITINERARY_LINE',
+            'OVERLINE_HOME',
+            'OVERLINE_INQUIRY',
+            'OVERLINE_TRAVELLING',
+            'OVERLINE_UPDATED',
+            'VIEW_ITINERARY',
+            'VIEW_MEMORIES',
+            'VIEW_PROPOSAL',
+            'VIEW_SUMMARY',
+            'VIEW_TRIP',
+            'WHATS_NEXT',
+            'WHAT_CHANGED',
+        ],
+    },
+    {
+        "label": 'client nav',
+        "kmp_file": ROOT / 'mobile/shared/src/commonMain/kotlin/com/storytail/adventures/domain/trip/ClientDestinations.kt',
+        "kmp_object": 'ClientNavMessages',
+        "go_owners": [
+            ROOT / 'web/pages/layout/client.html',
+        ],
+        "keys": [
+            'NOT_YET_ARIA',
+            'NOT_YET_LABEL',
+        ],
+    },
+    {
+        "label": 'all trips',
+        "kmp_file": ROOT / 'mobile/shared/src/commonMain/kotlin/com/storytail/adventures/ui/screens/trip/AllTripsScreen.kt',
+        "kmp_object": 'AllTripsMessages',
+        "go_owners": [
+            ROOT / 'web/pages/client/trips.html',
+            ROOT / 'web/internal/handlers/client/tripslist.go',
+        ],
+        "keys": [
+            'EMPTY_ALL_BODY',
+            'EMPTY_ALL_TITLE',
+            'EMPTY_FILTERED_BODY',
+            'EMPTY_FILTERED_TITLE',
+            'ERROR_BODY',
+            'SUBTITLE',
+            'TAB_ALL',
+            'TAB_CANCELLED',
+            'TAB_PAST',
+            'TAB_PLANNING',
+            'TAB_UPCOMING',
+            'TITLE',
+        ],
+        # NOT IN GO. The load-failure heading. The Go page has no error state for this read.
+        "not_in_go": [
+            'ERROR_TITLE',
+        ],
+    },
+    {
+        "label": '2.2.3 pay links',
+        "kmp_file": ROOT / 'mobile/shared/src/commonMain/kotlin/com/storytail/adventures/domain/trip/PayLinks.kt',
+        "kmp_object": 'PayLinkMessages',
+        "go_owners": [
+            ROOT / 'web/internal/handlers/client/paylink.go',
+            ROOT / 'web/pages/client/trip.html',
+        ],
+        "keys": [
+            'EMPTY_SCHEDULE',
+            'I_HAVE_PAID',
+            'I_HAVE_PAID_FAILED',
+            'I_HAVE_PAID_THANKS',
+            'PAY_DIRECT',
+        ],
+    },
+    {
+        "label": 'trip detail',
+        "kmp_file": ROOT / 'mobile/shared/src/commonMain/kotlin/com/storytail/adventures/ui/screens/trip/TripDetailScreen.kt',
+        "kmp_object": 'TripDetailMessages',
+        "go_owners": [
+            ROOT / 'web/pages/client/trip.html',
+            ROOT / 'web/internal/handlers/client/trippage.go',
+        ],
+        "keys": [
+            'ADVISOR_LABEL',
+            'ADVISOR_NAME',
+            'ADVISOR_REPLY_TIME',
+            'BACK',
+            'CANCELLED_HEADING',
+            'CANCELLED_NO_REASON',
+            'CANCELLED_REASON',
+            'CANCELLED_REFUND',
+            'DUE',
+            'GLANCE',
+            'GLANCE_COMPONENTS',
+            'GLANCE_DESTINATION',
+            'GLANCE_NIGHTS',
+            'GLANCE_TOTAL',
+            'GLANCE_TRAVELERS',
+            'GLANCE_TRIP_TYPE',
+            'MESSAGE',
+            'NOTE_HEADING',
+            'NOT_FOUND_BODY',
+            'OVERDUE',
+            'PAID',
+            'PAYMENT_TIMELINE',
+            'PAYMENT_TIMELINE_NOTE',
+            'TILE_DOCUMENTS',
+            'TILE_ITINERARY',
+            'TILE_ITINERARY_PENDING',
+            'TILE_MESSAGES',
+            'TILE_PAYMENTS',
+            'WAIVED',
+        ],
+        # NOT IN GO. Empty, cancelled and not-found states the Go trip page does not render.
+        "not_in_go": [
+            'CANCELLED_AGAIN_BODY',
+            'CANCELLED_AGAIN_HEADING',
+            'NOTE_PENDING',
+            'NOT_FOUND_TITLE',
+        ],
+    },
+    {
+        "label": 'itinerary',
+        "kmp_file": ROOT / 'mobile/shared/src/commonMain/kotlin/com/storytail/adventures/ui/screens/trip/ItineraryScreen.kt',
+        "kmp_object": 'ItineraryMessages',
+        "go_owners": [
+            ROOT / 'web/internal/handlers/client/itinerary.go',
+            ROOT / 'web/pages/client/itinerary-day.html',
+            ROOT / 'web/pages/client/itinerary.html',
+        ],
+        "keys": [
+            'BACK',
+            'BLOCK_AFTERNOON',
+            'BLOCK_ALL_DAY',
+            'BLOCK_EVENING',
+            'BLOCK_MORNING',
+            'CALL',
+            'CONFIRMATION',
+            'EMERGENCY',
+            'EMPTY_ITINERARY_BODY',
+            'EMPTY_ITINERARY_TITLE',
+            'HEADING',
+            'IMPORTANT_INFO',
+            'INSURANCE',
+            'MARK_DONE',
+            'NO_IMPORTANT_INFO',
+            'OPEN_IN_MAPS',
+            'VISA_UNKNOWN',
+            'WEATHER',
+        ],
+        # NOT IN GO. The largest gap: no PDF download, no not-published state, and no per-section
+        # empty states on the Go itinerary viewer.
+        "not_in_go": [
+            'ASK_GYASI',
+            'DOWNLOAD_PDF',
+            'EMPTY_DAY_BODY',
+            'EMPTY_DINING_BODY',
+            'EMPTY_DINING_TITLE',
+            'EMPTY_FLIGHTS_BODY',
+            'EMPTY_FLIGHTS_TITLE',
+            'MARKED_DONE',
+            'NOT_PUBLISHED_BODY',
+            'NOT_PUBLISHED_TITLE',
+            'SHARE_NOTE',
+            'TIP',
+        ],
+    },
+    {
+        "label": 'auth validation',
+        "kmp_file": ROOT / 'mobile/shared/src/commonMain/kotlin/com/storytail/adventures/domain/validation/AuthValidation.kt',
+        "kmp_object": 'Messages',
+        "go_owners": [
+            ROOT / 'web/internal/validate/auth.go',
+        ],
+        "keys": [
+            'EMAIL_INVALID',
+            'EMAIL_REQUIRED',
+            'PASSWORD_NEEDS_DIGIT',
+            'PASSWORD_NEEDS_LOWERCASE',
+            'PASSWORD_NEEDS_UPPERCASE',
+            'PASSWORD_REQUIRED',
+            'PASSWORD_TOO_SHORT',
+        ],
+    },
+    {
+        "label": 'registration',
+        "kmp_file": ROOT / 'mobile/shared/src/commonMain/kotlin/com/storytail/adventures/domain/validation/RegistrationValidation.kt',
+        "kmp_object": 'Messages',
+        "go_owners": [
+            ROOT / 'web/internal/validate/registration.go',
+        ],
+        "keys": [
+            'CONFIRM_MISMATCH',
+            'CONFIRM_REQUIRED',
+            'NAME_INVALID',
+            'NAME_REQUIRED',
+            'NAME_TOO_LONG',
+            'TERMS_REQUIRED',
+        ],
+    },
+    {
+        "label": 'mfa',
+        "kmp_file": ROOT / 'mobile/shared/src/commonMain/kotlin/com/storytail/adventures/domain/validation/MfaValidation.kt',
+        "kmp_object": 'Messages',
+        "go_owners": [
+            ROOT / 'web/internal/validate/mfa.go',
+        ],
+        "keys": [
+            'CODE_REQUIRED',
+            'CODE_SHAPE',
+        ],
+    },
+    {
+        "label": 'password rule labels',
+        "kmp_file": ROOT / 'mobile/shared/src/commonMain/kotlin/com/storytail/adventures/domain/validation/PasswordStrength.kt',
+        "kmp_object": 'Labels',
+        "go_owners": [
+            ROOT / 'web/internal/validate/password_strength.go',
+        ],
+        "keys": [
+            'DIGIT',
+            'LENGTH',
+            'LOWERCASE',
+            'UPPERCASE',
+        ],
+    },
+    {
+        "label": 'password strength',
+        "kmp_file": ROOT / 'mobile/shared/src/commonMain/kotlin/com/storytail/adventures/domain/validation/PasswordStrength.kt',
+        "kmp_object": 'Messages',
+        "go_owners": [
+            ROOT / 'web/internal/validate/password_strength.go',
+        ],
+        "keys": [
+            'STILL_NEEDS_PREFIX',
+            'STRONG',
+        ],
+    },
+    {
+        "label": '2.1.2 registration screen',
+        "kmp_file": ROOT / 'mobile/shared/src/commonMain/kotlin/com/storytail/adventures/ui/screens/auth/RegisterScreen.kt',
+        "kmp_object": 'RegisterCopy',
+        "go_owners": [
+            ROOT / 'web/pages/auth/register.html',
+        ],
+        "keys": [
+            'APPLE',
+            'CONFIRM',
+            'DIVIDER',
+            'EMAIL',
+            'FIRST_NAME',
+            'GOOGLE',
+            'HAVE_ACCOUNT',
+            'LAST_NAME',
+            'OVERLINE',
+            'PASSWORD',
+            'PENDING',
+            'SIGN_IN',
+            'SOCIAL_DISABLED',
+            'SUBMIT',
+            'TITLE',
+        ],
+    },
+    {
+        "label": '2.1.4 forgot password screen',
+        "kmp_file": ROOT / 'mobile/shared/src/commonMain/kotlin/com/storytail/adventures/ui/screens/auth/ForgotPasswordScreen.kt',
+        "kmp_object": 'ForgotPasswordCopy',
+        "go_owners": [
+            ROOT / 'web/pages/auth/forgot-password.html',
+        ],
+        "keys": [
+            'EMAIL',
+            'OVERLINE',
+            'PENDING',
+            'SUB',
+            'SUBMIT',
+            'TITLE',
+        ],
+    },
+    {
+        "label": '2.1.5 reset password screen',
+        "kmp_file": ROOT / 'mobile/shared/src/commonMain/kotlin/com/storytail/adventures/ui/screens/auth/ResetPasswordScreen.kt',
+        "kmp_object": 'ResetPasswordCopy',
+        "go_owners": [
+            ROOT / 'web/pages/auth/reset-password.html',
+        ],
+        "keys": [
+            'CONFIRM',
+            'OVERLINE',
+            'PASSWORD',
+            'PENDING',
+            'SUB',
+            'SUBMIT',
+            'TITLE',
+        ],
+    },
+    {
+        "label": '2.1.3 email verification screen',
+        "kmp_file": ROOT / 'mobile/shared/src/commonMain/kotlin/com/storytail/adventures/ui/screens/auth/VerifyEmailScreen.kt',
+        "kmp_object": 'VerifyEmailCopy',
+        "go_owners": [
+            ROOT / 'web/pages/auth/verify-email.html',
+        ],
+        "keys": [
+            'RESEND',
+            'SIGN_OUT',
+            'TITLE',
+            'WHY_BODY',
+            'WHY_TITLE',
+        ],
+    },
+    {
+        "label": '2.1.10 profile validation',
+        "kmp_file": ROOT / 'mobile/shared/src/commonMain/kotlin/com/storytail/adventures/domain/validation/ProfileValidation.kt',
+        "kmp_object": 'Messages',
+        "go_owners": [
+            ROOT / 'web/internal/validate/profile.go',
+        ],
+        "keys": [
+            'ADDRESS_INCOMPLETE',
+            'COUNTRY_INVALID',
+            'DATE_INVALID',
+            'DOB_INVALID',
+            'DOB_TOO_EARLY',
+            'EMERGENCY_INCOMPLETE',
+            'INVALID_CHARS',
+            'PASSPORT_INCOMPLETE',
+            'PHONE_INVALID',
+            'PHONE_NEEDS_COUNTRY_CODE',
+            'POSTAL_INVALID',
+            'TOO_LONG',
+        ],
+    },
+    {
+        "label": '2.1.11 preferences validation',
+        "kmp_file": ROOT / 'mobile/shared/src/commonMain/kotlin/com/storytail/adventures/domain/validation/PreferencesValidation.kt',
+        "kmp_object": 'Messages',
+        "go_owners": [
+            ROOT / 'web/internal/validate/preferences.go',
+        ],
+        "keys": [
+            'ACCESSIBILITY_NONE_ALONE',
+            'BUDGET_UNKNOWN',
+            'DESTINATIONS_TOO_MANY',
+            'DESTINATION_TOO_LONG',
+            'DIETARY_NONE_ALONE',
+            'FAVOURITES_TOO_LONG',
+            'INVALID_CHARS',
+            'LOYALTY_NEEDS_PROGRAM',
+            'LOYALTY_NUMBER_SHAPE',
+            'LOYALTY_PROGRAM_TOO_LONG',
+            'LOYALTY_TOO_MANY',
+            'NOTES_TOO_LONG',
+            'UNKNOWN_OPTION',
+        ],
+        # NOT IN GO. Two cross-field messages (a ticked "none" plus a written note)
+        # that web/internal/validate/preferences.go does not implement.
+        "not_in_go": [
+            'ACCESSIBILITY_NONE_WITH_NOTE',
+            'DIETARY_NONE_WITH_NOTE',
+        ],
+    },
+    {
+        "label": '2.1.12 companion validation',
+        "kmp_file": ROOT / 'mobile/shared/src/commonMain/kotlin/com/storytail/adventures/domain/validation/CompanionValidation.kt',
+        "kmp_object": 'Messages',
+        "go_owners": [
+            ROOT / 'web/internal/validate/companion.go',
+        ],
+        "keys": [
+            'COUNTRY_INVALID',
+            'DATE_INVALID',
+            'DOB_INVALID',
+            'FIRST_NAME_REQUIRED',
+            'INVALID_CHARS',
+            'LAST_NAME_REQUIRED',
+            'NAME_TOO_LONG',
+            'PASSPORT_NEEDS_EXPIRY',
+            'RELATIONSHIP_TOO_LONG',
+        ],
+    },
+    {
+        "label": '2.1.9 welcome screen',
+        "kmp_file": ROOT / 'mobile/shared/src/commonMain/kotlin/com/storytail/adventures/ui/screens/onboarding/WelcomeScreen.kt',
+        "kmp_object": 'WelcomeCopy',
+        "go_owners": [
+            ROOT / 'web/pages/onboarding/welcome.html',
+        ],
+        "keys": [
+            'OVERLINE',
+            'PRIMARY',
+            'SECTION',
+            'SKIP',
+            'SUB',
+        ],
+    },
+    {
+        "label": '2.1.10 profile screen',
+        "kmp_file": ROOT / 'mobile/shared/src/commonMain/kotlin/com/storytail/adventures/ui/screens/onboarding/ProfileFields.kt',
+        "kmp_object": 'ProfileCopy',
+        "go_owners": [
+            ROOT / 'web/pages/onboarding/profile.html',
+            ROOT / 'web/internal/profileform/profileform.go',
+            ROOT / 'web/internal/handlers/onboarding/onboarding.go',
+        ],
+        "keys": [
+            'ADDRESS',
+            'CITY',
+            'COUNTRY',
+            'DOB',
+            'DOB_HINT',
+            'EMERGENCY',
+            'EMERGENCY_HINT',
+            'EMERGENCY_NAME',
+            'EMERGENCY_PHONE',
+            'EMERGENCY_RELATIONSHIP',
+            'EXPIRES',
+            'ISSUING',
+            'LINE1',
+            'LINE2',
+            'OPTIONAL',
+            'PASSPORT',
+            'PASSPORT_EXPIRED',
+            'PASSPORT_HINT',
+            'PASSPORT_OPTIONAL',
+            'PENDING',
+            'PHONE',
+            'PHONE_HINT',
+            'POSTAL',
+            'POSTAL_US',
+            'PRIMARY',
+            'REGION',
+            'REGION_US',
+            'SKIP',
+            'SUB',
+            'TITLE',
+        ],
+    },
+    {
+        "label": '2.1.11 preferences screen',
+        "kmp_file": ROOT / 'mobile/shared/src/commonMain/kotlin/com/storytail/adventures/ui/screens/onboarding/PreferencesFields.kt',
+        "kmp_object": 'PreferencesCopy',
+        "go_owners": [
+            ROOT / 'web/pages/onboarding/preferences.html',
+            ROOT / 'web/internal/handlers/onboarding/onboarding.go',
+        ],
+        "keys": [
+            'ACCESS',
+            'ACCESS_NOTES',
+            'BUDGET',
+            'BUDGET_HINT',
+            'DESTINATIONS',
+            'DESTINATIONS_HINT',
+            'DESTINATION_OTHER',
+            'DIET',
+            'DIET_NOTES',
+            'LOYALTY',
+            'LOYALTY_ADD',
+            'LOYALTY_HINT',
+            'LOYALTY_NUMBER',
+            'LOYALTY_PROGRAM',
+            'PENDING',
+            'PRIMARY',
+            'SKIP',
+            'STYLE',
+            'STYLE_HINT',
+            'SUB',
+            'TITLE',
+        ],
+        # NOT IN GO. The loyalty row's remove control.
+        "not_in_go": [
+            'LOYALTY_REMOVE',
+        ],
+    },
+    {
+        "label": '2.1.12 companions screen',
+        "kmp_file": ROOT / 'mobile/shared/src/commonMain/kotlin/com/storytail/adventures/ui/screens/onboarding/CompanionsScreen.kt',
+        "kmp_object": 'CompanionsCopy',
+        "go_owners": [
+            ROOT / 'web/pages/onboarding/companions.html',
+            ROOT / 'web/internal/handlers/onboarding/companions.go',
+            ROOT / 'web/internal/handlers/onboarding/onboarding.go',
+        ],
+        "keys": [
+            'ADD',
+            'CANCEL',
+            'DOB',
+            'EDIT',
+            'EMPTY_BODY',
+            'EMPTY_TITLE',
+            'EXPIRES',
+            'FIRST_NAME',
+            'FORM_ADD',
+            'FORM_SUB',
+            'ISSUING',
+            'LAST_NAME',
+            'MAX',
+            'NO_PASSPORT',
+            'PENDING',
+            'PRIMARY',
+            'RELATIONSHIP',
+            'REMOVE',
+            'SAVE',
+            'SAVING',
+            'SKIP',
+            'SUB',
+            'TITLE',
+            'UNFINISHED',
+        ],
+    },
+    {
+        "label": '2.1.13 connect screen',
+        "kmp_file": ROOT / 'mobile/shared/src/commonMain/kotlin/com/storytail/adventures/ui/screens/onboarding/ConnectScreen.kt',
+        "kmp_object": 'ConnectCopy',
+        "go_owners": [
+            ROOT / 'web/pages/onboarding/connect.html',
+            ROOT / 'web/internal/handlers/onboarding/connect.go',
+        ],
+        "keys": [
+            'FIELD',
+            'HELP',
+            'PENDING',
+            'PRIMARY',
+            'PRIMARY_EMPTY',
+            'SKIP',
+            'SUB',
+            'TITLE',
+        ],
+    },
+    {
+        "label": '2.1.13 connect banner',
+        "kmp_file": ROOT / 'mobile/shared/src/commonMain/kotlin/com/storytail/adventures/domain/onboarding/ConnectBanner.kt',
+        "kmp_object": 'ConnectBannerCopy',
+        "go_owners": [
+            ROOT / 'web/pages/onboarding/connect.html',
+        ],
+        "keys": [
+            'NO_MATCH',
+        ],
+    },
+    {
+        "label": '2.1.14 complete screen',
+        "kmp_file": ROOT / 'mobile/shared/src/commonMain/kotlin/com/storytail/adventures/ui/screens/onboarding/CompleteScreen.kt',
+        "kmp_object": 'CompleteCopy',
+        "go_owners": [
+            ROOT / 'web/pages/onboarding/complete.html',
+        ],
+        "keys": [
+            'CHECKLIST',
+            'OVERLINE',
+            'PENDING',
+            'PRIMARY',
+        ],
+    },
+    {
+        "label": '2.1.14 completion summary',
+        "kmp_file": ROOT / 'mobile/shared/src/commonMain/kotlin/com/storytail/adventures/domain/onboarding/Completion.kt',
+        "kmp_object": 'CompletionCopy',
+        "go_owners": [
+            ROOT / 'web/internal/handlers/onboarding/complete.go',
+        ],
+        "keys": [
+            'COMPANIONS_DONE',
+            'COMPANIONS_SKIPPED',
+            'PREFERENCES_DONE',
+            'PREFERENCES_SKIPPED',
+            'PROFILE_DONE',
+            'PROFILE_SKIPPED',
+            'SHORT_COMPANIONS',
+            'SHORT_PREFERENCES',
+            'SHORT_PROFILE',
+            'SUB_NOTHING',
+            'SUB_NO_TRIP',
+            'TRIP_DONE',
+            'TRIP_NONE',
+        ],
+    },
+    {
+        "label": '2.5.1 account overview',
+        "kmp_file": ROOT / 'mobile/shared/src/commonMain/kotlin/com/storytail/adventures/domain/account/AccountCopy.kt',
+        "kmp_object": 'AccountMessages',
+        "go_owners": [
+            ROOT / 'web/internal/handlers/client/account.go',
+        ],
+        "keys": [
+            'COMING_SOON',
+            'CONNECTED',
+            'CONNECTED_SUB',
+            'DOCUMENTS',
+            'DOCUMENTS_EMPTY_SUB',
+            'FALLBACK_NAME',
+            'GROUP_APP',
+            'GROUP_SUPPORT',
+            'GROUP_YOU',
+            'HELP',
+            'HELP_SUB',
+            'NOTIFICATIONS',
+            'PERSONAL',
+            'PERSONAL_SUB',
+            'PREFERENCES',
+            'PREFERENCES_SUB',
+            'PRIVACY',
+            'PRIVACY_SUB',
+            'SECURITY',
+            'SECURITY_SUB',
+            'SIGN_OUT',
+            'TITLE',
+        ],
+    },
+    {
+        "label": '2.5.2 personal info',
+        "kmp_file": ROOT / 'mobile/shared/src/commonMain/kotlin/com/storytail/adventures/domain/account/AccountCopy.kt',
+        "kmp_object": 'PersonalMessages',
+        "go_owners": [
+            ROOT / 'web/internal/handlers/client/personal.go',
+        ],
+        "keys": [
+            'CANCEL',
+            'EMAIL_LABEL',
+            'IDENTITY_HEADING',
+            'IDENTITY_NOTE',
+            'NAME_LABEL',
+            'NOT_SET',
+            'SAVE',
+            'SUBTITLE',
+            'TITLE',
+        ],
+    },
+    {
+        "label": '2.5.3 preferences edit',
+        "kmp_file": ROOT / 'mobile/shared/src/commonMain/kotlin/com/storytail/adventures/domain/account/AccountCopy.kt',
+        "kmp_object": 'AccountPreferencesMessages',
+        "go_owners": [
+            ROOT / 'web/internal/handlers/client/preferences.go',
+        ],
+        "keys": [
+            'CANCEL',
+            'SAVE',
+            'SUBTITLE',
+            'TITLE',
+        ],
+    },
+    {
+        "label": '2.5.4 document library',
+        "kmp_file": ROOT / 'mobile/shared/src/commonMain/kotlin/com/storytail/adventures/domain/account/AccountCopy.kt',
+        "kmp_object": 'DocumentLibraryMessages',
+        "go_owners": [
+            ROOT / 'web/internal/handlers/client/documents.go',
+            ROOT / 'web/pages/client/documents.html',
+        ],
+        "keys": [
+            'EMPTY_BODY',
+            'EMPTY_CTA',
+            'EMPTY_TITLE',
+            'PRIVACY_NOTE',
+            'SUBTITLE',
+            'TITLE',
+            'UPLOAD_CTA',
+            'UPLOAD_DEFERRED',
+        ],
+    },
+    {
+        "label": '2.5.6 notifications',
+        "kmp_file": ROOT / 'mobile/shared/src/commonMain/kotlin/com/storytail/adventures/domain/account/AccountCopy.kt',
+        "kmp_object": 'NotificationsMessages',
+        "go_owners": [
+            ROOT / 'web/internal/handlers/client/accountpage.go',
+        ],
+        "keys": [
+            'TITLE',
+        ],
+        # NOT IN GO. The screen is not built, and it is backend work rather than a page:
+        # notification_preference has RLS with zero policies and no traveler-facing RPC exists.
+        # web/internal/handlers/client/accountpage.go says the same thing at the call site.
+        "not_in_go": [
+            'EMPTY_BODY',
+            'EMPTY_TITLE',
+            'REACH_YOU',
+        ],
+    },
+    {
+        "label": '2.5.7 security',
+        "kmp_file": ROOT / 'mobile/shared/src/commonMain/kotlin/com/storytail/adventures/domain/account/AccountCopy.kt',
+        "kmp_object": 'SecurityMessages',
+        "go_owners": [
+            ROOT / 'web/internal/handlers/client/security.go',
+        ],
+        "keys": [
+            'MFA_BODY',
+            'MFA_ENABLE_CTA',
+            'MFA_MANAGE_CTA',
+            'MFA_MANAGE_DEFERRED',
+            'MFA_OFF',
+            'MFA_ON',
+            'MFA_TITLE',
+            'NO_PASSWORD_CTA',
+            'NO_PASSWORD_TITLE',
+            'PASSWORD_BODY',
+            'PASSWORD_CTA',
+            'PASSWORD_DEFERRED',
+            'PASSWORD_TITLE',
+            'SESSIONS_ADVICE',
+            'SESSIONS_DEFERRED',
+            'SESSIONS_HEADING',
+            'SUBTITLE',
+            'TITLE',
+        ],
+    },
+    {
+        "label": '2.5.8 connected accounts',
+        "kmp_file": ROOT / 'mobile/shared/src/commonMain/kotlin/com/storytail/adventures/domain/account/AccountCopy.kt',
+        "kmp_object": 'ConnectedMessages',
+        "go_owners": [
+            ROOT / 'web/internal/handlers/client/connected.go',
+        ],
+        "keys": [
+            'EMAIL_ACCOUNT_NOTE',
+            'LINKED',
+            'LINK_CTA',
+            'LINK_DEFERRED',
+            'NOT_LINKED',
+            'OAUTH_ACCOUNT_NOTE',
+            'SAFETY_NOTE',
+            'SUBTITLE',
+            'TITLE',
+            'UNLINK_CTA',
+            'UNLINK_DEFERRED',
+        ],
+    },
+    {
+        "label": '2.5.9 privacy',
+        "kmp_file": ROOT / 'mobile/shared/src/commonMain/kotlin/com/storytail/adventures/domain/account/AccountCopy.kt',
+        "kmp_object": 'PrivacyMessages',
+        "go_owners": [
+            ROOT / 'web/internal/handlers/client/privacy.go',
+        ],
+        "keys": [
+            'CLOSE_BODY',
+            'CLOSE_CTA',
+            'CLOSE_TITLE',
+            'COOKIES_LINK',
+            'EXPORT_BODY',
+            'EXPORT_CTA',
+            'EXPORT_DEFERRED',
+            'EXPORT_TITLE',
+            'SUBTITLE',
+            'TITLE',
+            'TRACKING_BODY',
+            'TRACKING_HEADING',
+        ],
+    },
+    {
+        "label": '2.5.10 account closure',
+        "kmp_file": ROOT / 'mobile/shared/src/commonMain/kotlin/com/storytail/adventures/domain/account/AccountCopy.kt',
+        "kmp_object": 'CloseMessages',
+        "go_owners": [
+            ROOT / 'web/internal/handlers/client/privacy.go',
+        ],
+        "keys": [
+            'BACK',
+            'CONFIRM_CTA',
+            'CONFIRM_HINT',
+            'CONFIRM_LABEL',
+            'CONFIRM_PLACEHOLDER',
+            'DEFERRED',
+            'HEADING',
+            'KEEP_CTA',
+            'REASON_LABEL',
+            'REASON_PLACEHOLDER',
+            'RECONSIDER_BODY',
+            'RECONSIDER_CTA',
+            'TITLE',
+            'WHAT_HAPPENS_LABEL',
+        ],
+    },
+    {
+        "label": '2.5.11 help',
+        "kmp_file": ROOT / 'mobile/shared/src/commonMain/kotlin/com/storytail/adventures/domain/account/AccountCopy.kt',
+        "kmp_object": 'HelpMessages',
+        "go_owners": [
+            ROOT / 'web/pages/client/dashboard.html',
+            ROOT / 'web/internal/handlers/client/account.go',
+        ],
+        "keys": [
+            'ADVISOR_INITIALS',
+            'MESSAGE_CTA',
+            'REPLY_WINDOW',
+            'TITLE',
+        ],
+        # NOT IN GO. The screen is not built. It needed public's HowItWorksFAQ/GyasiFAQ, which only
+        # became reachable to the traveler area when the public area merged.
+        "not_in_go": [
+            'ADVISOR_BODY',
+            'ADVISOR_NAME',
+            'FAQ_HEADING',
+            'LEGAL_HEADING',
+            'SUBTITLE',
+        ],
+    },
+    {
+        "label": '2.0.12 message gyasi',
+        "kmp_file": ROOT / 'mobile/shared/src/commonMain/kotlin/com/storytail/adventures/domain/messages/MessageGyasi.kt',
+        "kmp_object": 'MessageGyasiCopy',
+        "go_owners": [
+            ROOT / 'web/pages/public/message.html',
+            ROOT / 'web/internal/handlers/public/message.go',
+        ],
+        "keys": [
+            'ABOUT_PREFIX',
+            'BODY',
+            'EMAIL',
+            'FIRST_NAME',
+            'KEEP_EXPLORING',
+            'LAST_NAME',
+            'MESSAGE',
+            'MESSAGE_HINT',
+            'OVERLINE',
+            'PHONE',
+            'PRIVACY_BEFORE',
+            'PRIVACY_LINK',
+            'SENT_BODY',
+            'SENT_TITLE',
+            'SUBMIT',
+            'THROTTLED',
+            'TITLE',
+            'UNAVAILABLE',
+        ],
+        # NOT IN GO. The sending state on the public form.
+        "not_in_go": [
+            'PENDING',
+        ],
+    },
+    {
+        "label": '2.6 messaging',
+        "kmp_file": ROOT / 'mobile/shared/src/commonMain/kotlin/com/storytail/adventures/domain/messages/MessagesCopy.kt',
+        "kmp_object": 'MessagesMessages',
+        "go_owners": [
+            ROOT / 'web/internal/handlers/client/inbox.go',
+        ],
+        "keys": [
+            'ADVISOR_INITIALS',
+            'ADVISOR_NAME',
+            'ATTACH_DEFERRED',
+            'BACK_TO_MESSAGES',
+            'EMPTY_BODY',
+            'EMPTY_CTA',
+            'EMPTY_TITLE',
+            'GENERAL_THREAD_TITLE',
+            'NEW_BODY_LABEL',
+            'NEW_CTA',
+            'NEW_FAILED',
+            'NEW_PLACEHOLDER',
+            'NEW_SEND',
+            'NEW_SENDING',
+            'NEW_SUBTITLE',
+            'NEW_TITLE',
+            'REPLY_WINDOW',
+            'SEARCH_EMPTY',
+            'SEARCH_PLACEHOLDER',
+            'SUBTITLE',
+            'THREAD_EMPTY_BODY',
+            'TITLE',
+        ],
+    },
+]
 
 
 def unescape(s: str) -> str:
-    return (
-        s.replace('\\"', '"')
-        .replace("\\'", "'")
-        .replace("\\\\", "\\")
-    )
-
-
-def web_messages(path: pathlib.Path, const_name: str) -> dict[str, str]:
-    """
-    `export const NAME = { key: "value", ... } as const;`
-
-    A value may be a `"..." +\n    "..."` concatenation, which is how anything longer than
-    a line is written. Matching only the first literal — which this did until the screen
-    tables were added — silently compares half a sentence against a whole one and reports
-    drift that is not there, or worse, agreement that is not either.
-
-    Keys whose value is not a plain string (a function, an array — 2.1.10's
-    `title: (name) => …`) are skipped rather than mangled. They are not comparable across
-    platforms anyway.
-    """
-    body = re.search(
-        rf"{re.escape(const_name)} = \{{(.*?)\n\}} as const;", path.read_text(), re.S
-    )
-    if not body:
-        return {}
-
-    out: dict[str, str] = {}
-    for name, value in re.findall(
-        r"^  (\w+):\s*(.*?)(?=\n  \w+:|\n  /|\Z)", body.group(1), re.S | re.M
-    ):
-        stripped = value.strip()
-        # A function or a list is not a string, and joining the literals inside one would
-        # produce something that looks comparable and is not.
-        if not stripped.startswith('"') and not stripped.startswith("'"):
-            continue
-        parts = literals(value)
-        if parts:
-            out[name] = "".join(parts)
-    return out
+    return s.replace('\\"', '"').replace("\\'", "'").replace("\\\\", "\\")
 
 
 def kmp_messages(path: pathlib.Path, object_name: str) -> dict[str, str]:
@@ -1432,7 +1360,6 @@ def kmp_messages(path: pathlib.Path, object_name: str) -> dict[str, str]:
         return {}
 
     out: dict[str, str] = {}
-    # Everything up to the next `const val` or the end of the object is one value.
     # The value ends at the next declaration OR comment. `fun` belongs in that list: a
     # `const val` sitting last before the object's functions otherwise swallowed every
     # function body after it, and reported the concatenation as drift.
@@ -1447,96 +1374,145 @@ def kmp_messages(path: pathlib.Path, object_name: str) -> dict[str, str]:
     return out
 
 
-def web_errors() -> dict[str, str]:
-    """Each BY_KIND entry's `message`, which may be a multi-line string concatenation."""
-    text = WEB_ERRORS.read_text()
-    body = re.search(r"const BY_KIND[^=]*= \{(.*?)\n\};", text, re.S).group(1)
-    out: dict[str, str] = {}
-    for kind in ERROR_KINDS:
-        entry = re.search(rf"\n  {kind}: \{{(.*?)\n  \}},", body, re.S)
-        if not entry:
-            continue
-        # `,\n` alone misses entries where `message` is the last field — the captured
-        # block ends right after the comma with no newline.
-        msg = re.search(r"message:\s*(.*?),\s*(?:\n|$)", entry.group(1), re.S)
-        if msg:
-            out[kind] = "".join(literals(msg.group(1)))
-    return out
-
-
 def kmp_errors() -> dict[str, str]:
     text = KMP_ERRORS.read_text()
     out: dict[str, str] = {}
     for kind, obj in ERROR_KINDS.items():
-        entry = re.search(
-            rf"data object {obj} : AuthError \{{(.*?)\n    \}}", text, re.S
-        )
+        entry = re.search(rf"data object {obj} : AuthError \{{(.*?)\n    \}}", text, re.S)
         if not entry:
             continue
-        msg = re.search(r"override val message\s*=\s*(.*?)(?:\n\s*override|\n\s*\}|$)", entry.group(1), re.S)
+        msg = re.search(
+            r"override val message\s*=\s*(.*?)(?:\n\s*override|\n\s*\}|$)", entry.group(1), re.S
+        )
         if msg:
             out[kind] = "".join(unescape(p) for p in re.findall(KMP_STRING, msg.group(1)))
     return out
 
 
-def compare(label: str, pairs: list[tuple[str, str | None, str | None]]) -> list[str]:
-    problems = []
-    for name, web, kmp in pairs:
-        if web is None:
-            problems.append(f"{label}: '{name}' missing on web")
-        elif kmp is None:
-            problems.append(f"{label}: '{name}' missing on mobile")
-        elif web != kmp:
-            problems.append(
-                f"{label}: '{name}' differs\n    web:    {web!r}\n    mobile: {kmp!r}"
-            )
-    return problems
+def go_haystack(paths: list[pathlib.Path]) -> str:
+    """
+    The owners' source, with adjacent Go string literals joined.
+
+    `"a " +\n\t"b"` is one sentence in the source and has to read as one here, exactly as the
+    Kotlin side joins its own concatenations. Without this, every wrapped sentence in Go —
+    which is most of the long ones — reads as absent and reports as drift.
+
+    HTML owners are taken as-is: a page's copy is its text, and the escaping that matters
+    (`&amp;`, `&#39;`) is handled by the caller comparing against what the template really says.
+    """
+    out = []
+    for p in paths:
+        text = p.read_text(errors="ignore")
+        if p.suffix == ".go":
+            text = re.sub(r'"\s*\+\s*\n?\s*"', "", text)
+        out.append(text)
+    return "\n".join(out)
+
+
+def go_errors() -> dict[str, str]:
+    """
+    The `Message:` of each entry in `authMessages`, concatenations joined.
+
+    Go keys that map by the exported identifier (`InvalidCredentials`), not by the
+    snake_case kind, and ERROR_KINDS already holds that identifier because Kotlin names its
+    data object the same thing. Matching on the kind STRING instead finds the `const` block
+    at the top of the file, where the kinds are declared, and returns the next declaration
+    rather than a sentence — which is what the first version of this did, reporting all nine
+    as drift with the Go side showing fragments of the type declarations.
+    """
+    text = re.sub(r'"\s*\+\s*\n?\s*"', "", GO_AUTH_ERRORS.read_text())
+    table = re.search(r"var authMessages = map\[AuthErrorKind\]AuthMessage\{(.*)\n\}", text, re.S)
+    if not table:
+        return {}
+    out: dict[str, str] = {}
+    for kind, ident in ERROR_KINDS.items():
+        entry = re.search(rf"\n\t{ident}: \{{(.*?)\n\t\}},", table.group(1), re.S)
+        if not entry:
+            continue
+        msg = re.search(r'Message:\s*"((?:[^"\\]|\\.)*)"', entry.group(1))
+        if msg:
+            out[kind] = unescape(msg.group(1))
+    return out
 
 
 def main() -> int:
     problems: list[str] = []
     checked = 0
+    gaps = 0
 
-    for table in MESSAGE_TABLES:
-        web = web_messages(table["web_file"], table["web_const"])
+    for table in TABLES:
+        label = table["label"]
         kmp = kmp_messages(table["kmp_file"], table["kmp_object"])
-        if not web:
-            problems.append(
-                f"{table['label']}: could not read {table['web_const']} from "
-                f"{table['web_file'].relative_to(ROOT)} — did it get renamed?"
-            )
         if not kmp:
             problems.append(
-                f"{table['label']}: could not read object {table['kmp_object']} from "
+                f"{label}: could not read object {table['kmp_object']} from "
                 f"{table['kmp_file'].relative_to(ROOT)} — did it get renamed?"
             )
-        problems += compare(
-            table["label"],
-            [(w, web.get(w), kmp.get(k)) for w, k in table["keys"].items()],
-        )
-        checked += len(table["keys"])
+            continue
 
-    we, ke = web_errors(), kmp_errors()
-    problems += compare(
-        "auth error",
-        [(kind, we.get(kind), ke.get(kind)) for kind in ERROR_KINDS],
-    )
+        missing_owner = [p for p in table["go_owners"] if not p.exists()]
+        if missing_owner:
+            problems.append(
+                f"{label}: owner file gone — "
+                + ", ".join(str(p.relative_to(ROOT)) for p in missing_owner)
+            )
+            continue
+
+        hay = go_haystack(table["go_owners"])
+        for key in table["keys"]:
+            value = kmp.get(key)
+            if value is None:
+                problems.append(f"{label}: '{key}' is no longer in {table['kmp_object']}")
+                continue
+            if value not in hay:
+                owners = ", ".join(str(p.relative_to(ROOT)) for p in table["go_owners"])
+                problems.append(
+                    f"{label}: '{key}' is not in the Go screen that shows it\n"
+                    f"    mobile: {value!r}\n"
+                    f"    looked in: {owners}"
+                )
+            checked += 1
+
+        # A gap that has quietly closed should stop being listed as a gap.
+        hay_all = hay
+        for key in table.get("not_in_go", []):
+            value = kmp.get(key)
+            gaps += 1
+            if value is not None and value in hay_all:
+                problems.append(
+                    f"{label}: '{key}' is listed in not_in_go but Go now has it — "
+                    f"move it into keys so it is guarded from here on"
+                )
+
+    ge, ke = go_errors(), kmp_errors()
+    for kind in ERROR_KINDS:
+        g, k = ge.get(kind), ke.get(kind)
+        checked += 1
+        if g is None:
+            problems.append(f"auth error: '{kind}' missing in Go")
+        elif k is None:
+            problems.append(f"auth error: '{kind}' missing on mobile")
+        elif g != k:
+            problems.append(
+                f"auth error: '{kind}' differs\n    go:     {g!r}\n    mobile: {k!r}"
+            )
 
     if problems:
-        print("::error::User-facing copy has drifted between web and mobile.")
+        print("::error::User-facing copy has drifted between the Go app and mobile.")
         for p in problems:
             print(f"  {p}")
         print(
-            "\nThese strings are intentionally duplicated (see the header comments in "
-            "each file).\nChange them together, or the same person sees different wording "
-            "on phone and web."
+            "\nThese strings are intentionally duplicated (see the header comments in each "
+            "file).\nChange them together, or the same person sees different wording on phone "
+            "and web."
         )
         return 1
 
     print(
-        f"Copy parity OK — {checked} messages across {len(MESSAGE_TABLES)} modules and "
-        f"{len(ERROR_KINDS)} auth errors match between web and mobile."
+        f"Copy parity OK — {checked} strings across {len(TABLES)} modules and "
+        f"{len(ERROR_KINDS)} auth errors match between Go and mobile."
     )
+    print(f"{gaps} strings mobile shows have no Go equivalent yet; see not_in_go in this file.")
     return 0
 
 

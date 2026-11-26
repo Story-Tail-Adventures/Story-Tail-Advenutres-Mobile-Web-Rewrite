@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<!--
+  Screen 2.0.2 About / How it works (/how-it-works). Ports app/(plain)/how-it-works/page.tsx and its
+  content.ts, with FeatureCard, ScriptureLine, AdvisorCard (bio), FaqList and StickyCta.
+  Copy is the Next app's, byte for byte. The advisor card's figures come from the claims
+  registry and the FAQ from content/faq-how-it-works.json (internal/content), filled in Go.
+-->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>How it works · Story-Tail Adventures</title>
+</head>
+<body>
+<main>
+  <div class="container container-prose hiw">
+    <header>
+      <p class="type-overline pub-overline">HOW STORY-TAIL WORKS</p>
+      <h1 class="page-title hiw-title">You ask. We plan together. You go and rest.</h1>
+      <p class="type-body1 text-secondary hiw-lead">Under 90 seconds of reading — promise. No planning fees, ever — Story-Tail earns commission from suppliers, not from you. We exist so you can take the rest you were made for.</p>
+    </header>
+
+    <ol class="hiw-steps">
+      <li class="hiw-step">
+        <div class="card feature-stack">
+          <div class="feature-glyph" aria-hidden="true"><svg class="icon icon-20" aria-hidden="true"><use href="/assets/icons.svg#message"></use></svg></div>
+          <p class="type-overline pub-overline feature-overline">STEP 01</p>
+          <h3 class="type-h5 feature-title">Ask</h3>
+          <p class="type-caption feature-caption">Tell me what you're craving — beach week, family cruise, honeymoon — by message or a quick call.</p>
+        </div>
+      </li>
+      <li class="hiw-step">
+        <div class="card feature-stack">
+          <div class="feature-glyph" aria-hidden="true"><svg class="icon icon-20" aria-hidden="true"><use href="/assets/icons.svg#sparkle"></use></svg></div>
+          <p class="type-overline pub-overline feature-overline">STEP 02</p>
+          <h3 class="type-h5 feature-title">Plan together</h3>
+          <p class="type-caption feature-caption">I come back with a curated proposal: real options, real prices, my honest takes — never a generic search dump.</p>
+        </div>
+      </li>
+      <li class="hiw-step">
+        <div class="card feature-stack">
+          <div class="feature-glyph" aria-hidden="true"><svg class="icon icon-20" aria-hidden="true"><use href="/assets/icons.svg#plane"></use></svg></div>
+          <p class="type-overline pub-overline feature-overline">STEP 03</p>
+          <h3 class="type-h5 feature-title">Go rest</h3>
+          <p class="type-caption feature-caption">I book through suppliers, you pay each one directly on its own secure site, and I keep watch on the details while you receive the rest you came for.</p>
+        </div>
+      </li>
+    </ol>
+
+    <!-- Our heart: why we do this. -->
+    <section class="paper heart-panel" aria-labelledby="our-heart">
+      <div class="heart-glow" aria-hidden="true"></div>
+      <div class="heart-inner">
+        <p class="type-overline pub-overline">OUR HEART · WHY WE DO THIS</p>
+        <h2 id="our-heart" class="page-title heart-title">Vacation is <i>rest</i>. Rest is sacred. The world is <i>good</i>, and meant to be enjoyed.</h2>
+        <p class="type-body2 text-secondary heart-intro">Two beliefs sit behind every trip we plan. They're the reason Gyasi answers a 9pm message about sunscreen brands and the reason your money goes straight to the people hosting you, never through us.</p>
+        <div class="heart-pillars">
+          <div class="card feature-stack">
+            <div class="feature-glyph feature-glyph-44" aria-hidden="true"><svg class="icon icon-20" aria-hidden="true"><use href="/assets/icons.svg#heart"></use></svg></div>
+            <p class="type-overline pub-overline feature-overline">PILLAR 01</p>
+            <h3 class="type-h5 feature-title">Rest is a command, not a luxury.</h3>
+            <p class="type-caption feature-caption">On the seventh day God rested and called it holy — not because He was tired, but because He was making rest a gift to us. When we plan your week away, we plan a Sabbath worth taking. No screens that demand you. No charges that surprise you. Real rest.</p>
+            <div class="scripture"><q class="scripture-quote">“Come to me, all who are weary, and I will give you rest.”</q><span class="scripture-ref">MATT 11:28</span></div>
+          </div>
+          <div class="card feature-stack">
+            <div class="feature-glyph feature-glyph-44 feature-glyph-secondary" aria-hidden="true"><svg class="icon icon-20" aria-hidden="true"><use href="/assets/icons.svg#palm"></use></svg></div>
+            <p class="type-overline pub-overline feature-overline">PILLAR 02</p>
+            <h3 class="type-h5 feature-title">Creation is a gift, meant to be enjoyed.</h3>
+            <p class="type-caption feature-caption">God made the reef, the trade wind, the warm rain on a tin roof — and called it very good. We don't sell escape from your life; we help you receive a world that's already waiting for you. The Caribbean is one beautiful answer to that invitation.</p>
+            <div class="scripture"><q class="scripture-quote">“God saw all that he had made, and it was very good.”</q><span class="scripture-ref">GEN 1:31</span></div>
+          </div>
+        </div>
+        <!-- Design-System §2.4: the explicit welcome line. -->
+        <div class="paper welcome-line">
+          <span class="welcome-icon"><svg class="icon icon-16" aria-hidden="true"><use href="/assets/icons.svg#info"></use></svg></span>
+          <p class="type-body2 text-secondary"><b class="welcome-strong">Whatever your faith — you're welcome here.</b> This is just where our hands come from. Every traveler gets the same care, the same honesty, the same Caribbean.</p>
+        </div>
+      </div>
+    </section>
+
+    <div class="hiw-advisor">
+      <div class="card advisor-bio">
+        <span class="advisor-avatar advisor-avatar-bio" role="img" aria-label="Gyasi Story" data-slot="advisor-initials">GS</span>
+        <div>
+          <h2 class="type-h5 text-primary advisor-bio-title" data-slot="advisor-title">Meet Gyasi Story · Travel Advisor</h2>
+          <p class="type-body2 text-secondary advisor-bio-body" data-slot="advisor-bio">Caribbean specialist hosted by Inteletravel.</p>
+          <ul class="advisor-stats">
+            <li class="advisor-stat"><span class="advisor-star"><svg class="icon icon-12 icon-filled" aria-hidden="true"><use href="/assets/icons.svg#star"></use></svg></span> <span data-slot="advisor-rating">4.9 · 138 reviews</span></li>
+            <li class="advisor-stat"><svg class="icon icon-12" aria-hidden="true"><use href="/assets/icons.svg#users"></use></svg> <span data-slot="advisor-travelers">240+ travelers</span></li>
+            <li class="advisor-stat"><svg class="icon icon-12" aria-hidden="true"><use href="/assets/icons.svg#shield"></use></svg> <span data-slot="advisor-cred">CLIA Member</span></li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <!-- FAQ: the four desktop questions. -->
+    <section class="hiw-faq" aria-labelledby="faq">
+      <h2 id="faq" class="type-h5">FAQ</h2>
+      <div class="faq-list hiw-faq-list">
+        <div class="faq-row" data-repeat="faq"><details class="faq-item" name="faq" data-slot="faq-item">
+          <summary class="faq-summary"><span class="faq-q type-subtitle2 text-primary" data-slot="faq-q">Sample question?</span><span class="faq-chevron" aria-hidden="true"><svg class="icon icon-16" aria-hidden="true"><use href="/assets/icons.svg#chevron_down"></use></svg></span></summary>
+          <div class="faq-a"><p class="type-caption text-secondary faq-answer" data-slot="faq-a">Sample answer.</p></div>
+        </details></div>
+      </div>
+    </section>
+
+    <!-- Closing panel: stacked below md, where the sticky bar also carries the CTA. -->
+    <section class="paper closing-panel" aria-labelledby="closing">
+      <div class="grow">
+        <h2 id="closing" class="type-h5">Ready to start planning?</h2>
+        <p class="type-body2 closing-body">Create an account in under 60 seconds — or <a class="link link-inherit" href="/message?from=how-it-works">message Gyasi without one</a>.</p>
+      </div>
+      <a class="btn btn-contained closing-panel-cta" href="/join">Create account</a>
+    </section>
+  </div>
+
+  <div class="paper paper-square sticky-cta sticky-bar">
+    <a class="btn btn-text cta-control pub-cta-out" href="/login" data-auth="unknown">Sign in</a>
+    <a class="btn btn-text cta-control pub-cta-in" href="/dashboard" data-auth="unknown">Your trips</a>
+    <a class="btn btn-contained cta-control cta-grow" href="/join?intent=quote&amp;next=%2Fhow-it-works"><svg class="icon icon-14" aria-hidden="true"><use href="/assets/icons.svg#message"></use></svg> Request a quote</a>
+  </div>
+</main>
+</body>
+</html>

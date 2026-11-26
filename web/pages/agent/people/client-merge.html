@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<!--
+  Screens 3.9.7 / 3.3.11 Merge duplicate records (A3311_MergeClients):
+  app/(agent)/agent/clients/[clientId]/merge/page.tsx and components/agent/ClientMergeForm.tsx.
+  Rulings: docs/Screen-Inventory.md §3.9, "Merge (PR 2), ruled now". Copy word for word from
+  MERGE_COPY.
+
+  THE RECORD IN THE URL IS THE ONE KEPT. ?with= names the one merging in, and "Keep this one
+  instead" is the other record's own merge page. Without ?with= the page asks which record is
+  the duplicate (likely matches, or a search, ?q=); with it, the field picker and the confirm
+  step. Exactly one of m-gate, m-pick, m-notmergeable and m-preview stays.
+
+  The picker is a real form: each detail is a radio pair, so it works without JS. "Review the
+  merge" posts intent=review and the server answers with the confirm dialog open; merge.js
+  opens it in place instead, filling "The record you'll have" from the radios.
+-->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Merge duplicate records · Story-Tail Adventures</title>
+</head>
+<body>
+<main>
+  <div class="ppl-page ppl-page-merge">
+    <a class="link link-hover ppl-back" href="/agent/clients/sample" data-slot="m-back"><svg class="icon ppl-icon-13" aria-hidden="true"><use href="/assets/icons.svg#arrow_left"></use></svg><span data-slot="m-back-name">Maya Carter</span></a>
+
+    <header class="ppl-merge-header">
+      <h1 class="type-h5">Merge duplicate records</h1>
+      <p class="type-body2 text-secondary ppl-mt-0_25 ppl-merge-sub">Pick the record to keep. Everything on the other one moves over, and the change is kept in their history. Best done on a computer.</p>
+    </header>
+
+    <div class="paper paper-outlined ppl-acc-card" data-slot="m-gate">
+      <div class="ppl-acc-pad ppl-gate">
+        <span class="avatar ppl-avatar-36 ppl-tone-secondary" aria-hidden="true"><svg class="icon icon-16" aria-hidden="true"><use href="/assets/icons.svg#shield"></use></svg></span>
+        <div class="ppl-minw0">
+          <h3 class="type-subtitle1 fw-600">Two-step sign-in first</h3>
+          <p class="type-body2 text-secondary ppl-mt-0_5" data-slot="m-gate-body">These tools need a fresh two-step check.</p>
+          <div class="ppl-mt-1_5"><a class="link" href="/login/mfa" data-slot="m-gate-link">Verify now</a></div>
+        </div>
+      </div>
+    </div>
+
+    <section class="ppl-merge-pick" aria-labelledby="merge-pick-heading" data-slot="m-pick">
+      <h2 class="type-subtitle1 fw-600" id="merge-pick-heading">Which record is the duplicate?</h2>
+      <p class="type-body2 text-secondary ppl-mt-0_25" data-slot="m-pick-sub">These could be the same person as Maya Carter. Or search for the one you mean.</p>
+      <form class="ppl-merge-search" method="get" action="/agent/clients/sample/merge" role="search" data-slot="m-search-form">
+        <div class="ppl-flex1">
+          <div class="field">
+            <label class="field-label" for="merge-search">Search your clients</label>
+            <input class="input" id="merge-search" name="q" type="search" placeholder="A name or an email" maxlength="100" data-slot="m-q">
+          </div>
+        </div>
+        <button type="submit" class="btn btn-outlined ppl-merge-search-btn">Search</button>
+      </form>
+      <p class="type-body2 text-secondary ppl-mt-2" data-slot="m-empty">Nothing looks like a duplicate. Try searching by name or email.</p>
+      <ul class="ppl-merge-cands" data-slot="m-cands">
+        <li data-repeat="cands">
+          <div class="paper paper-outlined">
+            <div class="ppl-merge-cand">
+              <div class="ppl-flex1">
+                <h6 class="type-subtitle2 ppl-anywhere" data-slot="c-name">Maya Carter · maya@example.com</h6>
+                <span class="type-caption text-secondary ppl-block" data-slot="c-reason">Same email · 1 trip · joined Mar 2024</span>
+              </div>
+              <span class="status-chip status-cancelled" data-slot="c-archived">Archived</span>
+              <a class="btn btn-outlined btn-secondary btn-small ppl-btn-sm" href="/agent/clients/sample/merge?with=other" aria-label="Merge with this record: Maya Carter" data-slot="c-choose">Merge with this record</a>
+            </div>
+          </div>
+        </li>
+      </ul>
+    </section>
+
+    <div class="paper paper-outlined ppl-acc-card" data-slot="m-notmergeable">
+      <div class="ppl-acc-pad">
+        <p class="type-body2">Those two records can't be merged. One of them may already have been merged into another.</p>
+        <div class="ppl-mt-1_5"><a class="link link-hover type-body2" href="/agent/clients/sample/merge" data-slot="m-nm-another">Pick a different record</a></div>
+      </div>
+    </div>
+
+    <form id="merge-form" method="post" action="/agent/clients/sample/merge?with=other" data-submit-once data-merge-form data-slot="m-preview">
+      <input type="hidden" name="keepVersion" value="1" data-slot="m-keep-version">
+      <input type="hidden" name="otherVersion" value="1" data-slot="m-other-version">
+
+      <div class="ppl-merge-sides">
+        <div class="paper paper-outlined">
+          <div class="ppl-merge-side">
+            <span class="type-overline ppl-block ppl-lh-1_3">Merging in</span>
+            <p class="type-subtitle1 ppl-merge-name" data-slot="r-name">Maya Carter-Reyes</p>
+            <span class="type-caption text-secondary ppl-block" data-slot="r-line">3 trips · joined Apr 2024</span>
+            <span class="type-caption text-secondary ppl-block ppl-anywhere" data-slot="r-signin">Hasn't set up a sign-in</span>
+            <div class="ppl-mt-1"><a class="link link-hover type-body2" href="/agent/clients/other/merge?with=sample" data-slot="r-swap">Keep this one instead</a></div>
+          </div>
+        </div>
+        <p class="type-body1 text-secondary ppl-merge-arrow" aria-hidden="true">→</p>
+        <div class="paper paper-outlined">
+          <div class="ppl-merge-side">
+            <span class="type-overline ppl-block ppl-lh-1_3">Keeping</span>
+            <p class="type-subtitle1 ppl-merge-name" data-slot="k-name">Maya Carter</p>
+            <span class="type-caption text-secondary ppl-block" data-slot="k-line">1 trip · joined Mar 2024</span>
+            <span class="type-caption text-secondary ppl-block ppl-anywhere" data-slot="k-signin">Hasn't set up a sign-in</span>
+            <div class="ppl-mt-1"><a class="link link-hover type-body2" href="/agent/clients/sample/merge" data-slot="k-another">Pick a different record</a></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="ppl-mt-1_75" data-slot="m-blocked">
+        <div class="alert alert-warning" role="alert" aria-live="polite"><div class="alert-message" data-slot="m-blocked-text">Restore the record you're keeping before merging into it.</div></div>
+      </div>
+
+      <section class="ppl-merge-fields" aria-labelledby="merge-fields-heading">
+        <h2 class="type-subtitle1 fw-600" id="merge-fields-heading">Which details to keep</h2>
+        <p class="type-body2 text-secondary ppl-merge-fields-sub">Each detail starts with the record you're keeping, or the other one where yours is blank. Pick a value to use it instead.</p>
+        <div class="card paper-outlined" data-slot="m-table">
+          <div class="table-wrap">
+            <table class="table table-small">
+              <thead>
+                <tr><th>Detail</th><th>Merging in</th><th>Keeping</th></tr>
+              </thead>
+              <tbody>
+                <tr data-repeat="frows">
+                  <th scope="row" class="ppl-merge-label" data-slot="f-label">Phone</th>
+                  <td class="ppl-merge-fixed" data-slot="f-r-fixed"><span data-slot="f-r-fixed-text">305-555-0199</span><span class="chip chip-small ppl-merge-pin" data-slot="f-r-pin"><span class="chip-label">Matches their sign-in email</span></span></td>
+                  <td class="ppl-merge-cell" data-slot="f-r-cell"><label class="ppl-merge-choice"><input class="check-input ppl-merge-radio" type="radio" name="pick-phone" value="retire" aria-label="Phone: use 305-555-0199" data-slot="f-r-radio"><span class="type-body2 ppl-merge-value" data-merge-text data-slot="f-r-text">305-555-0199</span></label></td>
+                  <td class="ppl-merge-fixed" data-slot="f-k-fixed"><span data-slot="f-k-fixed-text">305-555-0100</span><span class="chip chip-small ppl-merge-pin" data-slot="f-k-pin"><span class="chip-label">Matches their sign-in email</span></span></td>
+                  <td class="ppl-merge-cell" data-slot="f-k-cell"><label class="ppl-merge-choice"><input class="check-input ppl-merge-radio" type="radio" name="pick-phone" value="keep" checked aria-label="Phone: use 305-555-0100" data-slot="f-k-radio"><span class="type-body2 ppl-merge-value" data-merge-text data-slot="f-k-text">305-555-0100</span></label></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <span class="type-caption text-secondary ppl-block ppl-mt-1" data-slot="m-same">4 more details are the same on both.</span>
+      </section>
+
+      <div class="ppl-merge-actions">
+        <a class="btn btn-text ppl-btn-sm" href="/agent/clients/sample" data-slot="m-cancel">Cancel</a>
+        <div class="ppl-ml-auto"><button type="submit" name="intent" value="review" class="btn btn-contained st-btn btn-small" data-merge-review data-slot="m-review"><svg class="icon ppl-icon-14" aria-hidden="true"><use href="/assets/icons.svg#users"></use></svg> Review the merge</button></div>
+      </div>
+
+      <dialog class="dialog ppl-dialog ppl-dialog-merge" tabindex="-1" id="merge-dialog" aria-label="Merge into Maya Carter?" data-slot="merge-dialog">
+        <div class="ppl-dialog-body">
+          <h2 class="type-h5 ppl-anywhere" data-slot="d-title">Merge into Maya Carter?</h2>
+          <p class="type-body2 ppl-mt-0_75" data-slot="d-moves">Moving over from Maya Carter-Reyes's record: 3 trips.</p>
+          <div data-slot="d-result">
+            <h3 class="type-overline ppl-block ppl-lh-1_3 ppl-mt-1_5">The record you'll have</h3>
+            <dl class="ppl-merge-dl">
+              <div class="ppl-contents" data-repeat="dvals">
+                <dt class="type-body2 text-secondary" data-slot="dv-label">Phone</dt>
+                <dd class="type-body2 ppl-anywhere" data-merge-value="phone" data-slot="dv-value">305-555-0100</dd>
+              </div>
+            </dl>
+          </div>
+          <p class="type-body2 ppl-mt-1_5" data-slot="d-plan">Maya's sign-in moves over, so they sign in the same way as before.</p>
+          <div class="paper paper-outlined ppl-merge-note">
+            <span class="ppl-merge-note-icon"><svg class="icon ppl-icon-13" aria-hidden="true"><use href="/assets/icons.svg#info"></use></svg></span>
+            <span class="type-caption fw-500">There's no undo button. Every detail from before stays in the client's history, so you can put anything back by hand. Nothing is emailed to the client.</span>
+          </div>
+          <p class="type-body2 text-error ppl-mt-1" role="alert" data-merge-error data-slot="d-error">That didn't go through. Try again in a moment.</p>
+          <div class="ppl-dialog-actions">
+            <a class="btn btn-outlined st-btn btn-small" href="/agent/clients/sample/merge?with=other" data-dialog-close data-slot="d-cancel">Cancel</a>
+            <div class="ppl-ml-auto"><button type="submit" name="intent" value="merge" class="btn btn-contained st-btn btn-small">Merge records</button></div>
+          </div>
+        </div>
+      </dialog>
+    </form>
+  </div>
+  <script type="module" src="/assets/js/agent/people/dialogs.js"></script>
+  <script type="module" src="/assets/js/agent/people/merge.js"></script>
+</main>
+</body>
+</html>

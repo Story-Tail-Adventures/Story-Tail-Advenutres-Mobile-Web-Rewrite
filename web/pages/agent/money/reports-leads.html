@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<!--
+  Screen 3.11.9, Lead Sources (P2). Ports app/(agent)/agent/reports/leads/page.tsx. Filled
+  by internal/handlers/agent/money.
+
+  Leads created in the period, one bar per source split into became a client / still open /
+  closed, with the same figures in a plain table under it. Website campaigns (utm_source)
+  below when there are any. No time-to-first-contact (ruled out), and Lead Sources is not in
+  the Export Center, so this report has no Export of its own.
+
+  Drawn by hand with boxes, like the other §3.11 charts: no chart library, and each
+  segment's width is a data-w attribute money.css has a rule for.
+-->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Lead sources · Story-Tail Adventures</title>
+</head>
+<body>
+<main>
+  <!-- AdminNoAccess: an admin has no desk here. -->
+  <div class="card mny-state" data-slot="no-access">
+    <div class="card-content mny-state-body">
+      <span class="avatar mny-state-tile" aria-hidden="true"><svg class="icon mny-icon-26" aria-hidden="true"><use href="/assets/icons.svg#shield"></use></svg></span>
+      <h2 class="type-h5">You don’t have access to this view</h2>
+      <p class="type-body2 text-secondary mny-mt-1">Your account is set up as an administrator. Story-Tail has no admin area yet, so there is nothing here for you — the traveler’s side and the advisor’s worklist are both somebody else’s desk.</p>
+      <form method="post" action="/account/sign-out">
+        <button type="submit" class="btn btn-outlined btn-secondary st-btn mny-mt-2">Sign out</button>
+      </form>
+    </div>
+  </div>
+
+  <div class="mny-col" data-slot="page">
+    <div data-slot="body">
+      <a class="link link-hover fw-600 mny-back" href="/agent/reports"><svg class="icon mny-icon-12" aria-hidden="true"><use href="/assets/icons.svg#arrow_left"></use></svg> Reports hub</a>
+
+      <header class="mny-head mny-rpt-head">
+        <div class="mny-head-text">
+          <h1 class="type-h5">Lead sources</h1>
+          <p class="type-body2 text-secondary mny-sub" data-slot="rpt-subtitle">18 leads · 7 became clients</p>
+          <p class="type-caption text-secondary mny-block mny-mt-0_5" data-slot="rpt-window">Jan 1 to Oct 21, 2026</p>
+        </div>
+        <div class="mny-rpt-actions">
+          <nav class="mny-views" aria-label="Period">
+            <a class="chip mny-view" href="/agent/reports/leads" data-repeat="chip" data-slot="chip-link"><span class="chip-label" data-slot="chip-label">Year to date</span></a>
+          </nav>
+        </div>
+      </header>
+
+      <!-- RetryState: a read failed. An empty report is zeros, not this. -->
+      <div class="card mny-state" data-slot="retry">
+        <div class="card-content mny-state-body">
+          <span class="avatar mny-state-tile mny-state-tile-error" aria-hidden="true"><svg class="icon mny-icon-26" aria-hidden="true"><use href="/assets/icons.svg#warning"></use></svg></span>
+          <h2 class="type-h5 text-error">That didn’t load</h2>
+          <p class="type-body2 text-secondary mny-mt-1">Something went wrong on our side, not yours. Trying again usually sorts it.</p>
+          <div class="mny-state-actions">
+            <a class="btn btn-contained st-btn" href="/agent/reports/leads" data-slot="retry-again">Try again</a>
+            <a class="btn btn-outlined st-btn" href="mailto:hello@story-tail.com?subject=Something%20went%20wrong"><svg class="icon icon-14" aria-hidden="true"><use href="/assets/icons.svg#message"></use></svg> Message Gyasi</a>
+          </div>
+        </div>
+      </div>
+
+      <div data-slot="content">
+        <div class="card" data-slot="lead-empty">
+          <div class="card-content">
+            <p class="type-body2 text-secondary">No leads came in during this period.</p>
+          </div>
+        </div>
+
+        <section class="card" data-slot="lead-card">
+          <div class="card-content mny-card-18">
+            <h2 class="type-subtitle1 fw-600 mny-card-title">Leads by source</h2>
+
+            <div class="mny-lead-bars" aria-hidden="true">
+              <div class="mny-lead-row" data-repeat="lead-bar">
+                <span class="type-body2 mny-lead-name" data-slot="lead-bar-label">Website form</span>
+                <span class="mny-lead-track">
+                  <span class="mny-meter-fill mny-lead-seg mny-lead-clients" data-w="40" data-slot="lead-seg-clients"></span>
+                  <span class="mny-meter-fill mny-lead-seg mny-lead-open" data-w="30" data-slot="lead-seg-open"></span>
+                  <span class="mny-meter-fill mny-lead-seg mny-lead-closed" data-w="20" data-slot="lead-seg-closed"></span>
+                </span>
+                <span class="type-body2 mny-lead-count" data-slot="lead-bar-count">18</span>
+              </div>
+            </div>
+            <div class="mny-rpt-legend" aria-hidden="true">
+              <span class="mny-swatch"><span class="mny-dot mny-dot-clients"></span><span class="type-caption">Became clients</span></span>
+              <span class="mny-swatch"><span class="mny-dot mny-dot-primary"></span><span class="type-caption">Still open</span></span>
+              <span class="mny-swatch"><span class="mny-dot mny-dot-closed"></span><span class="type-caption">Closed</span></span>
+            </div>
+
+            <div class="mny-table-card mny-mt-2">
+              <table class="table table-small" aria-label="Leads by source">
+                <thead>
+                  <tr>
+                    <th scope="col">Source</th>
+                    <th scope="col" class="cell-num">Leads</th>
+                    <th scope="col" class="cell-num">Became clients</th>
+                    <th scope="col" class="cell-num">Still open</th>
+                    <th scope="col" class="cell-num">Closed</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr data-repeat="lead-row">
+                    <th scope="row" data-slot="lead-source">Website form</th>
+                    <td class="cell-num mny-td-mono" data-slot="lead-leads">18</td>
+                    <td class="cell-num mny-td-mono" data-slot="lead-clients">7</td>
+                    <td class="cell-num mny-td-mono" data-slot="lead-open">6</td>
+                    <td class="cell-num mny-td-mono" data-slot="lead-closed">5</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <section class="card mny-mt-2" data-slot="lead-campaigns">
+          <div class="card-content mny-card-18">
+            <h2 class="type-subtitle1 fw-600 mny-card-title">Website campaigns</h2>
+            <div class="mny-table-card mny-mt-1">
+              <table class="table table-small" aria-label="Website campaigns">
+                <thead>
+                  <tr>
+                    <th scope="col">Campaign link</th>
+                    <th scope="col" class="cell-num">Leads</th>
+                    <th scope="col" class="cell-num">Became clients</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr data-repeat="camp-row">
+                    <th scope="row" class="mny-lead-campaign" data-slot="camp-name">spring-cruise-2027</th>
+                    <td class="cell-num mny-td-mono" data-slot="camp-leads">4</td>
+                    <td class="cell-num mny-td-mono" data-slot="camp-clients">2</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <p class="type-caption text-secondary mny-block mny-rpt-note">Leads that came in during the period, by how they reached you. A note from somebody who was already a client isn't counted: they were never a lead. Leads come before the Conversion funnel, which starts when a client asks for a quote.</p>
+      </div>
+    </div>
+  </div>
+</main>
+</body>
+</html>

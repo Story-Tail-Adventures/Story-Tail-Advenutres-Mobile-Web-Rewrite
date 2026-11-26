@@ -1,0 +1,250 @@
+// Package page builds the web app's HTML on the server.
+//
+// Each screen is a plain HTML file. The server parses every file once at startup and, per
+// request, fills a fresh deep copy: slots marked data-slot="name" get text, attributes or
+// links; rows marked data-repeat="name" are copied once per item; blocks that do not apply
+// are removed from the tree, so their data never reaches the browser.
+//
+// This is the ONLY package that imports htmlx, and it uses htmlx only to find and remove
+// nodes. Every write is our own code on golang.org/x/net/html, because htmlx's setters are
+// broken (SetAttr keeps an existing value, AddClass never applies, RemoveAttr writes into a
+// shared slice) or unsafe (SetHTML parses its input as markup). Pages are parsed with
+// x/net/html directly, so no htmlx.Node value (the type that carries those setters and the
+// double-unescaping Text) ever exists here. boundary_test.go enforces all of it. See
+// docs/HTMLX-Library-Security-Review.md and docs/GO-MIGRATION.md §4.4.
+//
+// The safety rules, which template engines would otherwise have given us:
+//
+//   - Values only go in as text nodes or attribute values, which x/net/html escapes on
+//     render. Nothing from a request or a database row is ever parsed as HTML.
+//   - Text is refused inside raw-text elements (script, style, ...), where render does
+//     not escape it.
+//   - Link attributes go through SafeURL (relative, https:, mailto:, tel:) and pay links
+//     through SafePayURL (absolute https:// only). Event handlers and style are never set.
+//   - Every slot and repeat in a file must be declared in Go and vice versa, checked at
+//     startup, and every declared slot must be filled, removed or kept before a page
+//     renders. A renamed slot fails the boot and CI instead of shipping its placeholder.
+//   - Parsed pages are never changed; each request gets new nodes and new attribute slices.
+package page
+
+import (
+	"errors"
+	"fmt"
+	"io/fs"
+	"maps"
+	"slices"
+	"strings"
+
+	"github.com/mdigger/htmlx"
+	"golang.org/x/net/html"
+	"golang.org/x/net/html/atom"
+)
+
+// Layout is a shared frame: a full HTML document with exactly one element carrying
+// data-layout-main. A page's <main> children are moved into that element, and the page's
+// <title> text replaces the layout's. Nothing else in a page file is used, so Load refuses
+// a page that has anything else: head content beyond <title> and <meta>, attributes on its
+// <main>, or anything in <body> outside <main>. Shared CSS and scripts go in the layout.
+type Layout struct {
+	File  string   // path inside the pages file system, e.g. "layout/base.html"
+	Slots []string // slots the layout itself carries, filled by every page that uses it
+	// Repeats the layout itself carries (a nav list), with the slots in each row. Every page
+	// that uses the layout fills them, usually through one shared helper.
+	Repeats map[string][]string
+}
+
+// Options change how LoadWith builds pages.
+type Options struct {
+	// Assets resolves one of our own /assets/... references to the URL it is served at
+	// (internal/static's hashed name). When set, every page is also checked against the
+	// Content Security Policy at startup; see rewriteAssets.
+	Assets func(ref string) (string, bool)
+}
+
+// Spec declares one page file and everything a handler will fill in it.
+type Spec struct {
+	// File is the page, a full HTML document that opens on its own in a browser with its
+	// placeholder text, e.g. "public/landing.html".
+	File string
+	// Layout frames the page. Nil means File is the whole document.
+	Layout *Layout
+	// Slots are filled once per page. Each must appear exactly once outside any repeat.
+	Slots []string
+	// Repeats maps a repeat name to the slots inside each of its rows.
+	Repeats map[string][]string
+}
+
+// Set holds every page parsed at startup. It is read-only after Load, so any number of
+// requests can use it at once.
+type Set struct {
+	templates map[string]*Template
+}
+
+// Template is one composed page, never changed after Load. Call New per request.
+type Template struct {
+	file string
+	root *html.Node
+}
+
+// Load parses and checks every spec. It reports every problem at once, so a broken page
+// stops the server from starting with the full list.
+func Load(fsys fs.FS, specs ...Spec) (*Set, error) {
+	return LoadWith(fsys, Options{}, specs...)
+}
+
+// LoadWith is Load with options. The server always passes Assets, so every real page is
+// rewritten to hashed asset URLs and checked against the CSP before it can be served.
+func LoadWith(fsys fs.FS, opts Options, specs ...Spec) (*Set, error) {
+	s := &Set{templates: make(map[string]*Template, len(specs))}
+	layouts := map[string]*html.Node{}
+	seen := map[string]bool{} // by name, whether or not the first one built
+	var errs []error
+	for _, spec := range specs {
+		if seen[spec.File] {
+			errs = append(errs, fmt.Errorf("%s: declared twice", spec.File))
+			continue
+		}
+		seen[spec.File] = true
+		t, err := build(fsys, spec, layouts, opts)
+		if err != nil {
+			errs = append(errs, err)
+			continue
+		}
+		s.templates[spec.File] = t
+	}
+	if err := errors.Join(errs...); err != nil {
+		return nil, err
+	}
+	return s, nil
+}
+
+// Template returns the loaded page for file. Handlers call it once, at startup.
+func (s *Set) Template(file string) (*Template, error) {
+	t, ok := s.templates[file]
+	if !ok {
+		return nil, fmt.Errorf("page %q was not loaded; add its Spec to Load", file)
+	}
+	return t, nil
+}
+
+// Files lists the loaded page files, sorted.
+func (s *Set) Files() []string { return slices.Sorted(maps.Keys(s.templates)) }
+
+func build(fsys fs.FS, spec Spec, layouts map[string]*html.Node, opts Options) (*Template, error) {
+	root, err := parseFile(fsys, spec.File)
+	if err != nil {
+		return nil, err
+	}
+	declared := slices.Clone(spec.Slots)
+	repeats := spec.Repeats
+	if spec.Layout != nil {
+		if len(spec.Layout.Repeats) > 0 {
+			repeats = make(map[string][]string, len(spec.Repeats)+len(spec.Layout.Repeats))
+			maps.Copy(repeats, spec.Layout.Repeats)
+			for name, slots := range spec.Repeats {
+				if _, dup := repeats[name]; dup {
+					return nil, fmt.Errorf("%s: repeat %q is declared by both the page and %s", spec.File, name, spec.Layout.File)
+				}
+				repeats[name] = slots
+			}
+		}
+		lay, ok := layouts[spec.Layout.File]
+		if !ok {
+			if lay, err = parseFile(fsys, spec.Layout.File); err != nil {
+				return nil, err
+			}
+			layouts[spec.Layout.File] = lay
+		}
+		if root, err = compose(lay, root, spec); err != nil {
+			return nil, err
+		}
+		declared = append(slices.Clone(spec.Layout.Slots), declared...)
+	}
+	stripComments(root)
+	if opts.Assets != nil {
+		if err := rewriteAssets(root, spec.File, opts.Assets); err != nil {
+			return nil, err
+		}
+	}
+	if err := check(root, spec.File, declared, repeats); err != nil {
+		return nil, err
+	}
+	return &Template{file: spec.File, root: root}, nil
+}
+
+func parseFile(fsys fs.FS, name string) (*html.Node, error) {
+	f, err := fsys.Open(name)
+	if err != nil {
+		return nil, fmt.Errorf("%s: %w", name, err)
+	}
+	defer f.Close()
+	doc, err := html.Parse(f) // not htmlx.Parse: see the package comment
+	if err != nil {
+		return nil, fmt.Errorf("%s: %w", name, err)
+	}
+	return doc, nil
+}
+
+// compose builds a new tree from a copy of the layout with the page's main content moved in.
+// The cached layout tree is never touched; the freshly parsed page tree is consumed.
+func compose(layout, pageDoc *html.Node, spec Spec) (*html.Node, error) {
+	out := clone(layout)
+
+	mains := htmlx.FindAll(out, hasAttr(attrLayoutMain))
+	if len(mains) != 1 {
+		return nil, fmt.Errorf("%s: needs exactly one element with %s, found %d", spec.Layout.File, attrLayoutMain, len(mains))
+	}
+	pageMains := htmlx.FindAll(pageDoc, htmlx.Tag(atom.Main))
+	if len(pageMains) != 1 {
+		return nil, fmt.Errorf("%s: needs exactly one <main> to place in %s, found %d", spec.File, spec.Layout.File, len(pageMains))
+	}
+	if err := onlyMainIsUsed(pageDoc, pageMains[0], spec.File); err != nil {
+		return nil, err
+	}
+
+	target, src := mains[0], pageMains[0]
+	htmlx.RemoveChilds(target)
+	for c := src.FirstChild; c != nil; {
+		next := c.NextSibling
+		src.RemoveChild(c)
+		target.AppendChild(c)
+		c = next
+	}
+
+	if pageTitle := htmlx.Find(pageDoc, htmlx.Tag(atom.Title)); pageTitle != nil {
+		if title := htmlx.Find(out, htmlx.Tag(atom.Title)); title != nil {
+			replaceText(title, textOf(pageTitle))
+		}
+	}
+	return out, nil
+}
+
+// onlyMainIsUsed refuses a page file with content compose would silently drop. A Phase 2
+// page that added its own stylesheet or script in <head> would otherwise lose it with no
+// warning, and an undeclared slot outside <main> would never be checked.
+func onlyMainIsUsed(pageDoc, main *html.Node, file string) error {
+	var errs []error
+	if len(main.Attr) > 0 {
+		errs = append(errs, fmt.Errorf("%s: attributes on the page's <main> would be dropped; the layout owns <main>", file))
+	}
+	if head := htmlx.Find(pageDoc, htmlx.Tag(atom.Head)); head != nil {
+		for c := head.FirstChild; c != nil; c = c.NextSibling {
+			if c.Type == html.ElementNode && c.DataAtom != atom.Title && c.DataAtom != atom.Meta {
+				errs = append(errs, fmt.Errorf("%s: <%s> in the page's <head> would be dropped; shared assets go in the layout", file, c.Data))
+			}
+		}
+	}
+	if body := htmlx.Find(pageDoc, htmlx.Tag(atom.Body)); body != nil {
+		for c := body.FirstChild; c != nil; c = c.NextSibling {
+			switch {
+			case c == main, c.Type == html.CommentNode:
+			case c.Type == html.TextNode && strings.TrimSpace(c.Data) == "":
+			case c.Type == html.ElementNode:
+				errs = append(errs, fmt.Errorf("%s: <%s> outside <main> would be dropped; <main> must be the only element in <body>", file, c.Data))
+			default:
+				errs = append(errs, fmt.Errorf("%s: text outside <main> would be dropped", file))
+			}
+		}
+	}
+	return errors.Join(errs...)
+}

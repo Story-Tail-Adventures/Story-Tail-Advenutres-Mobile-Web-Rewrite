@@ -1,76 +1,200 @@
-# Render Blueprint for the web app. See docs/RENDER-MIGRATION.md.
+# Render Blueprint for the Go service. See docs/GO-MIGRATION.md §6 and docs/RENDER-MIGRATION.md.
 #
 # This file defines the service so it is reviewable and reproducible instead of living only in
 # a dashboard. Create the service from it with Render's "New > Blueprint", pointed at this repo.
 #
-# Only `web/` runs here. Supabase (database, auth, storage, Edge Functions) is unchanged and is
-# not described by this file, and nothing under `mobile/` is deployed at all.
+# Only `web/` runs here, and it is the whole app now: the server-rendered pages and the API
+# mobile calls at /functions/v1/{name}, one binary. Supabase (database, auth, storage, pg_cron)
+# is unchanged and is not described by this file, and nothing under `mobile/` is deployed at
+# all. The Next.js app and the Edge Functions this file used to describe are gone (Phase 6).
+#
+# Nothing has been deployed from this file. Production has been dark since 2026-10-26 and
+# ruling 16 keeps it that way until Gyasi creates the service; GO-MIGRATION §6 has that
+# checklist (service, env vars, RENDER_SERVICE_ID, RENDER_API_KEY, Cloudflare, the Supabase
+# auth redirect allowlist, the forged-header test).
+#
+# The directory was `web/` while the Next app still held `web/`; Phase 6 deleted that app
+# and renamed this one over it, so `rootDir` is `web`.
 
 services:
   - type: web
     name: storytail-web
-    runtime: node
+    runtime: go
+
+    # The Go module is not at the repo root, so the commands below run from here and their
+    # paths are relative to it. Nothing outside this directory is built.
+    rootDir: web
 
     # us-east-1 is where the Supabase project lives (ref hlazrvdpyixvtveharqi), and Virginia is
     # Render's region next to it. Every authenticated request makes a Supabase round trip, so
     # putting the two on opposite coasts would show up on every page behind the login.
     region: virginia
 
-    # 512 MB / 0.5 CPU, always on. A Next 16 + MUI SSR process idles near 150-250 MB, so this
-    # fits at current traffic but is not generous: watch memory for the first week
-    # (docs/RENDER-MIGRATION.md §5.3). NOTE this is the instance fee only. Render meters
-    # bandwidth separately: 5 GB/month included on a Hobby workspace, then $0.15/GB, which is
-    # another reason Cloudflare belongs in front.
+    # 512 MB / 0.5 CPU, always on. NOT MEASURED: nothing has run on Render, so the resident
+    # size of this binary under real traffic is unknown. The old number here described a Next
+    # 16 + MUI SSR process (150-250 MB idle) and says nothing about a Go binary, which holds
+    # the parsed pages and the embedded assets in memory and allocates per request. Take the
+    # first week's memory graph as the real answer (docs/RENDER-MIGRATION.md §5.3). NOTE this
+    # is the instance fee only. Render meters bandwidth separately: 5 GB/month included on a
+    # Hobby workspace, then $0.15/GB, which is another reason Cloudflare belongs in front.
     plan: starter
 
     branch: production
 
-    # `npm ci` at the repo root: this is an npm workspace monorepo, and the lockfile is the
-    # root one. `-w web` then builds only the web workspace.
-    buildCommand: npm ci && npm run build -w web
-    startCommand: npm run start -w web
+    # One static binary, named `app` so the start command does not repeat the module path.
+    # No npm install, no root lockfile, no workspace flag: none of that exists any more.
+    buildCommand: go build -o app ./cmd/server
+    startCommand: ./app
 
-    # `next start` binds to $PORT, which Render sets.
-    healthCheckPath: /
+    # cmd/server listens on $PORT, which Render sets (8080 when nothing does).
+    #
+    # /healthz, not `/`: it is a public route that answers 200 without reading Supabase or
+    # rendering a page, so a slow database cannot make a healthy instance look dead. The
+    # smoke test in .github/workflows/deploy.yml still fetches `/`, which is the other half
+    # of the question.
+    healthCheckPath: /healthz
 
     # DELIBERATELY OFF, and it is the same decision .github/workflows/deploy.yml already makes
-    # for Vercel: "Not `push`. A push trigger races CI, so a commit that fails typecheck, the
-    # RLS isolation tests or the PAN guard could reach users before CI has an opinion about
-    # it." Render cannot see GitHub Actions, so deploys are triggered by the workflow calling
-    # Render's deploy hook after CI passes, not by Render watching the branch.
+    # about its own trigger: "Not `push`. A push trigger races CI, so a commit that fails
+    # typecheck, the RLS isolation tests or the PAN guard could reach users before CI has an
+    # opinion about it." Render cannot see GitHub Actions, so deploys are triggered by the
+    # workflow calling Render's API after CI passes, not by Render watching the branch.
     autoDeploy: false
 
+    # The Go toolchain is pinned by web/go.mod's `toolchain` line, which `go build` honours
+    # on its own, so there is no version number to keep in step here. CI reads the same line
+    # through setup-go's `go-version-file`. That is the whole reason NODE_VERSION is gone from
+    # this file and from deploy.yml: there is no Node in this service.
     envVars:
-      # Must match .github/workflows/deploy.yml's NODE_VERSION.
-      - key: NODE_VERSION
-        value: "22"
-
-      # EVERY `NEXT_PUBLIC_*` VALUE IS INLINED AT BUILD TIME, not read at boot. They have to be
-      # set in the dashboard BEFORE the first build, or the build bakes in the wrong value (or
-      # fails: lib/env.ts throws in production rather than failing open). Changing one later
-      # needs a rebuild, not a restart.
+      # EVERY VALUE BELOW IS READ AT RUNTIME, not baked into the build. The old
+      # NEXT_PUBLIC_* rule is dead with the Next.js app: changing one of these needs a
+      # RESTART, not a rebuild, and a value added after the build is picked up the next time
+      # the process starts.
       #
-      # `sync: false` means "ask me in the dashboard, do not keep the value in git". None of
-      # these belong in the repo: two are secrets, and the rest differ per environment.
-      - key: NEXT_PUBLIC_SITE_URL
+      # web/internal/config/config.go reads the first group once at startup and FAILS
+      # CLOSED: a production boot missing any of them exits with the whole list rather than
+      # starting a server that quietly skips auth. STA_ENV is deliberately absent, because
+      # unset means production; a forgotten variable cannot drop the service into development
+      # mode.
+      #
+      # `sync: false` means "ask me in the dashboard, do not keep the value in git". Every
+      # name here is either a secret or differs per environment, so none of them carries a
+      # value in this file.
+
+      # ── Required in production. The server refuses to start without these five. ──
+
+      # The canonical origin, https, no trailing path: canonical URLs, the sitemap, robots.txt
+      # and every auth redirect are built from it. deploy.yml compares it against SITE_ORIGIN
+      # before deploying, and reads it back out of /robots.txt afterwards.
+      - key: SITE_URL
         sync: false
-      - key: NEXT_PUBLIC_SUPABASE_URL
+      - key: SUPABASE_URL
         sync: false
-      - key: NEXT_PUBLIC_SUPABASE_ANON_KEY
+      - key: SUPABASE_ANON_KEY
         sync: false
-      - key: NEXT_PUBLIC_INQUIRY_EMAIL
+      # Bypasses RLS, so only internal/api may hold it (GO-MIGRATION ruling 14). The ported
+      # functions run on it, and in production its absence is a boot failure, not a
+      # degradation: the pass-through-to-Supabase fallback is a development-only path, and
+      # Supabase no longer has the functions to pass through to.
+      - key: SUPABASE_SERVICE_ROLE_KEY
         sync: false
-      - key: NEXT_PUBLIC_AUTH_GOOGLE_ENABLED
-        sync: false
-      - key: NEXT_PUBLIC_AUTH_APPLE_ENABLED
+      # The bearer pg_cron sends to the cron functions, compared in constant time. At least 32
+      # characters in production (openssl rand -hex 32). A short or placeholder value is how
+      # cruise-sync 401'd silently for weeks while cron, the tick and the page all reported
+      # success.
+      - key: STA_CRON_SECRET
         sync: false
 
-      # Server-side only, read at request time.
+      # ── Optional. Each has a defined behaviour when unset; none of them stops a boot. ──
+
+      # Gyasi's address for the plain "email me" links. Unset leaves them out rather than
+      # inventing an address.
+      - key: INQUIRY_EMAIL
+        sync: false
+      # Exactly "true" turns the button on. Anything else leaves it rendered but disabled,
+      # which is what an unconfigured provider should look like.
+      - key: AUTH_GOOGLE_ENABLED
+        sync: false
+      - key: AUTH_APPLE_ENABLED
+        sync: false
+      # The kill switch for live hotel search, which spends a metered budget from a public
+      # page. On when unset or "true", off when "false". Any other value REFUSES THE BOOT, so
+      # a typo like "off" or "0" cannot leave the meter running.
       - key: HOTEL_SEARCH_ENABLED
         sync: false
+      # The GA4 stream id (G-XXXXXXX). Not a secret, it ships to every browser that consents,
+      # but it is per-environment. Empty switches analytics off completely: no banner, no
+      # script, nothing asked of the visitor. config.Load still accepts the old
+      # NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID as a fallback; set this name, not that one.
+      - key: ANALYTICS_MEASUREMENT_ID
+        sync: false
+
+      # ── Secrets the request path reads. ──
+
       - key: SERPAPI_API_KEY
         sync: false
+      # Proves a cruise-search call is ours.
       - key: STA_HOTEL_SEARCH_TOKEN
         sync: false
+      # Lets lead-message trust the forwarded client address.
       - key: STA_LEAD_FORM_KEY
+        sync: false
+
+      # ── The ported functions' own secrets (GO-MIGRATION §5.7). ──
+      #
+      # These used to live in Supabase's secret store, because the Edge Functions ran there.
+      # The functions run in THIS binary now, so the secrets have to be on this service or the
+      # function that needs one fails at request time, not at boot. Supabase's copies can go
+      # once a function has been deleted there for a week (§5.10).
+
+      # The origin allowed on the CORS headers the function replies carry.
+      - key: ALLOWED_ORIGIN
+        sync: false
+
+      # IONOS SMTP (465) and the IMAP reply reader. Production was refusing the stored SMTP
+      # password on 2026-10-22 (535); that is still Gyasi's to fix, and email cannot be proven
+      # in production until it is.
+      - key: EMAIL_SMTP_HOST
+        sync: false
+      - key: EMAIL_SMTP_PORT
+        sync: false
+      - key: EMAIL_SMTP_USER
+        sync: false
+      - key: EMAIL_SMTP_PASSWORD
+        sync: false
+      - key: EMAIL_FROM_ADDRESS
+        sync: false
+      - key: EMAIL_SITE_URL
+        sync: false
+      - key: EMAIL_UNSUBSCRIBE_URL
+        sync: false
+      # The IMAP pair falls back to EMAIL_SMTP_USER / EMAIL_SMTP_PASSWORD when unset.
+      - key: EMAIL_IMAP_HOST
+        sync: false
+      - key: EMAIL_IMAP_PORT
+        sync: false
+      - key: EMAIL_IMAP_USER
+        sync: false
+      - key: EMAIL_IMAP_PASSWORD
+        sync: false
+      - key: EMAIL_AUTHSERV_ID
+        sync: false
+
+      # Web push (VAPID) and FCM. Leaving a set unset switches that transport off quietly,
+      # which is why they belong in a list someone reads rather than in nobody's head: push
+      # to that platform simply stops, with nothing failing.
+      - key: VAPID_PUBLIC_KEY
+        sync: false
+      - key: VAPID_PRIVATE_KEY
+        sync: false
+      - key: VAPID_SUBJECT
+        sync: false
+      - key: FCM_SERVICE_ACCOUNT_JSON
+        sync: false
+
+      # track.cruises. The ceiling is the monthly request budget; unset or unparseable means
+      # the in-code default, which is the number the sync was designed against.
+      - key: TRACK_CRUISES_API_KEY
+        sync: false
+      - key: CRUISE_SYNC_MONTHLY_CEILING
         sync: false

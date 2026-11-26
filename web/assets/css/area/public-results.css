@@ -1,0 +1,470 @@
+/* Story-Tail Adventures — Screen 2.0.4, the explore results page and its filter rail, chips,
+ * mode switch, sort control and result cards.
+ *
+ * A third stylesheet for the public area, not a third area: the public layouts link it after
+ * public.css and public-forms.css, so it may use every token, theme variable and ui.css class.
+ * It is split out so the results page and the marketing pages can be worked on at the same
+ * time without editing one file from two places.
+ *
+ * No inline styles anywhere (the CSP is style-src 'self'), and internal/static/classes_test.go
+ * fails on any class a page uses that no stylesheet defines.
+ *
+ * Every rule is the sx of a component under web/app/(public)/(plain)/explore/results/, read
+ * against the same theme variables. MUI's spacing unit is 8px and its shape radius 4px, so
+ * `py: 1.75` is 14px and `borderRadius: 1` is 4px. Breakpoints are the theme's: sm 640,
+ * md 768, lg 1024, web 1200.
+ */
+
+@layer components {
+  /* ── The page column (sx.ts RESULTS_COLUMN_SX) ─────────────────────────────────────────
+     Full width with the public gutter, narrowed to 32px sides at web. */
+  .res-column {
+    box-sizing: border-box;
+    width: 100%;
+    margin-inline: auto;
+    padding-inline: var(--gutter);
+  }
+  @media (min-width: 1200px) {
+    .res-column { padding-inline: 32px; }
+  }
+
+  /* ── The header band (page.tsx) ────────────────────────────────────────────────────────── */
+  .res-band {
+    border-bottom: 1px solid var(--mui-palette-divider);
+    background-color: var(--mui-palette-background-paper);
+    padding-top: 8px;
+  }
+  @media (min-width: 768px) {
+    .res-band { padding-top: 14px; padding-bottom: 14px; }
+  }
+
+  /* ── SearchUpdateBar ───────────────────────────────────────────────────────────────────
+     The results header pill, as a REAL form: editing happens here rather than on a blank
+     /explore, which is what "Update" promises. */
+  .res-update { scroll-margin-top: 80px; }
+
+  .res-pill { display: none; }
+  @media (min-width: 768px) {
+    .res-pill { display: flex; align-items: center; }
+  }
+  .res-pill-cell {
+    min-width: 0;
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 10px 14px;
+    border-right: 1px solid var(--mui-palette-divider);
+  }
+  .res-pill-cell-last { border-right: 0; }
+  /* The hydrated trigger carries its own calendar glyph at gap 0.75, so the cell that stands
+     in for it keeps the same 6px between the glyph and the dates. */
+  .res-pill-cell-dates { gap: 6px; }
+  /* The cells are borderless inputs in the cell's own type: the cell draws the box. */
+  .res-pill-input { padding: 0; font: var(--mui-font-body2); font-weight: 500; }
+  .res-pill-dates { flex: 1; min-width: 0; margin-top: 0; }
+  /* Two native date inputs stand in for the hydrated calendar trigger (§4.9), at the
+     trigger's own height rather than the 44px thumb target the stacked card needs. */
+  .res-pill-date {
+    min-height: 24px;
+    padding: 0;
+    font: var(--mui-font-body2);
+    font-size: 13px;
+    font-weight: 500;
+    line-height: 1.2;
+  }
+  .res-pill-submit {
+    margin: 4px;
+    flex-shrink: 0;
+    min-height: 32px;
+    padding-left: 16px;
+    padding-right: 16px;
+    white-space: nowrap;
+  }
+
+  /* Below md the summary opens the same form in place. A native <details> keeps its own
+     state and starts closed on every new result set, which is what the Accordion was for. */
+  .res-accordion { display: block; }
+  @media (min-width: 768px) {
+    .res-accordion { display: none; }
+  }
+  .res-summary {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 44px;
+    padding: 6px 12px;
+    list-style: none;
+    cursor: pointer;
+  }
+  .res-summary::-webkit-details-marker { display: none; }
+  .res-summary:focus-visible { outline: 2px solid var(--mui-palette-primary-main); outline-offset: -2px; }
+  .res-summary-glyph { display: inline-flex; flex-shrink: 0; color: var(--mui-palette-text-secondary); }
+  .res-summary-text { flex: 1; min-width: 0; font-weight: 500; color: var(--mui-palette-text-secondary); }
+  .res-summary-chip { flex-shrink: 0; }
+  .res-accordion-panel { padding: 0 12px 12px; }
+  .res-stacked { display: flex; flex-direction: column; gap: 4px; }
+  .res-stacked-row {
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding-top: 6px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid var(--mui-palette-divider);
+  }
+  .res-stacked-row-last { border-bottom: 0; }
+  .res-stacked-label {
+    width: 76px;
+    flex-shrink: 0;
+    font-weight: 500;
+    letter-spacing: 0.4px;
+    line-height: 1.3;
+    color: var(--mui-palette-text-secondary);
+  }
+  .res-stacked-input {
+    flex: 1;
+    min-width: 0;
+    min-height: 44px;
+    padding: 0;
+    box-sizing: border-box;
+    font: var(--mui-font-subtitle1);
+  }
+  .res-stacked-dates { flex: 1; min-width: 0; margin-top: 0; }
+  .res-stacked-submit { margin-top: 8px; min-height: 40px; padding-left: 24px; padding-right: 24px; }
+
+  /* ── ModeSwitch ────────────────────────────────────────────────────────────────────────
+     Three links on a surface.2 track, not a tablist: these are navigations. */
+  .res-modes-wrap { padding-top: 10px; }
+  .res-modes {
+    display: flex;
+    width: fit-content;
+    gap: 2px;
+    padding: 2px;
+    border-radius: 4px;
+    background-color: var(--mui-palette-surface-2);
+  }
+  .res-mode {
+    height: 32px;
+    min-height: 32px;
+    min-width: 0;
+    padding-left: 14px;
+    padding-right: 14px;
+    white-space: nowrap;
+    box-shadow: none;
+  }
+  .res-mode:hover { box-shadow: none; }
+  .res-mode-off { color: var(--mui-palette-text-secondary); }
+
+  /* ── The quick-filter strip (page.tsx CHIP_STRIP_SX) ───────────────────────────────────
+     It bleeds out of the column by the gutter and snaps, and is gone at web, where the rail
+     carries the same filters. */
+  .res-chips {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    padding: 10px var(--gutter) 12px;
+    margin-inline: calc(-1 * var(--gutter));
+    scrollbar-width: none;
+  }
+  .res-chips::-webkit-scrollbar { display: none; }
+  .res-chips > * { scroll-snap-align: start; flex-shrink: 0; }
+  @media (min-width: 1200px) {
+    .res-chips { display: none; }
+  }
+  .res-chip { flex-shrink: 0; }
+  .res-filter-chip { display: inline-flex; align-items: center; }
+  .res-chip-icon {
+    display: inline-flex;
+    flex-shrink: 0;
+    margin-left: 3px;
+    margin-right: -4px;
+    color: var(--mui-palette-Chip-defaultIconColor);
+  }
+  .res-sheet-anchor { flex-shrink: 0; scroll-margin-top: calc(var(--public-topbar-h) + 16px); }
+
+  /* ── FilterSheet: a bottom sheet on a phone, a 400px dialog from md ────────────────────── */
+  .res-sheet {
+    inset: auto 0 0 0;
+    margin: 0;
+    width: 100%;
+    max-width: 100%;
+    max-height: 100dvh;
+    border-radius: 4px 4px 0 0;
+  }
+  @media (min-width: 768px) {
+    .res-sheet {
+      inset: 0;
+      margin: auto;
+      width: 400px;
+      max-width: calc(100% - 64px);
+      max-height: calc(100% - 64px);
+      border-radius: 4px;
+    }
+  }
+  .res-sheet-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: 1px solid var(--mui-palette-divider);
+    padding: 12px 16px;
+  }
+  .res-sheet-close { width: 32px; height: 32px; }
+  .res-sheet-body { flex: 1 1 auto; overflow-y: auto; padding: 16px; }
+
+  /* ── FilterRail ────────────────────────────────────────────────────────────────────────
+     A GET form, so filters round-trip through the URL with no JavaScript. The frame (220px,
+     a right rule, hidden below web) is the page's; the sheet gives it the dialog's padding. */
+  .res-rail-frame { display: none; }
+  @media (min-width: 1200px) {
+    .res-rail-frame {
+      display: block;
+      width: 220px;
+      flex-shrink: 0;
+      border-right: 1px solid var(--mui-palette-divider);
+      padding-right: 16px;
+    }
+  }
+  .res-rail { min-width: 0; }
+  .res-rail-form { display: flex; flex-direction: column; }
+  .res-rail-overline { display: block; margin-bottom: 8px; line-height: 1.3; color: var(--mui-palette-text-secondary); }
+  .res-group { min-width: 0; margin: 0 0 14px; padding: 0; border: 0; }
+  .res-legend { display: block; margin-bottom: 2px; padding: 0; color: var(--mui-palette-text-primary); }
+  .res-options { display: flex; flex-direction: column; flex-wrap: wrap; }
+  .res-option {
+    display: flex;
+    align-items: center;
+    margin-left: -11px;
+    min-height: 44px;
+    cursor: pointer;
+  }
+  @media (min-width: 1200px) {
+    .res-option { min-height: 0; }
+  }
+  /* MUI's Checkbox with size="small" and py: 0.5: a 38 by 28 box (9px sides, 4px top and
+     bottom) around a 20px icon whose drawn square is 15px. The margins reproduce the box, so
+     the label starts where MUI's does. */
+  .res-check { width: 15px; height: 15px; margin: 6.5px 11.5px; background-size: 11px 11px; }
+  .res-option-label { font-weight: 500; color: var(--mui-palette-text-secondary); }
+
+  .res-sort-field { margin-top: 4px; margin-bottom: 14px; }
+  .res-sort-label { margin-bottom: 2px; font: var(--mui-font-subtitle1); color: var(--mui-palette-text-primary); }
+  /* MUI's OutlinedInput size="small" is exactly 40px tall; .input's 44px is the project's
+     own Field box, which this control is not. */
+  .res-sort-select { min-height: 0; height: 40px; }
+  .res-rail-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+  .res-rail-action { min-height: 44px; padding-left: 16px; padding-right: 16px; white-space: nowrap; }
+  @media (min-width: 1200px) {
+    .res-rail-action { min-height: 32px; }
+  }
+
+  /* ── The body: rail | results ──────────────────────────────────────────────────────────── */
+  .res-body {
+    display: flex;
+    flex: 1;
+    gap: 16px;
+    padding-top: 14px;
+    padding-bottom: 18px;
+  }
+  @media (min-width: 768px) {
+    .res-body { padding-top: 16px; padding-bottom: 16px; }
+  }
+  .res-main { min-width: 0; flex: 1; }
+
+  /* M204 sets the count as a small label line; C204 as the h5 title (fidelity spec §6.5). */
+  .res-head {
+    margin-bottom: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+  @media (min-width: 768px) {
+    .res-head { margin-bottom: 12px; }
+  }
+  .res-heading {
+    margin: 0;
+    font: var(--mui-font-caption);
+    font-weight: 500;
+    color: var(--mui-palette-text-secondary);
+  }
+  @media (min-width: 768px) {
+    .res-heading { font: var(--mui-font-h5); font-weight: 400; color: var(--mui-palette-text-primary); }
+  }
+
+  /* ── SortMenu: the chip and its menu of links (a popover, so it needs no script) ───────── */
+  .res-sort { flex-shrink: 0; }
+  .res-sort-chip { flex-shrink: 0; }
+  .res-sort-chip-label { display: inline-flex; align-items: center; gap: 6px; }
+  .res-sort-caret { display: inline-flex; }
+  .res-sort-list { min-width: 180px; }
+
+  /* ── The result lists (sx.ts RESULT_LIST_SX) ───────────────────────────────────────────
+     One column below md, a 2-up grid on tablet, rows again at web. The row and the stacked
+     card are two lists here; Next renders both from one component and hides one by width. */
+  .res-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  @media (min-width: 768px) and (max-width: 1199.95px) {
+    .res-list { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 14px; }
+  }
+  .res-list-rows { display: none; }
+  @media (min-width: 1200px) {
+    .res-list-rows { display: flex; }
+    .res-list-cards { display: none; }
+  }
+
+  /* The C204 row: 180px photo | body | price column. */
+  .res-row { display: grid; grid-template-columns: 180px minmax(0, 1fr) auto; }
+  .res-row:hover .res-row-title a { text-decoration: underline; }
+  /* A hotel or a sailing has no detail page, so the whole card is one link. */
+  .res-row-link { position: relative; }
+  .res-row-photo { position: relative; min-height: 120px; }
+  .res-row-photo-remote { background-color: var(--mui-palette-surface-3); }
+  .res-row-body { min-width: 0; padding: 14px 16px; }
+  .res-row-title { margin: 6px 0 2px; }
+  .res-sub { display: block; margin: 0; color: var(--mui-palette-text-secondary); }
+  .res-rating { display: inline-flex; align-items: center; gap: 4px; vertical-align: baseline; }
+  .res-star { display: inline-flex; color: var(--mui-palette-brandSource-sunset); }
+  .res-sep { white-space: pre; }
+
+  /* The C204 overline tag: a small tertiary chip in 9.5px caps, 20px tall. */
+  .res-tag {
+    height: 20px;
+    text-transform: uppercase;
+    font-weight: 600;
+    font-size: 9.5px;
+    letter-spacing: 0.4px;
+    background-color: var(--mui-palette-tertiary-main);
+    color: var(--mui-palette-tertiary-contrastText);
+  }
+  .res-tag-float { position: absolute; top: 8px; left: 8px; }
+
+  /* The row's right-hand column: 170px minimum, a left rule, right-aligned. */
+  .res-price {
+    display: flex;
+    min-width: 170px;
+    flex-direction: column;
+    align-items: flex-end;
+    border-left: 1px solid var(--mui-palette-divider);
+    padding: 14px 16px;
+    text-align: right;
+  }
+  .res-price-from { display: block; margin: 0; line-height: 1.3; color: var(--mui-palette-text-secondary); }
+  .res-price-amount { margin: 2px 0; }
+  .res-price-per { color: var(--mui-palette-text-secondary); }
+  .res-no-rate { display: block; margin: 2px 0; color: var(--mui-palette-text-secondary); }
+  .res-cta { min-height: 32px; padding-left: 16px; padding-right: 16px; white-space: nowrap; }
+  .res-cta-top { margin-top: auto; }
+  .res-row-save {
+    margin-top: 4px;
+    min-height: 32px;
+    min-width: 0;
+    padding-left: 0;
+    padding-right: 0;
+    gap: 8px;
+    white-space: nowrap;
+  }
+
+  /* The M204 stacked card. The list hides it at web, where the row shape takes over. */
+  .res-card { display: block; }
+  .res-card-link { position: relative; }
+  .res-card-photo { position: relative; aspect-ratio: 16 / 9; }
+  .res-card-photo-remote { background-color: var(--mui-palette-surface-3); }
+  .res-card-save-wrap { position: absolute; top: 8px; right: 8px; }
+  .res-card-save {
+    width: 32px;
+    height: 32px;
+    background-color: var(--mui-palette-common-white);
+    color: var(--mui-palette-brandSource-navy);
+  }
+  .res-card-save:hover { background-color: var(--mui-palette-common-white); }
+  .res-card-body { padding: 12px; }
+  .res-card-title { font-weight: 600; line-height: 1.3; }
+  .res-card-title:hover a { text-decoration: underline; }
+  .res-card-foot {
+    margin-top: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+  }
+  .res-card-price { margin: 0; font-weight: 700; line-height: 1.2; }
+
+  /* Hotel amenities and cruise ports: outlined chips under the body. */
+  .res-amenities,
+  .res-port-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  .res-amenities { margin-top: 6px; }
+  .res-port-list { margin-top: 4px; }
+  .res-amenity { color: var(--mui-palette-text-secondary); }
+
+  /* ── CruiseCard: one shape at every width, the photo a 180px column at web ──────────────
+     There is no fare anywhere on this card, by construction (Free-Travel-APIs §4.7), so the
+     column a price would sit in carries the itinerary instead. */
+  .res-sail { position: relative; display: grid; }
+  .res-sail-photo { position: relative; aspect-ratio: 16 / 9; background-color: var(--mui-palette-surface-3); }
+  @media (min-width: 1200px) {
+    /* Two columns only when there is a photo: most sailings have none, and an unconditional
+       180px column left those cards with a hole. */
+    .res-sail-wide { grid-template-columns: 180px minmax(0, 1fr); }
+    .res-sail-photo { aspect-ratio: auto; height: 100%; min-height: 120px; }
+  }
+  .res-sail-body { min-width: 0; padding: 14px 16px; }
+  @media (min-width: 1200px) {
+    .res-sail-body { padding-left: 18px; padding-right: 18px; }
+  }
+  .res-sail-meta {
+    margin: 0;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    column-gap: 6px;
+    color: var(--mui-palette-text-secondary);
+  }
+  .res-sail-glyph { display: inline-flex; flex-shrink: 0; color: var(--mui-palette-brand-main); }
+  .res-ports { margin-top: 10px; }
+  .res-ports-label { display: block; margin: 0; font-weight: 500; color: var(--mui-palette-text-secondary); }
+  /* The attribution line is a licence condition, not a caption, so it is never truncated:
+     Commons credits run to whole sentences. z-index lifts its link above .link-stretch. */
+  .res-credit { display: block; margin: 8px 0 0; color: var(--mui-palette-text-secondary); }
+  .res-credit-link { position: relative; z-index: 2; text-decoration: underline; text-underline-offset: 2px; }
+  .res-credit-link:hover { color: var(--mui-palette-text-primary); }
+  .res-sail-foot { margin-top: 12px; display: flex; align-items: center; justify-content: flex-end; }
+
+  /* ── The state card (EmptyResults / HotelStates) ───────────────────────────────────────── */
+  .res-state { padding: 32px; text-align: center; }
+  .res-state-body { margin: 6px auto 0; max-width: 420px; color: var(--mui-palette-text-secondary); }
+  .res-state-wide { max-width: 500px; }
+  .res-state-actions {
+    margin-top: 16px;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+  }
+  .res-state-tonal { min-height: 40px; padding-left: 24px; padding-right: 24px; white-space: nowrap; }
+  .res-state-text { min-height: 40px; padding-left: 12px; padding-right: 12px; white-space: nowrap; }
+
+  /* ── The caption lines under a list ────────────────────────────────────────────────────── */
+  .res-note { display: block; margin: 10px 0 0; text-align: center; color: var(--mui-palette-text-secondary); }
+  @media (min-width: 768px) {
+    .res-note { margin-top: 8px; }
+  }
+  .res-note + .res-note { margin-top: 4px; }
+  .res-note-link { text-decoration: underline; }
+}

@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<!--
+  The onboarding shell, Pattern G: Screens 2.1.9 to 2.1.14, the first-run wizard.
+  Ports app/(onboarding)/layout.tsx: no chrome at all, one column on the background (the
+  prototype's MuiScreenFrame chrome="plain"). Filled by internal/shell.Onboarding: the flash.
+-->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <meta name="theme-color" media="(prefers-color-scheme: light)" content="#FBF6EE">
+  <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#050D1A">
+  <title>Story-Tail Adventures</title>
+  <meta name="description" content="Trips planned by someone who has done this a hundred times — so you can rest when you get there.">
+  <script src="/assets/js/prepaint-theme.js"></script>
+  <script src="/assets/js/prepaint-auth.js"></script>
+  <link rel="stylesheet" href="/assets/css/site.css">
+  <link rel="stylesheet" href="/assets/css/area/onboarding.css">
+  <link rel="icon" href="/assets/img/favicon.ico" sizes="48x48">
+  <link rel="icon" href="/assets/img/icon.png" type="image/png" sizes="512x512">
+  <link rel="apple-touch-icon" href="/assets/img/apple-icon.png" sizes="180x180">
+  <script type="module" src="/assets/js/theme.js"></script>
+  <script type="module" src="/assets/js/ui.js"></script>
+</head>
+<body>
+  <main class="onboarding-shell" id="main" data-layout-main>
+    <p>Page content goes here.</p>
+  </main>
+  <div class="snackbar" role="status" data-autohide data-slot="flash"><div class="snackbar-content"><div class="snackbar-message" data-slot="flash-text">Your changes are saved.</div></div></div>
+</body>
+</html>

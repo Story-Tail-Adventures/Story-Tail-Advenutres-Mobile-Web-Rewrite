@@ -15,7 +15,6 @@ overrides.
 ├── settings.json               ← permissions allowlist + hook wiring
 ├── launch.json                 ← dev-server config for the browser preview
 ├── agents/
-│   ├── web-reviewer.md         ← reviews web/       (Next.js, React, MUI v9)
 │   ├── mobile-reviewer.md      ← reviews mobile/    (KMP, Compose Multiplatform)
 │   ├── supabase-reviewer.md    ← reviews supabase/  (Edge Functions, migrations, RLS)
 │   └── brand-voice-reviewer.md ← reviews user-facing copy against Design-System §2
@@ -25,7 +24,7 @@ overrides.
 └── skills/
     ├── new-screen/             ← implement a Screen Inventory screen
     ├── new-entity/             ← add a Data Model entity end-to-end
-    ├── new-edge-function/      ← scaffold an Edge Function with audit + auth pre-wired
+    ├── new-go-endpoint/        ← scaffold a Go API handler with audit + auth pre-wired
     ├── db-migrate/             ← create, apply, verify a migration; regenerate types
     ├── rls-policy/             ← author and TEST Row-Level Security policies
     ├── audit-pci/              ← check whether a change touches PCI scope

@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<!--
+  Screen 3.7.1, Commission Dashboard. Ports app/(agent)/agent/commission/page.tsx with
+  AgentViews, CommissionHeader, KpiTile and CommissionTrendChart. Filled by
+  internal/handlers/agent/money (dashboard.go). The first slots are the frame every money
+  page shares (frame.go).
+
+  THE PROTOTYPE'S FOUR TILES, in its order and tones (Gyasi, 2026-10-11). The labels and
+  icons never vary, so they are written here; only the figures are slots. Only "At risk"
+  drills anywhere, and only when there is something disputed to drill to — so the tile is
+  written twice, as a link and as a plain card, and one of them leaves the page.
+
+  BOXES, NOT A CHART LIBRARY (§3.11 and §4.9): the artboard's twelve bars are twelve
+  elements, their height a data-h attribute money.css has a rule for, because the
+  Content-Security-Policy allows no inline style. The bars are aria-hidden and the visually
+  hidden table below carries the same twelve figures in reading order.
+-->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Commissions · Story-Tail Adventures</title>
+</head>
+<body>
+<main>
+  <!-- AdminNoAccess: an admin has no desk here. -->
+  <div class="card mny-state" data-slot="no-access">
+    <div class="card-content mny-state-body">
+      <span class="avatar mny-state-tile" aria-hidden="true"><svg class="icon mny-icon-26" aria-hidden="true"><use href="/assets/icons.svg#shield"></use></svg></span>
+      <h2 class="type-h5">You don’t have access to this view</h2>
+      <p class="type-body2 text-secondary mny-mt-1">Your account is set up as an administrator. Story-Tail has no admin area yet, so there is nothing here for you — the traveler’s side and the advisor’s worklist are both somebody else’s desk.</p>
+      <form method="post" action="/account/sign-out">
+        <button type="submit" class="btn btn-outlined btn-secondary st-btn mny-mt-2">Sign out</button>
+      </form>
+    </div>
+  </div>
+
+  <div class="mny-col" data-slot="page">
+    <div data-slot="body">
+      <nav class="mny-views" aria-label="Commission views">
+        <a class="chip chip-secondary mny-view" href="/agent/commission" aria-current="page"><span class="chip-label">Dashboard</span></a>
+        <a class="chip chip-outlined mny-view" href="/agent/commission/ledger"><span class="chip-label">Ledger</span></a>
+        <a class="chip chip-outlined mny-view" href="/agent/commission/import"><span class="chip-label">Statements</span></a>
+        <a class="chip chip-outlined mny-view" href="/agent/commission/forecast"><span class="chip-label">Forecast</span></a>
+      </nav>
+
+      <header class="mny-head">
+        <div class="mny-head-text">
+          <h1 class="type-h5">Commissions</h1>
+          <p class="type-body2 text-secondary mny-sub">Expected → invoiced → received. Reconciled against Inteletravel.</p>
+        </div>
+        <div class="row wrap gap-1 shrink-0">
+          <a class="btn btn-outlined btn-secondary btn-small st-btn" href="/agent/commission/import"><svg class="icon mny-icon-12" aria-hidden="true"><use href="/assets/icons.svg#upload"></use></svg> Import CSV</a>
+          <a class="btn btn-outlined btn-secondary btn-small st-btn" href="/agent/commission/ledger/export"><svg class="icon mny-icon-12" aria-hidden="true"><use href="/assets/icons.svg#download"></use></svg> Export</a>
+        </div>
+      </header>
+
+      <!-- RetryState (ErrorState with a retry): a read failed. That is not an empty ledger. -->
+      <div class="card mny-state" data-slot="retry">
+        <div class="card-content mny-state-body">
+          <span class="avatar mny-state-tile mny-state-tile-error" aria-hidden="true"><svg class="icon mny-icon-26" aria-hidden="true"><use href="/assets/icons.svg#warning"></use></svg></span>
+          <h2 class="type-h5 text-error">That didn’t load</h2>
+          <p class="type-body2 text-secondary mny-mt-1">Something went wrong on our side, not yours. Trying again usually sorts it.</p>
+          <div class="mny-state-actions">
+            <a class="btn btn-contained st-btn" href="/agent/commission" data-slot="retry-again">Try again</a>
+            <a class="btn btn-outlined st-btn" href="mailto:hello@story-tail.com?subject=Something%20went%20wrong"><svg class="icon icon-14" aria-hidden="true"><use href="/assets/icons.svg#message"></use></svg> Message Gyasi</a>
+          </div>
+        </div>
+      </div>
+
+      <div data-slot="content">
+      <div class="mny-kpis">
+        <div class="card mny-kpi mny-tone-secondary">
+          <div class="mny-kpi-body">
+            <div class="mny-kpi-top"><span class="type-caption mny-kpi-label">YTD received</span><svg class="icon icon-14" aria-hidden="true"><use href="/assets/icons.svg#dollar"></use></svg></div>
+            <div class="mny-kpi-value" data-slot="kpi-ytd-value">$3,068</div>
+            <div class="type-caption mny-kpi-sub" data-slot="kpi-ytd-sub">+275% vs last year</div>
+          </div>
+        </div>
+        <div class="card mny-kpi mny-tone-primary">
+          <div class="mny-kpi-body">
+            <div class="mny-kpi-top"><span class="type-caption mny-kpi-label">Expected · 90d</span><svg class="icon icon-14" aria-hidden="true"><use href="/assets/icons.svg#calendar"></use></svg></div>
+            <div class="mny-kpi-value" data-slot="kpi-upcoming-value">$4,674</div>
+            <div class="type-caption mny-kpi-sub" data-slot="kpi-upcoming-sub">5 trips</div>
+          </div>
+        </div>
+        <div class="card mny-kpi mny-tone-surface">
+          <a class="mny-kpi-link" href="/agent/commission/ledger?status=disputed" data-slot="kpi-risk-link">
+            <span class="mny-kpi-body">
+              <span class="mny-kpi-top"><span class="type-caption mny-kpi-label">At risk</span><svg class="icon icon-14" aria-hidden="true"><use href="/assets/icons.svg#warning"></use></svg></span>
+              <span class="mny-kpi-value" data-slot="kpi-risk-link-value">$26</span>
+              <span class="type-caption mny-kpi-sub" data-slot="kpi-risk-link-sub">1 disputed</span>
+            </span>
+          </a>
+          <div class="mny-kpi-body" data-slot="kpi-risk-plain">
+            <div class="mny-kpi-top"><span class="type-caption mny-kpi-label">At risk</span><svg class="icon icon-14" aria-hidden="true"><use href="/assets/icons.svg#warning"></use></svg></div>
+            <div class="mny-kpi-value" data-slot="kpi-risk-value">$0</div>
+            <div class="type-caption mny-kpi-sub" data-slot="kpi-risk-sub">Nothing disputed</div>
+          </div>
+        </div>
+        <div class="card mny-kpi mny-tone-tertiary">
+          <div class="mny-kpi-body">
+            <div class="mny-kpi-top"><span class="type-caption mny-kpi-label">Avg rate</span><svg class="icon icon-14" aria-hidden="true"><use href="/assets/icons.svg#chart"></use></svg></div>
+            <p class="type-body2 mny-kpi-unavailable" data-slot="kpi-rate-unavailable">Nothing received yet this year.</p>
+            <div class="mny-kpi-value" data-slot="kpi-rate-value">12.1%</div>
+            <div class="type-caption mny-kpi-sub" data-slot="kpi-rate-sub">+0.1 pts vs last year</div>
+          </div>
+        </div>
+      </div>
+
+      <section class="card">
+        <div class="card-content mny-trend-body">
+          <div class="mny-trend-head">
+            <h2 class="type-subtitle1 fw-600">Monthly trend · 12 months</h2>
+            <span class="chip chip-small chip-outlined mny-trend-chip" data-slot="trend-chip"><span class="chip-label" data-slot="trend-chip-label">+24% vs the 12 months before</span></span>
+          </div>
+          <p class="type-body2 text-secondary mny-trend-empty" data-slot="trend-empty">No commission received in the last 12 months.</p>
+          <div class="mny-bars" aria-hidden="true">
+            <div class="mny-bar-col" title="June 2026: $1,038" data-repeat="bars" data-slot="bar-column">
+              <span class="mny-bar-area"><span class="mny-bar" data-h="60" data-slot="bar"></span></span>
+              <span class="type-caption text-secondary" data-slot="bar-label">Jun</span>
+            </div>
+          </div>
+          <table class="visually-hidden">
+            <caption>Commission received by month</caption>
+            <thead><tr><th scope="col">Month</th><th scope="col">Received</th></tr></thead>
+            <tbody>
+              <tr data-repeat="bar-rows">
+                <th scope="row" data-slot="bar-row-month">June 2026</th>
+                <td data-slot="bar-row-amount">$1,038</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+      </div>
+    </div>
+  </div>
+</main>
+</body>
+</html>

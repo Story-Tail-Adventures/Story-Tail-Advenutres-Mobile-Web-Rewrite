@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<!--
+  Screen 3.11.5, Client Lifetime Value. Ports app/(agent)/agent/reports/clients/page.tsx
+  with ClientsAndFunnel' ClientTable. Filled by internal/handlers/agent/money.
+
+  LIFETIME, SO NO PERIOD CHIPS. The figure is Client Detail's own (every committed trip,
+  ever); a period would make it something else. The filter is COHORT instead — the quarter
+  of a client's first booking, as links, so a filtered view is a URL.
+
+  Rank is over the whole book, so filtering to a cohort keeps each client's true rank, and
+  the Export downloads the whole ranking whatever cohort is on screen.
+-->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Client lifetime value · Story-Tail Adventures</title>
+</head>
+<body>
+<main>
+  <!-- AdminNoAccess: an admin has no desk here. -->
+  <div class="card mny-state" data-slot="no-access">
+    <div class="card-content mny-state-body">
+      <span class="avatar mny-state-tile" aria-hidden="true"><svg class="icon mny-icon-26" aria-hidden="true"><use href="/assets/icons.svg#shield"></use></svg></span>
+      <h2 class="type-h5">You don’t have access to this view</h2>
+      <p class="type-body2 text-secondary mny-mt-1">Your account is set up as an administrator. Story-Tail has no admin area yet, so there is nothing here for you — the traveler’s side and the advisor’s worklist are both somebody else’s desk.</p>
+      <form method="post" action="/account/sign-out">
+        <button type="submit" class="btn btn-outlined btn-secondary st-btn mny-mt-2">Sign out</button>
+      </form>
+    </div>
+  </div>
+
+  <div class="mny-col" data-slot="page">
+    <div data-slot="body">
+      <a class="link link-hover fw-600 mny-back" href="/agent/reports"><svg class="icon mny-icon-12" aria-hidden="true"><use href="/assets/icons.svg#arrow_left"></use></svg> Reports hub</a>
+
+      <header class="mny-head mny-rpt-head">
+        <div class="mny-head-text">
+          <h1 class="type-h5">Client lifetime value</h1>
+          <p class="type-body2 text-secondary mny-sub">Clients ranked by what they've booked with you.</p>
+        </div>
+        <div class="mny-rpt-actions">
+          <a class="btn btn-outlined btn-secondary btn-small st-btn" href="/agent/reports/download?report=clients" data-slot="rpt-export"><svg class="icon mny-icon-12" aria-hidden="true"><use href="/assets/icons.svg#download"></use></svg> Export</a>
+        </div>
+      </header>
+
+      <!-- RetryState: a read failed. An empty report is zeros, not this. -->
+      <div class="card mny-state" data-slot="retry">
+        <div class="card-content mny-state-body">
+          <span class="avatar mny-state-tile mny-state-tile-error" aria-hidden="true"><svg class="icon mny-icon-26" aria-hidden="true"><use href="/assets/icons.svg#warning"></use></svg></span>
+          <h2 class="type-h5 text-error">That didn’t load</h2>
+          <p class="type-body2 text-secondary mny-mt-1">Something went wrong on our side, not yours. Trying again usually sorts it.</p>
+          <div class="mny-state-actions">
+            <a class="btn btn-contained st-btn" href="/agent/reports/clients" data-slot="retry-again">Try again</a>
+            <a class="btn btn-outlined st-btn" href="mailto:hello@story-tail.com?subject=Something%20went%20wrong"><svg class="icon icon-14" aria-hidden="true"><use href="/assets/icons.svg#message"></use></svg> Message Gyasi</a>
+          </div>
+        </div>
+      </div>
+
+      <div data-slot="content">
+        <nav class="mny-views mny-rpt-controls" aria-label="Cohort" data-slot="cli-cohorts">
+          <a class="chip mny-view" href="/agent/reports/clients" data-repeat="cohort" data-slot="cohort-link"><span class="chip-label" data-slot="cohort-label">All clients</span></a>
+        </nav>
+
+        <div class="card" data-slot="cli-empty">
+          <div class="card-content">
+            <p class="type-body2 text-secondary" data-slot="cli-empty-text">No booked trips yet.</p>
+          </div>
+        </div>
+
+        <div class="card mny-table-card" data-slot="cli-table">
+          <table class="table table-small" aria-label="Client lifetime value">
+            <thead>
+              <tr>
+                <th scope="col" class="mny-rpt-rank">Rank</th>
+                <th scope="col">Client</th>
+                <th scope="col" class="cell-num">Trips</th>
+                <th scope="col" class="cell-num">Lifetime value</th>
+                <th scope="col" class="cell-num">Commission</th>
+                <th scope="col">Cohort</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr data-repeat="cli-row">
+                <td class="mny-td-mono fw-700" data-slot="cli-rank">1</td>
+                <th scope="row" class="mny-rpt-client">
+                  <a class="link link-hover fw-600" href="/agent/clients/sample" data-slot="cli-link"><span data-slot="cli-name">Noah Castillo</span></a>
+                </th>
+                <td class="cell-num mny-td-mono" data-slot="cli-trips">3</td>
+                <td class="cell-num mny-td-mono fw-700" data-slot="cli-value">$18,400</td>
+                <td class="cell-num mny-td-comm" data-slot="cli-comm">$2,208</td>
+                <td class="mny-td-muted mny-td-travel" data-slot="cli-cohort">2025 Q1</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <p class="type-caption text-secondary mny-block mny-rpt-note">Lifetime value adds up every booked, traveling and completed trip, the same number you see on each client's page. Cohort is the quarter they first booked.</p>
+        <p class="type-caption text-secondary mny-block mny-rpt-note">Clients whose first booking came before Sep 19, 2026, when tracking began, are under Before tracking.</p>
+      </div>
+    </div>
+  </div>
+</main>
+</body>
+</html>

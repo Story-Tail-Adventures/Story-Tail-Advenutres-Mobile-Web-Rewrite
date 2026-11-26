@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<!--
+  Screen 2.0.12 Message Gyasi, the guest lead form (/message). Ports
+  app/(public)/(plain)/message/page.tsx with MessageForm.tsx; the copy is state.ts
+  (MESSAGE_TEXT), word for word, and the rules live in the lead-message function.
+
+  Two states, one file: the form, and the thank-you panel a successful send lands on. The
+  React island swapped them in place; a Go post answers 303 and the next GET shows the panel
+  (docs/GO-MIGRATION.md §4.9), so message.go removes whichever one does not apply.
+
+  The card and backdrop are 2.0.6's (public-forms.css), so the two gates read as one family.
+-->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Message Gyasi · Story-Tail Adventures</title>
+</head>
+<body>
+<main>
+  <div class="gate-backdrop">
+    <div class="paper gate-card">
+      <header>
+        <p class="type-overline pub-overline">NO ACCOUNT NEEDED</p>
+        <h1 class="type-h4 gate-title">Send Gyasi a note</h1>
+        <p class="type-body2 text-secondary gate-lead" data-slot="lead">Tell him a little about the trip you're dreaming of. He reads every message himself and usually replies the same day.</p>
+        <h6 class="type-subtitle2 gate-about" data-slot="about">About: a honeymoon</h6>
+      </header>
+
+      <form class="gate-form" method="post" action="/message" data-slot="form">
+        <input type="hidden" name="from" value="" data-slot="field-from">
+        <input type="hidden" name="trip" value="" data-slot="field-trip">
+        <input type="hidden" name="topic" value="" data-slot="field-topic">
+        <input type="hidden" name="utm_source" value="" data-slot="field-utm-source">
+        <input type="hidden" name="utm_medium" value="" data-slot="field-utm-medium">
+        <input type="hidden" name="utm_campaign" value="" data-slot="field-utm-campaign">
+        <input type="hidden" name="startedAt" value="0" data-slot="field-started-at">
+
+        <!-- The hidden field only a bot fills (Data-Model §11.3). Off screen rather than
+             display:none, which some bots skip; out of the tab order and the accessibility tree. -->
+        <div class="visually-hidden" aria-hidden="true">
+          <label for="website">Leave this empty</label>
+          <input id="website" name="website" type="text" tabindex="-1" autocomplete="off" value="">
+        </div>
+
+        <div class="gate-alert" data-slot="alert">
+          <div class="alert alert-error" role="alert" aria-live="polite"><div class="alert-message" data-slot="alert-text">Your note didn't send just now.</div></div>
+        </div>
+
+        <fieldset class="gate-fields">
+          <div class="gate-pair">
+            <div class="field">
+              <label class="field-label" for="firstName">First name</label>
+              <input class="input" id="firstName" name="firstName" type="text" autocomplete="given-name" maxlength="80" required value="" data-slot="field-first-name">
+            </div>
+            <div class="field">
+              <label class="field-label" for="lastName">Last name (optional)</label>
+              <input class="input" id="lastName" name="lastName" type="text" autocomplete="family-name" maxlength="80" value="" data-slot="field-last-name">
+            </div>
+          </div>
+
+          <div class="gate-row">
+            <div class="field">
+              <label class="field-label" for="email">Email</label>
+              <input class="input" id="email" name="email" type="email" autocomplete="email" maxlength="254" required value="" data-slot="field-email">
+            </div>
+          </div>
+
+          <div class="gate-row">
+            <div class="field">
+              <label class="field-label" for="phone">Phone (optional)</label>
+              <input class="input" id="phone" name="phone" type="tel" autocomplete="tel" maxlength="40" value="" data-slot="field-phone">
+            </div>
+          </div>
+
+          <div class="gate-row">
+            <div class="field">
+              <label class="field-label" for="message">Your note</label>
+              <textarea class="input" id="message" name="message" rows="5" maxlength="2000" required aria-describedby="message-hint" data-slot="field-message"></textarea>
+              <p class="field-help" id="message-hint">Where you'd love to go, roughly when, who's coming, and what kind of rest you're after.</p>
+            </div>
+          </div>
+        </fieldset>
+
+        <p class="type-body2 text-secondary gate-privacy">Gyasi will only use this to get back to you and see where people find us. <a class="link" href="/legal/privacy">Privacy policy</a></p>
+
+        <div class="gate-submit">
+          <button class="btn btn-contained st-btn btn-large btn-block" type="submit">Send to Gyasi</button>
+        </div>
+
+        <div class="gate-foot">
+          <a class="link link-hover text-secondary gate-foot-link tap-target" href="/join" data-slot="quote-link">When you're ready for a full quote, you can create an account.</a>
+        </div>
+      </form>
+
+      <div class="gate-sent" role="status" data-slot="sent">
+        <h2 class="type-h5">Thank you. Your note is on its way.</h2>
+        <p class="type-body2 text-secondary gate-sent-body">Gyasi usually replies the same day, to the email you gave. Until then, rest easy.</p>
+        <a class="link link-hover gate-sent-link tap-target" href="/" data-slot="explore-link">Keep exploring</a>
+      </div>
+    </div>
+  </div>
+</main>
+</body>
+</html>

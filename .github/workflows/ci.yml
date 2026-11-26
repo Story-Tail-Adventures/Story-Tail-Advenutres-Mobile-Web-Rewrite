@@ -128,44 +128,45 @@ jobs:
       - name: Auth config matches what the app assumes
         run: python3 .github/scripts/check_auth_config.py
 
+  # The Go web app and API (docs/GO-MIGRATION.md). Like every job here it gates deploys.
+  #
+  # setup-go reads the toolchain line from web/go.mod (go1.27.4, which fixes GO-2026-6859
+  # in crypto/x509), so CI and a laptop build with the same compiler. staticcheck and
+  # govulncheck are pinned so a new release can't turn CI red on a PR that changed nothing;
+  # bump them by hand. govulncheck is the guard the htmlx review relies on: a new
+  # x/net/html advisory fails here.
   web:
+    # Named "Web", not "Web (Go)": it IS the web app now, and dev's branch protection has
+    # required a check called "Web" since the Next.js job carried that name. Renaming the
+    # job without renaming the check leaves a required context nothing ever reports, and
+    # the PR blocks on it with every check green.
     name: Web
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web
     steps:
       - uses: actions/checkout@v7
-      # web/ and the design prototype (design/mui-vendor/) install MUI separately, and
-      # Dependabot only watches web/. Cheap, needs no npm, so it runs first.
-      - name: MUI versions match the design prototype
-        run: python3 .github/scripts/check_mui_lockstep.py
-      - uses: actions/setup-node@v7
+      - uses: actions/setup-go@v7
         with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: npm
-      - run: npm ci
-      - run: npm run typecheck -w web
-      - run: npm run lint -w web
-      - run: npm run test -w web
-      # next/font/google fetches the typefaces at build time, so this step needs
-      # network egress. That is the tradeoff for not loading them at runtime.
-      #
-      # `next build` runs as NODE_ENV=production, and env.siteUrl fails closed there so a
-      # real deploy can never ship wrong canonical URLs, sitemap entries or email-confirm
-      # redirects. CI has no .env.local, so it has to pass the origin in. Not a secret, and
-      # nothing here is deployed — the deployment sets its own value.
-      - run: npm run build -w web
-        env:
-          NEXT_PUBLIC_SITE_URL: https://storytailadventures.vercel.app
-
-      # The build above proves the app COMPILES without Supabase config. This proves the
-      # marketing pages are still files on a CDN: one cookies() in the (public) server tree
-      # makes them per-request, and the build says nothing about it.
-      - run: python3 .github/scripts/check_public_prerender.py
-
-      # The cascade layer order has to reach the browser first. The source can be right and
-      # the bundle wrong (it was: the bundler put @import'ed files ahead of globals.css's
-      # order line, MUI outranked the CSS gates, and both theme icons showed). This reads
-      # the built CSS, which is the only place that shows.
-      - run: python3 .github/scripts/check_css_layer_order.py
+          go-version-file: web/go.mod
+          cache-dependency-path: web/go.sum
+      - name: gofmt
+        run: |
+          unformatted="$(gofmt -l .)"
+          if [ -n "$unformatted" ]; then
+            echo "::error::These files need gofmt:"
+            echo "$unformatted"
+            exit 1
+          fi
+      - run: go mod verify
+      - run: go vet ./...
+      - run: go run honnef.co/go/tools/cmd/staticcheck@v0.8.2 ./...
+      # -race is the point: a parsed page is shared by every request, and a fill that
+      # touched it instead of its copy would show one visitor another's data.
+      - run: go test -race ./...
+      - run: go run golang.org/x/vuln/cmd/govulncheck@v1.9.0 ./...
+      - run: go build -o /dev/null ./cmd/server
 
   contracts:
     name: Contracts codegen is current
@@ -186,18 +187,24 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-      - uses: actions/setup-node@v7
+      - uses: actions/setup-go@v7
         with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: npm
-      - run: npm ci
-      # web/content/public/*.ts is the single source of truth for Screen Inventory §2.0's
+          go-version-file: web/go.mod
+          cache-dependency-path: web/go.sum
+      # web/internal/content is the single source of truth for Screen Inventory §2.0's
       # curated catalog and copy; the Kotlin the app reads is generated from it. Without
       # this job a change to a price, a trip name or a legal paragraph would ship to the
       # browser and not to the phone — the drift check_copy_parity.py exists to catch,
       # for the content it does not cover.
-      - run: npm run generate:public-content -w web
-      - name: Fail if the generated Kotlin drifted from web/content/public
+      #
+      # RE-POINTED from `npm run generate:public-content -w web`, which lived in the npm
+      # workspace the Go migration deletes. This job is the only thing standing between a
+      # content edit and the phone silently drifting, so it moves with the generator rather
+      # than dying with the Web job. web/cmd/gen-kotlin reproduced the committed file byte
+      # for byte before the swap (69,974 bytes, identical SHA-256).
+      - run: go run ./cmd/gen-kotlin
+        working-directory: web
+      - name: Fail if the generated Kotlin drifted from web/internal/content
         run: git diff --exit-code mobile/shared/src/commonMain/kotlin/com/storytail/adventures/content/public/GeneratedPublicContent.kt
 
   mobile-android:
@@ -293,9 +300,6 @@ jobs:
           # reproduce, and the failure named the generic helpers rather than anything anyone
           # had touched. Move both together.
           version: 2.116.0
-      - uses: denoland/setup-deno@v2
-        with:
-          deno-version: v2.x
       - uses: actions/setup-node@v7
         with:
           node-version: ${{ env.NODE_VERSION }}
@@ -322,87 +326,3 @@ jobs:
             echo "── $f"
             psql "$db_url" -v ON_ERROR_STOP=1 -f "$f"
           done
-
-      # Checks the _shared/ helpers too, not just function entry points — they are where
-      # the audit and auth rules actually live.
-      - name: Typecheck and lint Edge Functions
-        run: |
-          shopt -s nullglob
-          files=(supabase/functions/*/index.ts supabase/functions/_shared/*.ts)
-          if [ ${#files[@]} -eq 0 ]; then
-            echo "Nothing to check yet."
-            exit 0
-          fi
-          # --config explicitly: without it Deno resolves the config by walking up from
-          # the CWD, finds no deno.json at the repo root, and the bare
-          # "@supabase/supabase-js" specifier fails to resolve.
-          deno check --config supabase/functions/deno.json "${files[@]}"
-          deno lint --config supabase/functions/deno.json supabase/functions/
-
-      # The _shared/ rules that are PARALLEL IMPLEMENTATIONS of a web/ rule — today the
-      # E.164 phone normalisation in _shared/onboarding.ts, whose twin is
-      # web/lib/validation/profile.ts. Deno cannot import from web/, so the only thing
-      # keeping the two honest is the same vectors asserted on both sides.
-      # --allow-env: _shared/cors.ts reads the allowed origin at module load.
-      - name: Test Edge Function helpers
-        run: |
-          shopt -s nullglob globstar
-          tests=(supabase/functions/**/*_test.ts)
-          if [ ${#tests[@]} -eq 0 ]; then
-            echo "No Deno tests yet."
-            exit 0
-          fi
-          deno test --allow-env --config supabase/functions/deno.json supabase/functions/
-
-      # Deploying the functions is Supabase's job, driven by config.toml — and the docs say it
-      # deploys the ones "declared in config.toml". A function directory with no
-      # [functions.<slug>] block may therefore never reach production, and nothing else would
-      # notice: GitHub is green because it never touched Supabase, Supabase is green because
-      # it deployed what it was told to, and the absence shows up as a 404 in a traveler's
-      # browser. The next function added is the one this catches.
-      - name: Every Edge Function is declared for deployment
-        run: |
-          shopt -s nullglob
-          for d in supabase/functions/*/; do
-            slug="$(basename "$d")"
-            # _shared/ and friends are libraries, not deployable functions.
-            case "$slug" in _*) continue;; esac
-            grep -q "^\[functions\.${slug}\]" supabase/config.toml || {
-              echo "::error::supabase/functions/${slug}/ has no [functions.${slug}] block in supabase/config.toml."
-              exit 1
-            }
-          done
-
-      - name: Fail if generated DB types drifted from the migrations
-        # `supabase gen types` runs postgres-meta in a container, pulled by default from
-        # public.ecr.aws. Its anonymous quota ("toomanyrequests: Data limit exceeded") failed
-        # this step on #152 and on the 0.0.7-alpha release, and once spent it stays spent: four
-        # retries over five minutes all hit it. Supabase publishes the same images to GitHub's
-        # registry, which Actions runners pull from without that quota. Same image, same tag
-        # (the pinned CLI picks it): generated locally from ghcr.io, the types were byte-for-byte
-        # identical.
-        env:
-          SUPABASE_INTERNAL_IMAGE_REGISTRY: ghcr.io
-        run: |
-          npm ci
-          # A backstop for a passing rate limit on any registry. Retries ONLY toomanyrequests:
-          # any other failure, including real drift below, still fails the first time.
-          for attempt in 1 2 3 4; do
-            # The script's own exit status, whatever tee returns and whether or not the
-            # shell runs with pipefail.
-            set +e
-            npm run supabase:types 2>&1 | tee /tmp/gen-types.log
-            status=${PIPESTATUS[0]}
-            set -e
-            if [ "$status" -eq 0 ]; then break; fi
-            if ! grep -q "toomanyrequests" /tmp/gen-types.log || [ "$attempt" -eq 4 ]; then
-              echo "::error::supabase:types failed (attempt $attempt)."
-              exit 1
-            fi
-            echo "::warning::Image registry rate limit; retrying in $((attempt * 45))s (attempt $attempt of 4)."
-            sleep $((attempt * 45))
-          done
-          # Both copies: the script writes web/types/ AND functions/_shared/, so diffing
-          # only the first would let a hand-edit to the Edge Function types through.
-          git diff --exit-code web/types/supabase.ts \
-                               supabase/functions/_shared/database.types.ts

@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<!--
+  3.7.6's Resolve, for one statement row. Ports
+  app/(agent)/agent/commission/import/[importId]/rows/[rowId]/page.tsx with
+  StatementRowResolve. Filled by internal/handlers/agent/money (resolve.go).
+
+  A PAGE rather than a dialog: four different decisions, one of which needs a trip search,
+  deserve the room and a URL that survives a reload. Each decision is its own small form
+  posting the same `action` field the Edge Function takes, so every one works with no script.
+
+  The row's ids and version are repeated in each form, because a form posts only its own
+  fields. The version is the one the PAGE carried, so a refusal cannot hand the retry a
+  fresher lock than the advisor was looking at.
+-->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Resolve statement row · Story-Tail Adventures</title>
+</head>
+<body>
+<main>
+  <!-- AdminNoAccess: an admin has no desk here. -->
+  <div class="card mny-state" data-slot="no-access">
+    <div class="card-content mny-state-body">
+      <span class="avatar mny-state-tile" aria-hidden="true"><svg class="icon mny-icon-26" aria-hidden="true"><use href="/assets/icons.svg#shield"></use></svg></span>
+      <h2 class="type-h5">You don’t have access to this view</h2>
+      <p class="type-body2 text-secondary mny-mt-1">Your account is set up as an administrator. Story-Tail has no admin area yet, so there is nothing here for you — the traveler’s side and the advisor’s worklist are both somebody else’s desk.</p>
+      <form method="post" action="/account/sign-out">
+        <button type="submit" class="btn btn-outlined btn-secondary st-btn mny-mt-2">Sign out</button>
+      </form>
+    </div>
+  </div>
+
+  <div class="mny-col" data-slot="page">
+    <div data-slot="body">
+      <nav class="mny-views" aria-label="Commission views">
+        <a class="chip chip-outlined mny-view" href="/agent/commission"><span class="chip-label">Dashboard</span></a>
+        <a class="chip chip-outlined mny-view" href="/agent/commission/ledger"><span class="chip-label">Ledger</span></a>
+        <a class="chip chip-secondary mny-view" href="/agent/commission/import" aria-current="page"><span class="chip-label">Statements</span></a>
+        <a class="chip chip-outlined mny-view" href="/agent/commission/forecast"><span class="chip-label">Forecast</span></a>
+      </nav>
+
+      <!-- RetryState: a read failed. -->
+      <div class="card mny-state" data-slot="retry">
+        <div class="card-content mny-state-body">
+          <span class="avatar mny-state-tile mny-state-tile-error" aria-hidden="true"><svg class="icon mny-icon-26" aria-hidden="true"><use href="/assets/icons.svg#warning"></use></svg></span>
+          <h2 class="type-h5 text-error">That didn’t load</h2>
+          <p class="type-body2 text-secondary mny-mt-1">Something went wrong on our side, not yours. Trying again usually sorts it.</p>
+          <div class="mny-state-actions">
+            <a class="btn btn-contained st-btn" href="/agent/commission/import" data-slot="retry-again">Try again</a>
+            <a class="btn btn-outlined st-btn" href="mailto:hello@story-tail.com?subject=Something%20went%20wrong"><svg class="icon icon-14" aria-hidden="true"><use href="/assets/icons.svg#message"></use></svg> Message Gyasi</a>
+          </div>
+        </div>
+      </div>
+
+      <div data-slot="content">
+        <div class="card mny-state" data-slot="not-found">
+          <div class="card-content mny-state-body">
+            <span class="avatar mny-state-tile" aria-hidden="true"><svg class="icon mny-icon-26" aria-hidden="true"><use href="/assets/icons.svg#search"></use></svg></span>
+            <h2 class="type-h5">Statement not found</h2>
+            <p class="type-body2 text-secondary mny-mt-1">It may have been discarded. Your other statements are on the import page.</p>
+            <div class="mny-state-actions">
+              <a class="btn btn-contained st-btn" href="/agent/commission/import">Back to statements</a>
+            </div>
+          </div>
+        </div>
+
+        <div data-slot="resolve">
+          <header class="mny-head">
+            <div class="mny-head-text">
+              <a class="link link-hover type-body2" href="/agent/commission/import/sample" data-slot="back-link">Back to the statement</a>
+              <h1 class="type-h5 mny-mt-1" data-slot="resolve-heading">Resolve a statement row · Row 1</h1>
+            </div>
+          </header>
+
+          <!-- The statement line itself, as the table shows it. -->
+          <section class="card mny-resolve-card">
+            <div class="card-content mny-card-18">
+              <p class="type-mono type-caption mny-break" data-slot="row-line">SRB-220119 · Sandals Resorts · M Hayes</p>
+              <p class="type-body2 mny-mt-0_5" data-slot="row-amounts">$1,368.00 · Feb 21, 2027</p>
+              <p class="type-caption mny-block mny-mt-0_5 text-warning" data-slot="row-note">Check this match before it counts.</p>
+            </div>
+          </section>
+
+          <div class="alert alert-error mny-mb-1 mny-resolve-card" role="alert" data-slot="form-error"><div class="alert-message" data-slot="form-error-text">That didn’t save. Try again in a moment.</div></div>
+
+          <!-- The statement and the row are in the URL every form posts to, so no form
+               carries them as fields. The VERSION is a field, and each form has its own:
+               a form posts only its own inputs. -->
+
+          <!-- ── Use the suggested match ─────────────────────────────────── -->
+          <section class="card mny-resolve-card" data-slot="suggestion">
+            <div class="card-content mny-card-18">
+              <h2 class="type-subtitle1 fw-600 mny-card-title">Use the suggested match</h2>
+              <form method="post" action="/agent/commission/import/sample/rows/sample" data-slot="suggestion-form" data-submit-once>
+                <input type="hidden" name="action" value="confirm">
+                <input type="hidden" name="version" value="1" data-slot="suggestion-version">
+                <p class="type-body2 mny-block" data-slot="suggestion-label">Sandals Resorts · Jordan Hayes · Anniversary Week in Negril</p>
+                <p class="type-caption text-secondary mny-block mny-mt-0_5" data-slot="suggestion-note">Expected $1,368.00. Paid $1,292.00. That’s $76.00 short, so it will be marked Disputed.</p>
+                <button type="submit" class="btn btn-contained btn-brand st-btn mny-mt-1" data-pending-label="Working…">Use this match</button>
+              </form>
+            </div>
+          </section>
+
+          <!-- ── Match a different line ──────────────────────────────────── -->
+          <section class="card mny-resolve-card" data-slot="match">
+            <div class="card-content mny-card-18">
+              <h2 class="type-subtitle1 fw-600 mny-card-title">Match a different line</h2>
+              <p class="type-caption text-secondary mny-block mny-mb-1">Lines that aren't paid yet, closest first.</p>
+              <p class="type-body2 text-secondary" data-slot="match-empty">No unpaid lines to match. Create a new line instead.</p>
+              <ul class="mny-candidates" data-slot="match-list">
+                <li data-repeat="candidate">
+                  <form method="post" action="/agent/commission/import/sample/rows/sample" class="mny-candidate" data-slot="candidate-form" data-submit-once>
+                    <input type="hidden" name="action" value="match">
+                    <input type="hidden" name="version" value="1" data-slot="candidate-version">
+                    <input type="hidden" name="commissionId" value="" data-slot="candidate-id">
+                    <span class="mny-candidate-text">
+                      <span class="type-body2 fw-600 mny-block" data-slot="candidate-title">Anniversary Week in Negril</span>
+                      <span class="type-caption text-secondary mny-block" data-slot="candidate-meta">Sandals Resorts · Jordan Hayes · expected $1,368.00</span>
+                      <span class="type-caption text-secondary mny-block" data-slot="candidate-travel">Feb 3, 2027</span>
+                    </span>
+                    <button type="submit" class="btn btn-outlined btn-secondary btn-small st-btn" data-pending-label="Working…">Match this line</button>
+                  </form>
+                </li>
+              </ul>
+            </div>
+          </section>
+
+          <!-- ── Create a new line ───────────────────────────────────────── -->
+          <p class="type-body1 mny-resolve-card mny-mb-1" data-slot="create-chosen"><strong data-slot="create-trip-name">Kyoto in the spring · The Rodriguez family</strong></p>
+
+          <section class="card mny-resolve-card" data-slot="create-form-card">
+            <div class="card-content mny-card-18">
+              <h2 class="type-subtitle1 fw-600 mny-card-title">Create a new line</h2>
+              <p class="type-caption text-secondary mny-block mny-mb-1">The line is added when you mark the statement reconciled. It starts out paid, using this row's amount.</p>
+              <form method="post" action="/agent/commission/import/sample/rows/sample" data-slot="create-form" data-submit-once>
+                <input type="hidden" name="action" value="create">
+                <input type="hidden" name="version" value="1" data-slot="create-version">
+                <input type="hidden" name="tripId" value="" data-slot="create-trip-id">
+
+                <div class="mny-form-grid">
+                  <div class="field mny-field mny-span-2">
+                    <label class="field-label" for="resolve-supplier">Supplier</label>
+                    <div class="select mny-select">
+                      <select class="input mny-input-40" id="resolve-supplier" name="supplierId" required data-slot="create-supplier">
+                        <option value="">Pick a supplier</option>
+                        <option value="sample" data-repeat="supplier-pick" data-slot="supplier-pick">Sandals Resorts</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div class="field mny-field">
+                    <label class="field-label" for="resolve-gross">Gross booking</label>
+                    <div class="mny-adorned">
+                      <span class="mny-adorn" aria-hidden="true">$</span>
+                      <input class="input mny-input-40 type-mono mny-adorned-input" id="resolve-gross" name="gross" inputmode="decimal" autocomplete="off" placeholder="0.00" value="" data-slot="create-gross">
+                    </div>
+                  </div>
+                  <div class="field mny-field">
+                    <label class="field-label" for="resolve-rate">Commission rate (%)</label>
+                    <div class="mny-adorned mny-adorned-end">
+                      <input class="input mny-input-40 mny-adorned-input" id="resolve-rate" name="rate" inputmode="decimal" autocomplete="off" value="" data-slot="create-rate">
+                      <span class="mny-adorn" aria-hidden="true">%</span>
+                    </div>
+                  </div>
+                </div>
+
+                <button type="submit" class="btn btn-contained btn-brand st-btn mny-mt-2" data-pending-label="Working…">Create line when reconciled</button>
+              </form>
+              <a class="link link-hover type-body2 mny-block mny-mt-1" href="/agent/commission/import/sample/rows/sample" data-slot="create-change">Choose a different trip</a>
+            </div>
+          </section>
+
+          <!-- Step one of creating: which trip. Below the other decisions, because most rows
+               are settled by the first two. -->
+          <section class="card mny-resolve-card" data-slot="create-pick">
+            <div class="card-content mny-card-18">
+              <h2 class="type-subtitle1 fw-600 mny-card-title">Create a new line</h2>
+              <p class="type-caption text-secondary mny-block mny-mb-1">The line is added when you mark the statement reconciled. It starts out paid, using this row's amount.</p>
+              <p class="type-body2 text-warning mny-mb-1" data-slot="create-trip-unavailable">That trip isn’t available. Find another below.</p>
+              <form class="row gap-1 mny-mb-1" method="get" action="/agent/commission/import/sample/rows/sample" data-slot="create-pick-form">
+                <label class="visually-hidden" for="resolve-trip-q">Find a trip</label>
+                <input class="input mny-input-40 grow" id="resolve-trip-q" type="search" name="q" value="" placeholder="Trip or client name" data-slot="create-pick-q">
+                <button type="submit" class="btn btn-outlined btn-secondary st-btn">Find a trip</button>
+              </form>
+              <p class="type-body2 text-secondary" data-slot="create-pick-none">No trips match that search.</p>
+              <ul class="mny-trip-list" aria-label="Trip" data-slot="create-pick-list">
+                <li data-repeat="trip-pick">
+                  <a class="mny-trip-row" href="/agent/commission/import/sample/rows/sample?trip=sample" data-slot="trip-pick-link">
+                    <span class="type-body2 fw-600 mny-block" data-slot="trip-pick-title">Kyoto in the spring</span>
+                    <span class="type-caption text-secondary mny-block" data-slot="trip-pick-meta">The Rodriguez family · Apr 3, 2027 · booked</span>
+                  </a>
+                </li>
+              </ul>
+            </div>
+          </section>
+
+          <!-- ── Set it aside ────────────────────────────────────────────── -->
+          <section class="card mny-resolve-card">
+            <div class="card-content mny-card-18">
+              <h2 class="type-subtitle1 fw-600 mny-card-title">Set it aside</h2>
+              <p class="type-caption text-secondary mny-block mny-mb-1">Nothing is recorded for this row. You can still add a line by hand later.</p>
+              <form method="post" action="/agent/commission/import/sample/rows/sample" data-slot="ignore-form" data-submit-once>
+                <input type="hidden" name="action" value="ignore">
+                <input type="hidden" name="version" value="1" data-slot="ignore-version">
+                <button type="submit" class="btn btn-outlined btn-secondary st-btn" data-pending-label="Working…">Set aside</button>
+              </form>
+            </div>
+          </section>
+        </div>
+      </div>
+    </div>
+  </div>
+</main>
+</body>
+</html>

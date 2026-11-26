@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<!--
+  Screen 3.12.1, My profile. Ports app/(agent)/agent/settings/page.tsx with AgentProfileForm.
+  Filled by internal/handlers/agent/money (settingsfill.go).
+
+  THE PHOTO SAVES ON ITS OWN, because it is a file rather than a field to revise: its form
+  posts set_avatar and its refusal is its own line. The browser makes the square 400x400
+  JPEG (settings.js, a port of avatarImage.ts), exactly as the Next client does; without the
+  module Upload posts an empty image and the server says so rather than failing silently.
+
+  Email is read-only: it is the address the advisor signs in with (Q7). Links are turned
+  into full https links on save, and the boxes come back holding what was stored.
+-->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Settings · Story-Tail Adventures</title>
+</head>
+<body>
+<main>
+  <!-- AdminNoAccess: an admin has no desk here. -->
+  <div class="card mny-state" data-slot="no-access">
+    <div class="card-content mny-state-body">
+      <span class="avatar mny-state-tile" aria-hidden="true"><svg class="icon mny-icon-26" aria-hidden="true"><use href="/assets/icons.svg#shield"></use></svg></span>
+      <h2 class="type-h5">You don’t have access to this view</h2>
+      <p class="type-body2 text-secondary mny-mt-1">Your account is set up as an administrator. Story-Tail has no admin area yet, so there is nothing here for you — the traveler’s side and the advisor’s worklist are both somebody else’s desk.</p>
+      <form method="post" action="/account/sign-out">
+        <button type="submit" class="btn btn-outlined btn-secondary st-btn mny-mt-2">Sign out</button>
+      </form>
+    </div>
+  </div>
+
+  <div class="mny-col mny-set-col" data-slot="page">
+    <div data-slot="body">
+      <h1 class="type-h4 mny-set-title">Settings</h1>
+      <nav class="mny-views mny-set-tabs" aria-label="Settings sections">
+        <a class="chip mny-view" href="/agent/settings" data-repeat="tab" data-slot="tab-link"><span class="chip-label" data-slot="tab-label">Profile</span></a>
+      </nav>
+
+      <!-- RetryState: the one read failed. Empty settings are defaults, not this. -->
+      <div class="card mny-state" data-slot="retry">
+        <div class="card-content mny-state-body">
+          <span class="avatar mny-state-tile mny-state-tile-error" aria-hidden="true"><svg class="icon mny-icon-26" aria-hidden="true"><use href="/assets/icons.svg#warning"></use></svg></span>
+          <h2 class="type-h5 text-error">We couldn't load your settings just now. Try again in a moment.</h2>
+          <div class="mny-state-actions">
+            <a class="btn btn-contained st-btn" href="/agent/settings" data-slot="retry-again">Try again</a>
+            <a class="btn btn-outlined st-btn" href="mailto:hello@story-tail.com?subject=Something%20went%20wrong"><svg class="icon icon-14" aria-hidden="true"><use href="/assets/icons.svg#message"></use></svg> Message Gyasi</a>
+          </div>
+        </div>
+      </div>
+
+      <div data-slot="content">
+        <div class="alert alert-error mny-mb-1" role="alert" data-slot="form-error"><div class="alert-message" data-slot="form-error-text">That didn't save. Check your connection and try again.</div></div>
+        <header class="mny-set-head">
+          <div class="mny-head-text">
+            <h2 class="type-h5 fw-700">My profile</h2>
+            <p class="type-body2 text-secondary mny-sub">What clients see in emails and the portal.</p>
+          </div>
+        </header>
+
+        <div class="mny-set-grid">
+          <section class="card">
+            <div class="card-content mny-card-18">
+              <div class="mny-set-photo">
+                <span class="avatar mny-set-avatar" data-slot="pf-avatar"><img class="mny-set-avatar-img" src="/assets/icons.svg#user" alt="" data-slot="pf-avatar-img"><span data-slot="pf-initials">GS</span></span>
+                <div class="mny-set-photo-text">
+                  <p class="type-subtitle1">Profile photo</p>
+                  <p class="type-caption text-secondary mny-block">A JPG, PNG or WebP, up to 5 MB.</p>
+                  <div class="mny-set-photo-actions">
+                    <form class="mny-set-photo-form" method="post" enctype="multipart/form-data" action="/agent/settings?tab=profile" data-avatar-form data-slot="pf-photo-form">
+                      <input type="hidden" name="op" value="set_avatar">
+                      <input type="hidden" name="image" value="" data-avatar-image>
+                      <input class="visually-hidden" type="file" accept="image/jpeg,image/png,image/webp" aria-label="Upload new" data-avatar-file>
+                      <button type="submit" class="btn btn-outlined btn-secondary btn-small st-btn" data-avatar-pick data-pending-label="Uploading…">Upload new</button>
+                    </form>
+                    <form method="post" action="/agent/settings?tab=profile" data-slot="pf-remove-form">
+                      <input type="hidden" name="op" value="remove_avatar">
+                      <button type="submit" class="btn btn-text btn-small st-btn">Remove</button>
+                    </form>
+                  </div>
+                </div>
+              </div>
+              <div class="alert alert-error mny-mb-1 mny-mt-1" role="alert" data-photo-error data-slot="pf-photo-error"><div class="alert-message" data-photo-error-text data-slot="pf-photo-error-text">We couldn't read that photo. Try another one.</div></div>
+
+              <form class="mny-set-fields" method="post" action="/agent/settings?tab=profile" data-submit-once data-slot="pf-form">
+                <input type="hidden" name="op" value="update_profile">
+                <div class="field">
+                  <label class="field-label" for="pf-name">Name</label>
+                  <input class="input mny-input-40" id="pf-name" name="displayName" maxlength="80" autocomplete="name" value="Gyasi Story" data-slot="pf-name">
+                  <p class="field-error" data-slot="pf-name-error">Add the name clients will see.</p>
+                </div>
+                <div class="field">
+                  <label class="field-label" for="pf-pronouns">Pronouns</label>
+                  <input class="input mny-input-40" id="pf-pronouns" name="pronouns" maxlength="30" value="" data-slot="pf-pronouns">
+                  <p class="type-caption text-secondary mny-block">Optional. Shown next to your name.</p>
+                </div>
+                <div class="field">
+                  <label class="field-label" for="pf-email">Email</label>
+                  <input class="input mny-input-40" id="pf-email" type="email" value="gyasi@example.com" readonly data-slot="pf-email">
+                  <p class="type-caption text-secondary mny-block">This is the email you sign in with, so it can't be changed here yet.</p>
+                </div>
+                <div class="field">
+                  <label class="field-label" for="pf-phone">Phone</label>
+                  <input class="input mny-input-40" id="pf-phone" type="tel" name="phone" autocomplete="tel" value="" data-slot="pf-phone">
+                  <p class="field-error" data-slot="pf-phone-error">That phone number doesn't look right. Use digits, spaces, + - ( ) or .</p>
+                </div>
+                <div class="field mny-set-wide">
+                  <label class="field-label" for="pf-bio">Bio (clients can see this)</label>
+                  <textarea class="input mny-set-area" id="pf-bio" name="bio" rows="3" maxlength="600" data-slot="pf-bio"></textarea>
+                  <p class="type-caption text-secondary mny-block">A few warm lines about how you plan trips. Write it the way you'd say it to a new client.</p>
+                </div>
+                <p class="type-subtitle2 mny-set-wide">Links
+                  <span class="type-caption text-secondary mny-block fw-400">Paste a link or an @handle. Leave any blank to hide it.</span>
+                </p>
+                <div class="field" data-repeat="link">
+                  <span class="field-label" data-slot="link-label">Instagram</span>
+                  <input class="input mny-input-40" type="url" inputmode="url" autocomplete="off" name="instagram" value="" data-slot="link-input">
+                  <p class="field-error" data-slot="link-error"><span data-slot="link-error-text">Instagram doesn't look like a link.</span></p>
+                </div>
+                <div class="mny-set-actions mny-set-wide">
+                  <button type="submit" class="btn btn-contained btn-small st-btn" data-pending-label="Saving…">Save</button>
+                </div>
+              </form>
+            </div>
+          </section>
+
+          <aside class="card mny-set-side" aria-label="How you appear">
+            <div class="card-content mny-card-18">
+              <p class="type-overline text-secondary mny-block">How you appear</p>
+              <div class="mny-set-preview">
+                <div class="mny-set-preview-top">
+                  <span class="avatar mny-set-avatar-sm" data-slot="pf-prev-avatar"><img class="mny-set-avatar-img" src="/assets/icons.svg#user" alt="" data-slot="pf-prev-avatar-img"><span data-slot="pf-prev-initials">GS</span></span>
+                  <div class="mny-block">
+                    <p class="type-subtitle1 mny-set-prev-name"><span data-slot="pf-prev-name">Gyasi · Travel Advisor</span> <span class="type-caption text-secondary" data-slot="pf-prev-pronouns">(he/him)</span></p>
+                    <p class="type-caption text-secondary mny-block" data-slot="pf-prev-reply">Usually replies within 24 hours</p>
+                  </div>
+                </div>
+                <p class="type-body2 mny-set-prev-bio" data-slot="pf-prev-bio">A few warm lines.</p>
+                <p class="mny-set-prev-links" data-slot="pf-prev-links"><a class="link link-hover type-caption" href="https://instagram.com/sample" target="_blank" rel="noopener noreferrer" data-repeat="prev-link" data-slot="prev-link-a"><span data-slot="prev-link-label">Instagram</span></a></p>
+              </div>
+            </div>
+          </aside>
+        </div>
+        <script type="module" src="/assets/js/agent/money/settings.js"></script>
+      </div>
+    </div>
+  </div>
+</main>
+</body>
+</html>

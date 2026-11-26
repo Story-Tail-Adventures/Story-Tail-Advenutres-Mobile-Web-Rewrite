@@ -25,7 +25,7 @@ SKIP_SUFFIXES = {
 }
 SKIP_NAMES = {"package-lock.json", "pnpm-lock.yaml"}
 # Generated from the schema / contract — the content is not hand-authored.
-SKIP_PATHS = {"web/types/supabase.ts", "contracts/ts/types.ts"}
+SKIP_PATHS = {"contracts/ts/types.ts"}  # web/types/supabase.ts went with web/ (Phase 6)
 
 CANDIDATE = re.compile(r"(?<!\d)(?:\d[ -]?){12,18}\d(?!\d)")
 

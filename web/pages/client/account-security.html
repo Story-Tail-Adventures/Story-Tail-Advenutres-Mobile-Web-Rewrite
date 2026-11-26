@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<!--
+  Screen 2.5.7 Security (docs/Screen-Inventory.md §2.5.7). Ports
+  web/app/(client)/account/security/{page,content}.tsx; copy word for word from SECURITY.
+
+  THE SESSIONS CARD SAYS WHAT IS TRUE RATHER THAN "COMING SOON". The reader's real question
+  on a security screen is "can someone else be signed in as me?", and the honest answer is
+  that we cannot show them yet — followed by the thing they CAN do about it. A list that is
+  always empty would answer the question wrongly.
+
+  No vendor is named for the authenticator and no backup codes are offered: Supabase has no
+  backup-code factor, and a home-grown one would be a promise we could not keep.
+
+  Changing a password is deferred because /forgot-password bounces a signed-in visitor, so
+  the control would lead nowhere. The reason says what to do instead.
+-->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Security · Story-Tail Adventures</title>
+  <meta name="robots" content="noindex, nofollow">
+</head>
+<body>
+  <main>
+    <div class="cl-account-page">
+      <header class="cl-account-head">
+        <a class="btn btn-text st-btn btn-small cl-back-link" href="/account"><svg class="icon icon-14" aria-hidden="true"><use href="/assets/icons.svg#arrow_left"></use></svg>Account</a>
+        <h1 class="type-h5 text-primary cl-account-title" data-slot="title">Security</h1>
+        <p class="type-body2 text-secondary cl-account-sub" data-slot="subtitle">How you get in, and how we keep others out.</p>
+      </header>
+
+      <!-- A password to change, or a provider that owns it. -->
+      <section class="card cl-card" data-slot="password-card">
+        <div class="card-content cl-card-content">
+          <h2 class="type-subtitle1 text-primary cl-card-title" data-slot="password-title">Password</h2>
+          <p class="type-body2 text-secondary cl-account-note" data-slot="password-body">Change it whenever you like.</p>
+          <span class="btn-tooltip" title="Coming with the next release" data-slot="password-wrap">
+            <button class="btn btn-outlined btn-secondary st-btn btn-small" type="button" disabled tabindex="-1" aria-disabled="true" data-slot="password-cta">Change password</button>
+          </span>
+        </div>
+      </section>
+
+      <section class="card cl-card" data-slot="provider-card">
+        <div class="card-content cl-card-content">
+          <h2 class="type-subtitle1 text-primary cl-card-title" data-slot="provider-title">How you sign in</h2>
+          <p class="type-body2 text-secondary cl-account-note" data-slot="provider-body">You sign in with Google.</p>
+          <a class="btn btn-outlined btn-secondary st-btn btn-small" href="/account/connected" data-slot="provider-cta">Connected accounts</a>
+        </div>
+      </section>
+
+      <section class="card cl-card">
+        <div class="card-content cl-card-content">
+          <h2 class="type-subtitle1 text-primary cl-card-title"><span data-slot="mfa-title">Two-factor authentication</span> · <span class="chip chip-small" data-slot="mfa-state">Off</span></h2>
+          <p class="type-body2 text-secondary cl-account-note" data-slot="mfa-body">A six-digit code from your authenticator app.</p>
+          <a class="btn btn-contained st-btn btn-small" href="/mfa/setup" data-slot="mfa-enable">Turn on two-factor</a>
+          <span class="btn-tooltip" title="Coming with the next release" data-slot="mfa-manage-wrap">
+            <button class="btn btn-outlined btn-secondary st-btn btn-small" type="button" disabled tabindex="-1" aria-disabled="true" data-slot="mfa-manage">Replace your authenticator</button>
+          </span>
+        </div>
+      </section>
+
+      <section class="cl-settings-group">
+        <h2 class="type-overline text-secondary cl-settings-label" data-slot="sessions-heading">WHERE YOU ARE SIGNED IN</h2>
+        <p class="type-body2 text-secondary cl-account-note" data-slot="sessions-deferred">We can’t show you your other devices yet.</p>
+        <p class="type-body2 text-secondary cl-account-note" data-slot="sessions-advice">If you think someone else has your account, tell Gyasi.</p>
+      </section>
+    </div>
+  </main>
+</body>
+</html>

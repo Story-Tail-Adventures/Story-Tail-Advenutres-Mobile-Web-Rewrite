@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<!--
+  Screen 3.7.5, Inteletravel CSV Import, step 1. Ports
+  app/(agent)/agent/commission/import/page.tsx with StatementSteps, StatementHelp and
+  StatementUploadForm. Filled by internal/handlers/agent/money (statement.go).
+
+  A375_CSVImport draws two cards side by side: Upload, and Map columns. The second waits
+  until there is a file, because the columns are the FILE's: once uploaded, the statement has
+  its own page where both cards show with the map filled in.
+
+  Below them, the statements already uploaded — the way back to one left in review, and the
+  record of the ones reconciled. Not in the artboard; without it a statement left half done
+  would be reachable only by uploading it again, which the duplicate check refuses.
+
+  The upload is a plain multipart form. The artboard's drop zone is the <label> around the
+  file input, so clicking anywhere on it opens the picker with no script at all.
+-->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Import statement · Story-Tail Adventures</title>
+</head>
+<body>
+<main>
+  <!-- AdminNoAccess: an admin has no desk here. -->
+  <div class="card mny-state" data-slot="no-access">
+    <div class="card-content mny-state-body">
+      <span class="avatar mny-state-tile" aria-hidden="true"><svg class="icon mny-icon-26" aria-hidden="true"><use href="/assets/icons.svg#shield"></use></svg></span>
+      <h2 class="type-h5">You don’t have access to this view</h2>
+      <p class="type-body2 text-secondary mny-mt-1">Your account is set up as an administrator. Story-Tail has no admin area yet, so there is nothing here for you — the traveler’s side and the advisor’s worklist are both somebody else’s desk.</p>
+      <form method="post" action="/account/sign-out">
+        <button type="submit" class="btn btn-outlined btn-secondary st-btn mny-mt-2">Sign out</button>
+      </form>
+    </div>
+  </div>
+
+  <div class="mny-col" data-slot="page">
+    <div data-slot="body">
+      <nav class="mny-views" aria-label="Commission views">
+        <a class="chip chip-outlined mny-view" href="/agent/commission"><span class="chip-label">Dashboard</span></a>
+        <a class="chip chip-outlined mny-view" href="/agent/commission/ledger"><span class="chip-label">Ledger</span></a>
+        <a class="chip chip-secondary mny-view" href="/agent/commission/import" aria-current="page"><span class="chip-label">Statements</span></a>
+        <a class="chip chip-outlined mny-view" href="/agent/commission/forecast"><span class="chip-label">Forecast</span></a>
+      </nav>
+
+      <header class="mny-head">
+        <div class="mny-head-text">
+          <h1 class="type-h5">Import Inteletravel statement</h1>
+          <p class="type-body2 text-secondary mny-sub">Upload the CSV from Inteletravel. Your ledger stays the same until you mark the statement reconciled.</p>
+        </div>
+        <!-- The artboard's header action, as a native disclosure: it opens by keyboard and
+             needs no client code. -->
+        <details class="mny-help">
+          <summary class="mny-help-summary"><svg class="icon mny-icon-12" aria-hidden="true"><use href="/assets/icons.svg#question"></use></svg> Where do I get this file?</summary>
+          <p class="type-body2 text-secondary mny-mt-0_5">Download your commission statement from Inteletravel as a CSV file. If it opens in Excel, use Save As and choose CSV.</p>
+        </details>
+      </header>
+
+      <!-- RetryState: the shell's own read failed. -->
+      <div class="card mny-state" data-slot="retry">
+        <div class="card-content mny-state-body">
+          <span class="avatar mny-state-tile mny-state-tile-error" aria-hidden="true"><svg class="icon mny-icon-26" aria-hidden="true"><use href="/assets/icons.svg#warning"></use></svg></span>
+          <h2 class="type-h5 text-error">That didn’t load</h2>
+          <p class="type-body2 text-secondary mny-mt-1">Something went wrong on our side, not yours. Trying again usually sorts it.</p>
+          <div class="mny-state-actions">
+            <a class="btn btn-contained st-btn" href="/agent/commission/import" data-slot="retry-again">Try again</a>
+            <a class="btn btn-outlined st-btn" href="mailto:hello@story-tail.com?subject=Something%20went%20wrong"><svg class="icon icon-14" aria-hidden="true"><use href="/assets/icons.svg#message"></use></svg> Message Gyasi</a>
+          </div>
+        </div>
+      </div>
+
+      <div data-slot="content">
+        <div class="mny-steps">
+          <section class="card">
+            <div class="card-content mny-card-18">
+              <h2 class="type-subtitle1 fw-600 mny-card-title">Step 1 · Upload</h2>
+              <form method="post" action="/agent/commission/import" enctype="multipart/form-data" data-slot="upload-form" data-submit-once>
+                <label class="mny-drop" for="statement-file">
+                  <span class="mny-drop-icon" aria-hidden="true"><svg class="icon mny-icon-32"><use href="/assets/icons.svg#upload"></use></svg></span>
+                  <span class="type-subtitle1 fw-600 mny-block mny-mt-1">Choose your statement</span>
+                  <span class="type-caption text-secondary mny-block">Inteletravel statement · CSV · up to 512 KB</span>
+                  <input class="mny-file" id="statement-file" name="file" type="file" accept=".csv,text/csv" required>
+                </label>
+
+                <div class="alert alert-error mny-mt-1" role="alert" data-slot="upload-error">
+                  <div class="alert-message"><span data-slot="upload-error-text">The upload didn’t come through. Try again in a moment.</span> <a class="link" href="/agent/commission/import/sample" data-slot="upload-duplicate">Open that statement</a></div>
+                </div>
+
+                <button type="submit" class="btn btn-contained st-btn btn-block mny-mt-1" data-pending-label="Uploading…">Upload statement</button>
+              </form>
+            </div>
+          </section>
+
+          <section class="card">
+            <div class="card-content mny-card-18">
+              <h2 class="type-subtitle1 fw-600 mny-card-title">Step 2 · Map columns</h2>
+              <p class="type-body2 text-secondary mny-mt-1">Upload a statement and its columns show up here.</p>
+            </div>
+          </section>
+        </div>
+
+        <section class="card mny-past">
+          <div class="card-content mny-card-18">
+            <h2 class="type-subtitle1 fw-600 mny-card-title">Past statements</h2>
+            <p class="type-body2 text-secondary" data-slot="past-empty">No statements yet. Your first one will show up here.</p>
+            <p class="type-body2 text-secondary" data-slot="past-failed">Something went wrong on our side, not yours. Trying again usually sorts it.</p>
+            <ul class="mny-past-list" aria-label="Past statements" data-slot="past-list">
+              <li data-repeat="past">
+                <a class="mny-past-row" href="/agent/commission/import/sample" data-slot="past-link">
+                  <span class="mny-past-text">
+                    <span class="type-body2 fw-600 mny-block" data-slot="past-label">April 2026 statement</span>
+                    <span class="type-caption text-secondary mny-block" data-slot="past-meta">april.csv · 38 rows · May 2, 2026</span>
+                  </span>
+                  <span class="status-chip" data-slot="past-status">Ready to review</span>
+                </a>
+              </li>
+            </ul>
+          </div>
+        </section>
+      </div>
+    </div>
+  </div>
+</main>
+</body>
+</html>

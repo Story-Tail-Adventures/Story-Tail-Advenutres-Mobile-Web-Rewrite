@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<!--
+  Screen 3.7.2, Commission Ledger. Ports app/(agent)/agent/commission/ledger/page.tsx with
+  CommissionLedgerFilters, CommissionLedgerTable and RosterPagination. Filled by
+  internal/handlers/agent/money (ledger.go).
+
+  ONE ROW PER COMMISSION LINE, not per trip, and each row opens its LINE (§3.7.3) — the link
+  is the trip title in the row header, so the row's accessible name is the trip.
+
+  The filters are a GET form: a filtered ledger is shareable, the back button means what it
+  says, and it works with JavaScript off. NO `page` INPUT, on purpose — applying a filter
+  from page 3 would land past the end of the new result set. The `trip` parameter does ride
+  along as a hidden input, so narrowing a one-trip view does not quietly widen it.
+-->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Commission ledger · Story-Tail Adventures</title>
+</head>
+<body>
+<main>
+  <!-- AdminNoAccess: an admin has no desk here. -->
+  <div class="card mny-state" data-slot="no-access">
+    <div class="card-content mny-state-body">
+      <span class="avatar mny-state-tile" aria-hidden="true"><svg class="icon mny-icon-26" aria-hidden="true"><use href="/assets/icons.svg#shield"></use></svg></span>
+      <h2 class="type-h5">You don’t have access to this view</h2>
+      <p class="type-body2 text-secondary mny-mt-1">Your account is set up as an administrator. Story-Tail has no admin area yet, so there is nothing here for you — the traveler’s side and the advisor’s worklist are both somebody else’s desk.</p>
+      <form method="post" action="/account/sign-out">
+        <button type="submit" class="btn btn-outlined btn-secondary st-btn mny-mt-2">Sign out</button>
+      </form>
+    </div>
+  </div>
+
+  <div class="mny-col" data-slot="page">
+    <div data-slot="body">
+      <nav class="mny-views" aria-label="Commission views">
+        <a class="chip chip-outlined mny-view" href="/agent/commission"><span class="chip-label">Dashboard</span></a>
+        <a class="chip chip-secondary mny-view" href="/agent/commission/ledger" aria-current="page"><span class="chip-label">Ledger</span></a>
+        <a class="chip chip-outlined mny-view" href="/agent/commission/import"><span class="chip-label">Statements</span></a>
+        <a class="chip chip-outlined mny-view" href="/agent/commission/forecast"><span class="chip-label">Forecast</span></a>
+      </nav>
+
+      <header class="mny-head">
+        <div class="mny-head-text">
+          <h1 class="type-h5">Commission ledger</h1>
+          <p class="type-body2 text-secondary mny-sub">Every booking, every line.</p>
+        </div>
+        <div class="row wrap gap-1 shrink-0">
+          <a class="btn btn-contained btn-brand btn-small st-btn" href="/agent/commission/ledger/new" data-slot="add-line"><svg class="icon mny-icon-12" aria-hidden="true"><use href="/assets/icons.svg#plus"></use></svg> Add line</a>
+          <a class="btn btn-outlined btn-secondary btn-small st-btn" href="/agent/commission/ledger/export" data-slot="export"><svg class="icon mny-icon-12" aria-hidden="true"><use href="/assets/icons.svg#download"></use></svg> Export</a>
+        </div>
+      </header>
+
+      <!-- RetryState: a read failed. An empty ledger is a table with no rows, not this. -->
+      <div class="card mny-state" data-slot="retry">
+        <div class="card-content mny-state-body">
+          <span class="avatar mny-state-tile mny-state-tile-error" aria-hidden="true"><svg class="icon mny-icon-26" aria-hidden="true"><use href="/assets/icons.svg#warning"></use></svg></span>
+          <h2 class="type-h5 text-error">That didn’t load</h2>
+          <p class="type-body2 text-secondary mny-mt-1">Something went wrong on our side, not yours. Trying again usually sorts it.</p>
+          <div class="mny-state-actions">
+            <a class="btn btn-contained st-btn" href="/agent/commission/ledger" data-slot="retry-again">Try again</a>
+            <a class="btn btn-outlined st-btn" href="mailto:hello@story-tail.com?subject=Something%20went%20wrong"><svg class="icon icon-14" aria-hidden="true"><use href="/assets/icons.svg#message"></use></svg> Message Gyasi</a>
+          </div>
+        </div>
+      </div>
+
+      <div data-slot="content">
+      <!-- The one-trip view's chip, with its own way back to every trip. -->
+      <div class="row wrap items-baseline gap-1 mny-trip-chip" data-slot="trip-chip">
+        <span class="chip chip-secondary"><span class="chip-label" data-slot="trip-chip-label">One trip: Kyoto in the spring</span></span>
+        <a class="link link-hover type-body2" href="/agent/commission/ledger" data-slot="trip-chip-clear">Show every trip</a>
+      </div>
+
+      <form class="mny-filters" method="get" action="/agent/commission/ledger" data-slot="filter-form">
+        <input type="hidden" name="trip" value="" data-slot="filter-trip">
+        <fieldset class="mny-chips">
+          <legend class="visually-hidden">Status</legend>
+          <label class="chip chip-outlined chip-input" data-repeat="status"><span class="chip-label"><input class="visually-hidden" type="checkbox" name="status" value="expected" data-slot="status-input"><span data-slot="status-label">Expected</span><span class="mny-chip-count" data-slot="status-count">5</span></span></label>
+        </fieldset>
+        <div class="row wrap gap-1 mny-filter-row">
+          <div class="field mny-field">
+            <label class="field-label" for="ledger-supplier">Supplier</label>
+            <div class="select mny-select">
+              <select class="input mny-input-40" id="ledger-supplier" name="supplier" data-slot="supplier-select">
+                <option value="">All suppliers</option>
+                <option value="sample" data-repeat="suppliers" data-slot="supplier-option">Sandals Resorts (17)</option>
+              </select>
+            </div>
+          </div>
+          <div class="field mny-field">
+            <label class="field-label" for="ledger-from">Travel from</label>
+            <input class="input mny-input-40" id="ledger-from" type="date" name="from" value="" data-slot="ledger-from">
+          </div>
+          <div class="field mny-field">
+            <label class="field-label" for="ledger-to">Travel to</label>
+            <input class="input mny-input-40" id="ledger-to" type="date" name="to" value="" data-slot="ledger-to">
+          </div>
+          <button type="submit" class="btn btn-outlined btn-secondary btn-small st-btn">Apply</button>
+          <a class="btn btn-text btn-small st-btn" href="/agent/commission/ledger" data-slot="clear-filters">Clear filters</a>
+        </div>
+      </form>
+
+      <div class="card mny-state" data-slot="empty">
+        <div class="card-content mny-state-body">
+          <span class="avatar mny-state-tile" aria-hidden="true"><svg class="icon mny-icon-26" aria-hidden="true"><use href="/assets/icons.svg#receipt"></use></svg></span>
+          <h2 class="type-h5" data-slot="empty-title">No commission lines yet</h2>
+          <p class="type-body2 text-secondary mny-mt-1" data-slot="empty-body">Use Add line to enter one, or import a statement from Inteletravel.</p>
+        </div>
+      </div>
+
+      <div class="card mny-table-card" data-slot="table">
+        <table class="table table-small table-hover" aria-label="Commission lines">
+          <thead>
+            <tr>
+              <th scope="col">Trip · client</th>
+              <th scope="col">Supplier</th>
+              <th scope="col">Travel</th>
+              <th scope="col" class="cell-num">Gross</th>
+              <th scope="col" class="cell-num">Rate</th>
+              <th scope="col" class="cell-num">Comm</th>
+              <th scope="col">Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr data-repeat="line">
+              <th scope="row" class="mny-cell-trip">
+                <a class="link link-hover link-inherit mny-block" href="/agent/commission/ledger/sample" data-slot="line-link">
+                  <span class="type-body2 fw-500 truncate mny-block" title="Getaway #2" data-slot="line-title">Getaway #2</span>
+                  <span class="visually-hidden" data-slot="line-supplier-sr"> · Sandals Resorts</span>
+                </a>
+                <span class="type-caption text-secondary truncate mny-block" data-slot="line-meta">Noah Castillo</span>
+              </th>
+              <td class="mny-td-muted" data-slot="line-supplier">Sandals Resorts</td>
+              <td class="mny-td-travel" data-slot="line-travel">Jun 29, 2026</td>
+              <td class="cell-num mny-td-mono" data-slot="line-gross">$2,700</td>
+              <td class="cell-num mny-td-muted" data-slot="line-rate">12%</td>
+              <td class="cell-num mny-td-comm" data-slot="line-comm">$324</td>
+              <td><span class="status-chip" data-slot="line-status">Received</span></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <nav class="mny-pager" aria-label="Ledger pages" data-slot="pager">
+        <p class="type-body2 text-secondary" data-slot="pager-range">1–25 of 27</p>
+        <span class="row gap-1">
+          <a class="btn btn-outlined btn-small st-btn" href="/agent/commission/ledger?page=1" data-slot="pager-prev">Previous</a>
+          <span class="btn btn-outlined btn-small st-btn" aria-disabled="true" data-slot="pager-prev-off">Previous</span>
+          <a class="btn btn-outlined btn-small st-btn" href="/agent/commission/ledger?page=2" data-slot="pager-next">Next</a>
+          <span class="btn btn-outlined btn-small st-btn" aria-disabled="true" data-slot="pager-next-off">Next</span>
+        </span>
+      </nav>
+      </div>
+    </div>
+  </div>
+</main>
+</body>
+</html>

@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<!--
+  Screen 3.7.3, Commission Detail / Edit. Ports
+  app/(agent)/agent/commission/ledger/[commissionId]/page.tsx with CommissionLineForm,
+  CommissionPaymentForm and CommissionRemoveButton. Filled by
+  internal/handlers/agent/money (line.go).
+
+  §4.4 Pattern C: the record on the left, its actions on the right, as A373 draws it.
+
+  TWO FORMS, KEPT APART. The left one says what was booked and what is owed; "Mark received"
+  says what arrived, and is the ONLY way this line reaches received or disputed. They post to
+  the same URL with different `op` values, because a browser form posts to one place.
+
+  EXPECTED IS NOT A FIELD. The artboard draws it as an input; here it is a read-out of
+  gross × rate, because the server computes the stored figure itself and refuses one that
+  disagrees. An editable box whose value is thrown away would be a lie about what saving does.
+
+  REMOVE IS A <details>, NOT A DIALOG: the confirmation has to work with no script at all,
+  and a disclosure is two deliberate clicks either way.
+-->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Commission line · Story-Tail Adventures</title>
+</head>
+<body>
+<main>
+  <!-- AdminNoAccess: an admin has no desk here. -->
+  <div class="card mny-state" data-slot="no-access">
+    <div class="card-content mny-state-body">
+      <span class="avatar mny-state-tile" aria-hidden="true"><svg class="icon mny-icon-26" aria-hidden="true"><use href="/assets/icons.svg#shield"></use></svg></span>
+      <h2 class="type-h5">You don’t have access to this view</h2>
+      <p class="type-body2 text-secondary mny-mt-1">Your account is set up as an administrator. Story-Tail has no admin area yet, so there is nothing here for you — the traveler’s side and the advisor’s worklist are both somebody else’s desk.</p>
+      <form method="post" action="/account/sign-out">
+        <button type="submit" class="btn btn-outlined btn-secondary st-btn mny-mt-2">Sign out</button>
+      </form>
+    </div>
+  </div>
+
+  <div class="mny-col" data-slot="page">
+    <div data-slot="body">
+      <nav class="mny-views" aria-label="Commission views">
+        <a class="chip chip-outlined mny-view" href="/agent/commission"><span class="chip-label">Dashboard</span></a>
+        <a class="chip chip-secondary mny-view" href="/agent/commission/ledger"><span class="chip-label">Ledger</span></a>
+        <a class="chip chip-outlined mny-view" href="/agent/commission/import"><span class="chip-label">Statements</span></a>
+        <a class="chip chip-outlined mny-view" href="/agent/commission/forecast"><span class="chip-label">Forecast</span></a>
+      </nav>
+
+      <a class="link link-hover type-body2 mny-back" href="/agent/commission/ledger"><svg class="icon mny-icon-12" aria-hidden="true"><use href="/assets/icons.svg#arrow_left"></use></svg> Back to ledger</a>
+
+      <!-- RetryState: a read failed. Nothing of the record is drawn beside it. -->
+      <div class="card mny-state" data-slot="retry">
+        <div class="card-content mny-state-body">
+          <span class="avatar mny-state-tile mny-state-tile-error" aria-hidden="true"><svg class="icon mny-icon-26" aria-hidden="true"><use href="/assets/icons.svg#warning"></use></svg></span>
+          <h2 class="type-h5 text-error">That didn’t load</h2>
+          <p class="type-body2 text-secondary mny-mt-1">Something went wrong on our side, not yours. Trying again usually sorts it.</p>
+          <div class="mny-state-actions">
+            <a class="btn btn-contained st-btn" href="/agent/commission/ledger" data-slot="retry-again">Try again</a>
+            <a class="btn btn-outlined st-btn" href="mailto:hello@story-tail.com?subject=Something%20went%20wrong"><svg class="icon icon-14" aria-hidden="true"><use href="/assets/icons.svg#message"></use></svg> Message Gyasi</a>
+          </div>
+        </div>
+      </div>
+
+      <div data-slot="content">
+        <!-- "Not yours", "removed" and "never existed" are deliberately one answer. -->
+        <div class="card mny-state" data-slot="not-found">
+          <div class="card-content mny-state-body">
+            <span class="avatar mny-state-tile" aria-hidden="true"><svg class="icon mny-icon-26" aria-hidden="true"><use href="/assets/icons.svg#receipt"></use></svg></span>
+            <h2 class="type-h5">That line isn't on your ledger</h2>
+            <p class="type-body2 text-secondary mny-mt-1">It may have been removed, or the link is to a line that isn't yours.</p>
+            <div class="mny-state-actions">
+              <a class="btn btn-contained st-btn" href="/agent/commission/ledger">Back to ledger</a>
+            </div>
+          </div>
+        </div>
+
+        <div data-slot="detail">
+          <header class="mny-line-head">
+            <div class="row wrap items-baseline gap-1">
+              <h1 class="type-h5 mny-line-title" data-slot="heading">Sandals Resorts · Kyoto in the spring · $1,368 expected</h1>
+              <span class="status-chip" data-slot="status-chip">Expected</span>
+            </div>
+            <p class="type-body2 text-secondary mny-sub"><span data-slot="client-name">The Rodriguez family</span> · <a class="link link-hover" href="/agent/trips/sample" data-slot="trip-link">Open trip</a><span data-slot="trip-archived">This trip is archived. Its commission line stays on the record.</span></p>
+          </header>
+
+          <div class="mny-line-grid">
+            <section class="card">
+              <div class="card-content mny-card-18">
+                <form method="post" action="/agent/commission/ledger/sample" data-slot="line-form" data-submit-once>
+                  <input type="hidden" name="op" value="update">
+                  <input type="hidden" name="commissionId" value="" data-slot="line-id">
+                  <input type="hidden" name="tripId" value="" data-slot="line-trip-id">
+                  <input type="hidden" name="version" value="1" data-slot="line-version">
+
+                  <div class="alert alert-error mny-mb-1" role="alert" data-slot="form-error"><div class="alert-message" data-slot="form-error-text">That didn’t save. Try again in a moment.</div></div>
+
+                  <!-- Moving a paid line back to an unpaid status wipes its payment. The
+                       server refuses unless told to, and the box is REQUIRED, so the browser
+                       will not submit without the advisor saying yes. -->
+                  <div class="mny-mb-1" data-slot="clears-payment">
+                    <div class="alert alert-warning" role="alert"><div class="alert-message">Changing the status clears the payment recorded on this line.</div></div>
+                    <label class="check mny-mt-0_5"><input class="check-input" type="checkbox" name="clearPayment" value="true" required> Yes, clear the recorded payment</label>
+                  </div>
+
+                  <div class="alert alert-info mny-mb-1" data-slot="no-suppliers"><div class="alert-message">No suppliers on file yet. A line needs one to attach to.</div></div>
+
+                  <div class="mny-form-grid">
+                    <div class="field mny-field mny-span-2">
+                      <label class="field-label" for="line-supplier">Supplier</label>
+                      <div class="select mny-select">
+                        <select class="input mny-input-40" id="line-supplier" name="supplierId" required data-slot="supplier-select">
+                          <option value="">Pick a supplier</option>
+                          <option value="sample" data-repeat="supplier-pick" data-slot="supplier-pick">Sandals Resorts</option>
+                        </select>
+                      </div>
+                      <p class="field-error" id="supplier-error" data-slot="supplier-error">Pick a supplier.</p>
+                    </div>
+
+                    <div class="field mny-field">
+                      <label class="field-label" for="line-gross">Gross booking</label>
+                      <div class="mny-adorned">
+                        <span class="mny-adorn" aria-hidden="true">$</span>
+                        <input class="input mny-input-40 type-mono mny-adorned-input" id="line-gross" name="gross" inputmode="decimal" autocomplete="off" placeholder="0.00" value="" data-slot="gross-value">
+                      </div>
+                      <p class="field-help" id="gross-hint" data-slot="gross-hint">The booking total the rate applies to.</p>
+                      <p class="field-error" id="gross-error" data-slot="gross-error">Enter an amount like 6480.00.</p>
+                    </div>
+
+                    <div class="field mny-field">
+                      <label class="field-label" for="line-rate">Commission rate</label>
+                      <div class="mny-adorned mny-adorned-end">
+                        <input class="input mny-input-40 mny-adorned-input" id="line-rate" name="rate" inputmode="decimal" autocomplete="off" value="" data-slot="rate-value">
+                        <span class="mny-adorn" aria-hidden="true">%</span>
+                      </div>
+                      <p class="field-help" id="rate-hint" data-slot="rate-hint">A percent, 0 to 100.</p>
+                      <p class="field-error" id="rate-error" data-slot="rate-error">Enter a rate from 0 to 100.</p>
+                    </div>
+
+                    <!-- A read-out, not an input. aria-live is off: it is the same number the
+                         figures beside it already say, and it must not re-announce per keystroke. -->
+                    <div class="field mny-field">
+                      <span class="field-label text-secondary" id="line-expected-label">Expected</span>
+                      <output class="mny-expected" for="line-gross line-rate" aria-labelledby="line-expected-label" aria-live="off" data-slot="expected-readout">$1,368.00</output>
+                      <p class="field-help">Gross × rate. Worked out again when you save.</p>
+                    </div>
+
+                    <div class="mny-span-2 mny-terms-row">
+                      <div class="field mny-field">
+                        <label class="field-label" for="line-terms">Paid</label>
+                        <div class="select mny-select">
+                          <select class="input mny-input-40" id="line-terms" name="paymentTerms">
+                            <option value="after_travel" data-slot="terms-after-travel">After travel</option>
+                            <option value="at_booking" data-slot="terms-at-booking">At booking</option>
+                          </select>
+                        </div>
+                      </div>
+                      <div class="field mny-field">
+                        <label class="field-label" for="line-lag">Days after</label>
+                        <input class="input mny-input-40" id="line-lag" name="paymentLagDays" inputmode="numeric" autocomplete="off" required value="60" data-slot="lag-value">
+                        <p class="field-help" id="lag-hint" data-slot="lag-hint">Whole days, 0 to 365.</p>
+                        <p class="field-error" id="lag-error" data-slot="lag-error">Enter whole days, 0 to 365.</p>
+                      </div>
+                    </div>
+
+                    <div class="field mny-field">
+                      <label class="field-label" for="line-status">Status</label>
+                      <div class="select mny-select">
+                        <select class="input mny-input-40" id="line-status" name="status">
+                          <option value="expected" data-repeat="status-pick" data-slot="status-pick">Expected</option>
+                        </select>
+                      </div>
+                      <p class="field-help">Received and Disputed are set with Mark received.</p>
+                    </div>
+
+                    <div class="field mny-field">
+                      <label class="field-label" for="line-reference">Inteletravel reference</label>
+                      <input class="input mny-input-40" id="line-reference" name="inteletravelReference" maxlength="64" autocomplete="off" value="" data-slot="reference-value">
+                      <p class="field-help">From the statement, once there is one. A line with one can't be removed.</p>
+                      <p class="field-error" id="reference-error" data-slot="reference-error">That reference is already on another line.</p>
+                    </div>
+
+                    <div class="field mny-field mny-span-2">
+                      <label class="field-label" for="line-notes">Notes</label>
+                      <textarea class="input mny-textarea" id="line-notes" name="notes" rows="3" maxlength="4000" data-slot="notes-value"></textarea>
+                    </div>
+                  </div>
+
+                  <div class="row wrap items-baseline gap-1 mny-mt-2">
+                    <button type="submit" class="btn btn-contained btn-brand st-btn" data-pending-label="Saving…">Save line</button>
+                    <a class="btn btn-outlined btn-secondary st-btn" href="/agent/commission/ledger">Cancel</a>
+                  </div>
+                </form>
+              </div>
+            </section>
+
+            <aside class="mny-line-aside">
+              <section class="card">
+                <div class="card-content mny-card-16">
+                  <h2 class="type-subtitle1 fw-600 mny-card-title">Mark received</h2>
+                  <p class="type-body2 text-secondary mny-mb-1" data-slot="paid-line">Received $1,190.00 on Feb 21, 2027, after a $12.00 fee.</p>
+
+                  <form method="post" action="/agent/commission/ledger/sample" data-slot="pay-form" data-submit-once>
+                    <input type="hidden" name="op" value="payment">
+                    <input type="hidden" name="commissionId" value="" data-slot="pay-id">
+                    <input type="hidden" name="tripId" value="" data-slot="pay-trip-id">
+                    <input type="hidden" name="version" value="1" data-slot="pay-version">
+
+                    <div class="alert alert-error mny-mb-1" role="alert" data-slot="pay-error"><div class="alert-message" data-slot="pay-error-text">That didn’t save. Try again in a moment.</div></div>
+
+                    <div class="field mny-field">
+                      <label class="field-label" for="pay-received">Amount received</label>
+                      <div class="mny-adorned">
+                        <span class="mny-adorn" aria-hidden="true">$</span>
+                        <input class="input mny-input-40 type-mono mny-adorned-input" id="pay-received" name="received" inputmode="decimal" autocomplete="off" placeholder="0.00" value="" data-slot="pay-received">
+                      </div>
+                      <p class="field-error" id="pay-received-error" data-slot="pay-received-error">Enter an amount like 970.00.</p>
+                    </div>
+
+                    <div class="field mny-field">
+                      <label class="field-label" for="pay-fee">Processing fee</label>
+                      <div class="mny-adorned">
+                        <span class="mny-adorn" aria-hidden="true">$</span>
+                        <input class="input mny-input-40 type-mono mny-adorned-input" id="pay-fee" name="fee" inputmode="decimal" autocomplete="off" placeholder="0.00" value="0.00" data-slot="pay-fee">
+                      </div>
+                      <p class="field-help" id="pay-fee-hint" data-slot="pay-fee-hint">What Inteletravel kept, if anything.</p>
+                      <p class="field-error" id="pay-fee-error" data-slot="pay-fee-error">Enter an amount like 970.00.</p>
+                    </div>
+
+                    <!-- The live region is always here; only its words change. A region
+                         inserted with its content already in it is not reliably announced. -->
+                    <p class="type-body2 mny-gap" role="status" data-expected="0" data-slot="pay-gap">Matches expected, once the fee is taken out.</p>
+
+                    <div class="field mny-field">
+                      <label class="field-label" for="pay-received-at">Received on</label>
+                      <input class="input mny-input-40" id="pay-received-at" type="date" name="receivedAt" required value="" max="" data-slot="pay-received-at">
+                      <p class="field-error" id="pay-received-at-error" data-slot="pay-received-at-error">Use today or an earlier date.</p>
+                    </div>
+
+                    <fieldset class="mny-radios">
+                      <legend class="field-label">Record as</legend>
+                      <label class="check"><input class="check-input" id="pay-status-received" type="radio" name="status" value="received" data-slot="pay-status-received"> Received</label>
+                      <label class="check"><input class="check-input" id="pay-status-disputed" type="radio" name="status" value="disputed" data-slot="pay-status-disputed"> Disputed</label>
+                    </fieldset>
+
+                    <button type="submit" class="btn btn-contained st-btn btn-block mny-mt-1" data-pending-label="Saving…">Save payment</button>
+                  </form>
+                </div>
+              </section>
+
+              <!-- Disabled with its reason beside it, rather than hidden: the advisor should
+                   know the button is coming and why it is not here yet. -->
+              <div>
+                <button type="button" class="btn btn-outlined btn-secondary st-btn btn-block" disabled aria-describedby="link-inteletravel-reason"><svg class="icon mny-icon-12" aria-hidden="true"><use href="/assets/icons.svg#link"></use></svg> Link Inteletravel row</button>
+                <p class="type-caption text-secondary mny-mt-0_5" id="link-inteletravel-reason">Matching a line to a statement row arrives with §3.7.6.</p>
+              </div>
+
+              <div class="paper mny-expectation">
+                <h2 class="type-subtitle1 fw-600 mny-card-title">Payment expectation</h2>
+                <p class="type-caption mny-block"><span data-slot="terms-line">Sandals Resorts · paid 60 days after travel</span>. <span data-slot="expectation-line">Expected around Oct 18, 2026.</span></p>
+              </div>
+
+              <details class="mny-remove" data-slot="remove">
+                <summary class="mny-remove-summary">Remove line</summary>
+                <p class="type-body2 text-secondary mny-mt-1">For a line entered by mistake. It leaves the ledger and your totals, and you can't bring it back from here. A record that it existed is kept.</p>
+                <div class="alert alert-error mny-mt-1" role="alert" data-slot="remove-error"><div class="alert-message" data-slot="remove-error-text">That line couldn’t be removed. It may have changed since you opened it.</div></div>
+                <form method="post" action="/agent/commission/ledger/sample" class="row wrap gap-1 justify-end mny-mt-1" data-slot="remove-form" data-submit-once>
+                  <input type="hidden" name="op" value="remove">
+                  <input type="hidden" name="commissionId" value="" data-slot="remove-id">
+                  <input type="hidden" name="tripId" value="" data-slot="remove-trip-id">
+                  <input type="hidden" name="version" value="1" data-slot="remove-version">
+                  <button type="submit" class="btn btn-contained btn-error st-btn" data-pending-label="Saving…">Remove</button>
+                </form>
+              </details>
+              <p class="type-caption text-secondary" data-slot="remove-not-allowed">Only a line that was never invoiced or given an Inteletravel reference can be removed. You can still edit this one.</p>
+            </aside>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <script type="module" src="/assets/js/agent/money/line-form.js"></script>
+</main>
+</body>
+</html>

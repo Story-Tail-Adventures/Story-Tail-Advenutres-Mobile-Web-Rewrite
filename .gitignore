@@ -138,3 +138,7 @@ __pycache__/
 /.design-sync/.cache/
 /.design-sync/previews/
 /.design-sync/fonts/
+
+# `go build ./cmd/server` from web/ drops a ~28MB binary here. CI builds to /dev/null, but a
+# local build does not, and nothing else in the repo is named like a stray binary.
+web/server

@@ -1,0 +1,203 @@
+/* Story-Tail Adventures — the public area's forms: the guest message form (2.0.12), the
+ * sign-up gate (2.0.6) and the email unsubscribe page.
+ *
+ * A second stylesheet for the same area, not a second area: the public layouts link it after
+ * public.css, so it may use every token, theme variable and ui.css class, and its rules win
+ * over public.css's at equal specificity. It is split out so the form pages and the marketing
+ * pages can be worked on at the same time without editing one file from two places.
+ *
+ * No inline styles anywhere (the CSP is style-src 'self'), and internal/static/classes_test.go
+ * fails on any class a page uses that no stylesheet defines.
+ *
+ * Every rule below is the sx of app/(public)/(plain)/{join,message,email/unsubscribe} or of a
+ * components/ui part they use, written against the same theme variables. Spacing is MUI's 8px
+ * scale (1.75 = 14px); breakpoints are the theme's: md 768, web 1200.
+ */
+
+@layer components {
+  /* ── The gate card (2.0.6's Pattern J, which 2.0.12 borrows) ──────────────────────────────
+     Below md the card is the whole screen (M206); from md the backdrop centres it (C206).
+     The backdrop's glow is a gradient, not one palette colour, so it is drawn from the
+     theme's channel variables and switches with .scheme-dark like everything else. */
+  .gate-backdrop {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    background:
+      radial-gradient(circle at 50% 25%, rgba(var(--mui-palette-primary-mainChannel) / 0.18), transparent 60%),
+      var(--mui-palette-background-default);
+  }
+
+  .gate-card {
+    display: flex;
+    width: 100%;
+    flex: 1;
+    flex-direction: column;
+    padding: 18px 18px 22px;
+    background-color: transparent;
+    border-radius: 0;
+  }
+
+  @media (min-width: 768px) {
+    .gate-backdrop {
+      align-items: center;
+      justify-content: center;
+      padding: 32px;
+    }
+    .gate-card {
+      max-width: 520px;
+      flex: none;
+      padding: 28px;
+      background-color: var(--mui-palette-surface-1);
+      box-shadow: var(--mui-shadows-4);
+      border-radius: 4px;
+    }
+  }
+
+  /* The headline's 24 / 26 / 28 ramp on MUI's h4. */
+  .gate-title {
+    margin-top: 4px;
+    margin-bottom: 4px;
+    font-weight: 700;
+    font-size: 24px;
+  }
+  .gate-lead { margin-bottom: 14px; }
+  /* With an "About:" line under it the lead paragraph tightens up. */
+  .gate-lead-about { margin-bottom: 8px; }
+  .gate-about { margin-bottom: 14px; }
+
+  @media (min-width: 768px) {
+    .gate-title { margin-bottom: 6px; font-size: 26px; }
+    .gate-lead { margin-bottom: 16px; }
+    .gate-lead-about { margin-bottom: 8px; }
+    .gate-about { margin-bottom: 16px; }
+  }
+  @media (min-width: 1200px) {
+    .gate-title { font-size: 28px; }
+  }
+
+  /* ── The gate's bullets (2.0.6) ─────────────────────────────────────────────────────────── */
+  .gate-bullets {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin: 0 0 14px;
+    padding: 0;
+    list-style: none;
+  }
+  .gate-bullet {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-weight: 500;
+  }
+  .gate-bullet-glyph {
+    display: inline-flex;
+    flex-shrink: 0;
+    color: var(--mui-palette-success-main);
+  }
+  /* The tick is drawn heavier than the other icons (Icon strokeWidth 2.5). */
+  .gate-check { stroke-width: 2.5; }
+
+  @media (min-width: 768px) {
+    .gate-bullets { gap: 8px; }
+    .gate-bullet { gap: 10px; }
+  }
+
+  /* ── The form inside the card ───────────────────────────────────────────────────────────── */
+  .gate-form { display: flex; flex-direction: column; }
+  .gate-alert { margin-bottom: 12px; }
+  .gate-alert-link { font-weight: 600; }
+  .gate-social { margin-bottom: 14px; }
+  .gate-divider { margin-top: 4px; margin-bottom: 12px; }
+
+  /* The fieldset is there to disable every control at once while the form posts; it must not
+     draw a box or change the layout, so it leaves no trace of itself. */
+  .gate-fields {
+    display: contents;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    min-width: 0;
+  }
+  .gate-pair {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 10px;
+  }
+  .gate-row { margin-top: 8px; }
+  /* MUI draws an OutlinedInput's border as an overlay (the notched fieldset), so it adds
+     nothing to the box; here the border is part of it. A textarea's height comes from its
+     rows rather than a minimum, so it is the one control where that shows: the padding gives
+     the two pixels back, and the text still starts 8.5px in from the outside. */
+  .gate-form textarea.input { padding-top: 7.5px; padding-bottom: 7.5px; }
+  .gate-terms { margin-top: 12px; }
+  /* FormControlLabel sx={{ mr: 0 }}: the label keeps the checkbox's negative left margin and
+     gives back the 16px MUI leaves on the right. */
+  .gate-terms-row { margin-right: 0; }
+  /* ui.css draws MUI's default checkbox (18px in a 42px hit area); the gate's is size="small",
+     whose box is 38. Four pixels, but they move the label and everything under it. */
+  .gate-terms-row .check-input { margin: 10px; }
+  .gate-terms-error { margin-left: 0; margin-right: 0; margin-top: 6px; }
+  .gate-privacy { margin-top: 12px; }
+  .gate-submit { margin-top: 14px; }
+
+  /* The links under the submit button: caption below md, subtitle2 from tablet up. The weight
+     sits on the links themselves, because a plain font-weight on the row would lose to the
+     font shorthand each width sets here. */
+  .gate-foot { margin-top: 12px; font: var(--mui-font-caption); }
+  .gate-foot-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+  .gate-foot-link {
+    display: inline-flex;
+    align-items: center;
+    font-weight: 500;
+  }
+  .gate-foot-link-right { text-align: right; }
+  /* MuiLink color="text.secondary" on a link: two classes, because ui.css defines .link
+     after .text-secondary and one class each would leave the link primary. */
+  .gate-foot-link.text-secondary,
+  .gate-privacy .link.text-secondary { color: var(--mui-palette-text-secondary); }
+
+  @media (min-width: 768px) {
+    .gate-foot { font: var(--mui-font-subtitle2); }
+  }
+
+  /* ── What the card says once it has been sent (the thank-you and check-your-inbox panels) ── */
+  .gate-sent { display: flex; flex-direction: column; }
+  .gate-sent-body { margin-top: 6px; }
+  .gate-sent-email { font-weight: 600; color: var(--mui-palette-text-primary); }
+  .gate-sent-link {
+    display: inline-flex;
+    align-items: center;
+    align-self: flex-start;
+    margin-top: 14px;
+    font: var(--mui-font-subtitle2);
+  }
+
+  /* ── The email unsubscribe page (§3.10 Stage 4) ─────────────────────────────────────────── */
+  .unsub-wrap {
+    display: flex;
+    flex: 1;
+    justify-content: center;
+    padding: 32px 16px;
+  }
+  .unsub-card {
+    width: 100%;
+    max-width: 520px;
+    padding: 24px;
+    align-self: flex-start;
+  }
+  .unsub-alert { margin-bottom: 16px; }
+  .unsub-body { margin-top: 12px; }
+  .unsub-actions { margin-top: 24px; }
+
+  @media (min-width: 768px) {
+    .unsub-wrap { padding-top: 64px; padding-bottom: 64px; }
+    .unsub-card { padding: 32px; }
+  }
+}
