@@ -85,13 +85,13 @@ env:
   # there later costs a restart and nothing else: Go reads SITE_URL at startup, so unlike
   # NEXT_PUBLIC_SITE_URL it is not baked into anything.
   #
-  # DERIVED, NOT OBSERVED. Render serves a web service at <service name>.onrender.com, and
-  # render.yaml names this one `storytail-web`. Render appends a suffix when that name is
-  # already taken globally, so the real URL may differ — confirm it against the service's own
-  # address the first time. A mismatch does not reach production: the required-variables step
-  # below compares this against SITE_URL on the service and fails BEFORE the deploy, and the
-  # smoke test reads the value back out of the running process afterwards.
-  SITE_ORIGIN: "https://storytail-web.onrender.com"
+  # OBSERVED, not derived: the address the service actually answers on, read off the dashboard
+  # on 2026-11-26. The service was created from the dashboard and took the REPOSITORY's name,
+  # not `storytail-web`, which is why this is not the host this file used to guess. A mismatch
+  # still cannot reach production: the required-variables step below compares this against
+  # SITE_URL on the service and fails BEFORE the deploy, and the smoke test reads the value
+  # back out of the running process afterwards.
+  SITE_ORIGIN: "https://story-tail-advenutres-mobile-web-rewrite.onrender.com"
 
   # Identify the service by its id, which is visible in the dashboard URL
   # (dashboard.render.com/web/srv-…) and is therefore checkable in a diff, on sight, without a
@@ -101,7 +101,7 @@ env:
   # version of this file learned over seven runs: an opaque id stored as a secret cannot be
   # read back, so a wrong one is indistinguishable from a right one and every attempt costs a
   # full run to test. The step below prints the service this id actually resolves to.
-  RENDER_SERVICE_ID: "REPLACE-ME"
+  RENDER_SERVICE_ID: "srv-dc48g6ijnfac73bs1lbg"
 
 jobs:
   render:
