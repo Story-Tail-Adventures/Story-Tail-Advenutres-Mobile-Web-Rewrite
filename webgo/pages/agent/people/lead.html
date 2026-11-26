@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<!--
+  Screen 3.8.2 Lead Detail, 3.8.3 Invite and 3.8.4 Close / Delete as spam (revived 2026-10-21,
+  BRD §6.5; Data-Model §11): app/(agent)/agent/leads/[leadId]/page.tsx and
+  components/agent/LeadActions.tsx. Copy word for word from LEAD_COPY.
+
+  Everything about one lead. No message thread: Reply opens the advisor's own email app and
+  the platform keeps no lead email (ruling 6).
+
+  Which buttons show is the state machine of Data-Model §11.1: New and Contacted can be
+  marked, invited, closed or deleted; Closed can be reopened, invited or deleted; a Client
+  offers only "Open client". Mark contacted and Reopen are one-button forms; Invite, Close and
+  Delete are links to ?confirm=<name> that ui.js opens as dialogs (dialogs.js reopens one the
+  server rendered open as a modal).
+-->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Lead · Story-Tail Adventures</title>
+</head>
+<body>
+<main>
+  <div class="ppl-page ppl-page-lead">
+    <a class="link link-hover ppl-back" href="/agent/leads"><svg class="icon ppl-icon-13" aria-hidden="true"><use href="/assets/icons.svg#arrow_left"></use></svg>All leads</a>
+
+    <header class="ppl-lead-header">
+      <h1 class="type-h5 ppl-flex1 ppl-anywhere" data-slot="name">Dana Reyes</h1>
+      <span class="status-chip status-lead" data-slot="status">New</span>
+    </header>
+
+    <div class="ppl-mb-2" data-slot="added"><div class="alert alert-info" role="alert" aria-live="polite"><div class="alert-message">That email already has an open lead, so the note was added to it.</div></div></div>
+
+    <div class="ppl-mb-1_5" data-slot="message"><div class="alert alert-error" role="alert" aria-live="polite" data-slot="message-box"><div class="alert-message" data-slot="message-text">That didn't save. Try again in a moment.</div></div></div>
+
+    <div class="ppl-lead-actions">
+      <a class="btn btn-contained btn-small" href="/agent/clients/sample" data-slot="open-client">Open client</a>
+      <a class="btn btn-contained btn-small" href="mailto:dana@example.com" data-slot="reply">Reply by email</a>
+      <form class="ppl-contents" method="post" action="/agent/leads/sample" data-submit-once data-slot="mark-form">
+        <input type="hidden" name="op" value="mark_contacted">
+        <button type="submit" class="btn btn-outlined btn-secondary st-btn btn-small">Mark contacted</button>
+      </form>
+      <a class="btn btn-outlined st-btn btn-small" href="/agent/leads/sample?confirm=invite" data-dialog-open="lead-dlg-invite" data-slot="invite">Invite to an account</a>
+      <a class="btn btn-outlined st-btn btn-small" href="/agent/leads/sample?confirm=close" data-dialog-open="lead-dlg-close" data-slot="close">Close</a>
+      <form class="ppl-contents" method="post" action="/agent/leads/sample" data-submit-once data-slot="reopen-form">
+        <input type="hidden" name="op" value="reopen">
+        <button type="submit" class="btn btn-outlined st-btn btn-small">Reopen</button>
+      </form>
+      <a class="btn btn-text st-btn btn-small" href="/agent/leads/sample?confirm=delete" data-dialog-open="lead-dlg-delete" data-slot="delete">Delete as spam</a>
+    </div>
+    <p class="type-caption text-secondary ppl-mt-1" data-slot="reply-hint">Opens your own email app. Story-Tail doesn't send or keep lead email.</p>
+
+    <section class="card ppl-lead-card">
+      <h2 class="type-subtitle1 fw-600 ppl-mb-1">Details</h2>
+      <dl class="ppl-lead-dl">
+        <div class="ppl-lead-dl-row" data-repeat="details">
+          <dt class="type-body2 text-secondary ppl-lead-dt" data-slot="d-label">Email</dt>
+          <dd class="type-body2 ppl-lead-dd" data-slot="d-value">dana@example.com</dd>
+        </div>
+      </dl>
+    </section>
+
+    <section class="card ppl-lead-card">
+      <h2 class="type-subtitle1 fw-600 ppl-mb-1">What they wrote</h2>
+      <div class="ppl-lead-notes">
+        <article data-repeat="notes">
+          <p class="type-caption text-secondary" data-slot="n-meta">Oct 21 · Sent from the trip page</p>
+          <p class="type-subtitle2 ppl-mt-0_25" data-slot="n-about">About: Seven nights in Lisbon</p>
+          <p class="type-body1 ppl-mt-0_5 ppl-prewrap" data-slot="n-body">June works.</p>
+        </article>
+      </div>
+    </section>
+
+    <dialog class="dialog ppl-dialog" tabindex="-1" id="lead-dlg-invite" aria-label="Invite to an account" data-slot="dlg-invite">
+      <form class="ppl-dialog-body" method="post" action="/agent/leads/sample" data-submit-once data-slot="invite-form">
+        <input type="hidden" name="op" value="invite">
+        <h2 class="type-h5">Invite to an account</h2>
+        <p class="type-body2 text-secondary ppl-mt-1">This creates their client record and emails them an invitation to set up an account. The lead is then marked as a client.</p>
+        <div class="ppl-lead-grid ppl-mt-1_5">
+          <div class="field">
+            <label class="field-label" for="invite-first">First name</label>
+            <input class="input" id="invite-first" name="firstName" required data-slot="invite-first">
+          </div>
+          <div class="field">
+            <label class="field-label" for="invite-last">Last name</label>
+            <input class="input" id="invite-last" name="lastName" required aria-describedby="invite-last-hint" data-slot="invite-last">
+            <p class="field-help" id="invite-last-hint">A client record needs a last name.</p>
+          </div>
+        </div>
+        <div class="field ppl-mt-1">
+          <label class="field-label" for="invite-email">Email</label>
+          <input class="input" id="invite-email" name="email" type="email" required data-slot="invite-email">
+        </div>
+        <div class="ppl-mt-1_5" data-slot="invite-error"><div class="alert alert-error" role="alert" aria-live="polite"><div class="alert-message" data-slot="invite-error-text">That didn't save. Try again in a moment.</div></div></div>
+        <div class="ppl-lead-dialog-actions">
+          <a class="btn btn-text st-btn btn-small" href="/agent/leads/sample" data-dialog-close data-slot="invite-cancel">Cancel</a>
+          <button type="submit" class="btn btn-contained st-btn btn-small">Send invite</button>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog class="dialog ppl-dialog" tabindex="-1" id="lead-dlg-close" aria-label="Close this lead" data-slot="dlg-close">
+      <form class="ppl-dialog-body" method="post" action="/agent/leads/sample" data-submit-once data-slot="close-form">
+        <input type="hidden" name="op" value="close">
+        <h2 class="type-h5">Close this lead</h2>
+        <p class="type-body2 text-secondary ppl-mt-1">They won't see this. A closed lead is deleted automatically 24 months after it closes.</p>
+        <p class="type-caption text-secondary ppl-block ppl-mt-1_5" id="close-reason-label">Why</p>
+        <div class="ppl-lead-radios" role="radiogroup" aria-labelledby="close-reason-label">
+          <label class="check ppl-lead-check" data-repeat="reasons"><input class="check-input ppl-merge-radio" type="radio" name="reason" value="no_reply" data-slot="r-input"><span class="type-body1" data-slot="r-label">No reply</span></label>
+        </div>
+        <div class="field ppl-mt-1">
+          <label class="field-label" for="close-note">Private note (optional)</label>
+          <textarea class="input" id="close-note" name="note" rows="2" maxlength="500" data-slot="close-note"></textarea>
+        </div>
+        <div class="ppl-mt-1_5" data-slot="close-error"><div class="alert alert-error" role="alert" aria-live="polite"><div class="alert-message" data-slot="close-error-text">That didn't save. Try again in a moment.</div></div></div>
+        <div class="ppl-lead-dialog-actions">
+          <a class="btn btn-text st-btn btn-small" href="/agent/leads/sample" data-dialog-close data-slot="close-cancel">Cancel</a>
+          <button type="submit" class="btn btn-contained st-btn btn-small">Close lead</button>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog class="dialog ppl-dialog" tabindex="-1" id="lead-dlg-delete" aria-label="Delete as spam?" data-slot="dlg-delete">
+      <form class="ppl-dialog-body" method="post" action="/agent/leads/sample" data-submit-once data-slot="delete-form">
+        <input type="hidden" name="op" value="delete_spam">
+        <h2 class="type-h5">Delete as spam?</h2>
+        <p class="type-body2 text-secondary ppl-mt-1">This removes the lead and everything they wrote, and cannot be undone.</p>
+        <div class="ppl-mt-1_5" data-slot="delete-error"><div class="alert alert-error" role="alert" aria-live="polite"><div class="alert-message" data-slot="delete-error-text">That didn't save. Try again in a moment.</div></div></div>
+        <div class="ppl-lead-dialog-actions">
+          <a class="btn btn-text st-btn btn-small" href="/agent/leads/sample" data-dialog-close data-slot="delete-cancel">Cancel</a>
+          <button type="submit" class="btn btn-contained btn-error st-btn btn-small">Delete</button>
+        </div>
+      </form>
+    </dialog>
+  </div>
+  <script type="module" src="/assets/js/agent/people/dialogs.js"></script>
+</main>
+</body>
+</html>

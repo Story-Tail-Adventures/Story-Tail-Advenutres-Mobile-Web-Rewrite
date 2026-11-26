@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<!--
+  Screen 3.4.4, Trip Builder Workspace, with §3.4.5 to §3.4.12's sheets. Ports
+  app/(agent)/agent/trips/[tripId]/builder/page.tsx with TripBuilderRail, TripBuilderCanvas
+  and TripComponentSheet. Filled by internal/handlers/agent/trips (builder.go).
+
+  The sheet lives in the URL: ?add=<kind> opens a blank one, ?edit=<id> a filled one. The
+  sheet carries every field any kind uses; the handler removes what this kind does not show
+  and carries those columns as hidden fields, so a save never clears them.
+-->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Trip builder · Story-Tail Adventures</title>
+</head>
+<body>
+<main>
+  <div class="card trp-state" data-slot="no-access">
+    <div class="card-content trp-state-body">
+      <span class="avatar trp-state-tile" aria-hidden="true"><svg class="icon trp-icon-26" aria-hidden="true"><use href="/assets/icons.svg#shield"></use></svg></span>
+      <h2 class="type-h5">You don’t have access to this view</h2>
+      <p class="type-body2 text-secondary trp-mt-1">Your account is set up as an administrator. Story-Tail has no admin area yet, so there is nothing here for you — the traveler’s side and the advisor’s worklist are both somebody else’s desk.</p>
+      <form method="post" action="/account/sign-out">
+        <button type="submit" class="btn btn-outlined btn-secondary st-btn trp-mt-2">Sign out</button>
+      </form>
+    </div>
+  </div>
+
+  <div class="trp-col" data-slot="page">
+    <div class="card trp-state" data-slot="retry">
+      <div class="card-content trp-state-body">
+        <span class="avatar trp-state-tile trp-state-tile-error" aria-hidden="true"><svg class="icon trp-icon-26" aria-hidden="true"><use href="/assets/icons.svg#warning"></use></svg></span>
+        <h2 class="type-h5 text-error">That didn’t load</h2>
+        <p class="type-body2 text-secondary trp-mt-1">Something went wrong on our side, not yours. Trying again usually sorts it.</p>
+        <div class="trp-state-actions">
+          <a class="btn btn-contained st-btn" href="/agent/trips" data-slot="retry-again">Try again</a>
+          <a class="btn btn-outlined st-btn" href="mailto:hello@story-tail.com?subject=Something%20went%20wrong"><svg class="icon icon-14" aria-hidden="true"><use href="/assets/icons.svg#message"></use></svg> Message Gyasi</a>
+        </div>
+      </div>
+    </div>
+
+    <div data-slot="body">
+      <div class="trp-notfound" data-slot="not-found">
+        <span class="avatar trp-state-tile" aria-hidden="true"><svg class="icon trp-icon-26" aria-hidden="true"><use href="/assets/icons.svg#briefcase"></use></svg></span>
+        <h1 class="type-h5">No such trip</h1>
+        <p class="type-body2 text-secondary trp-mt-1">It may have been deleted, or it belongs to another advisor.</p>
+        <a class="btn btn-outlined btn-secondary st-btn trp-mt-2_5" href="/agent">Back to the worklist</a>
+      </div>
+
+      <div data-slot="trip">
+        <!-- §3.4.13's seeding receipt: a failed apply must not read like "Start from scratch". -->
+        <div class="alert alert-error trp-mt-2_5" role="status" data-slot="seed-failed"><div class="alert-message">The template did not apply, but the trip is saved. Add its pieces below, or apply the template again from the library.</div></div>
+        <div class="paper trp-seed" role="status" data-slot="seed-applied"><span class="type-caption text-secondary" data-slot="seed-applied-text">Seeded from a template — 6 bookings added. Adjust anything that does not fit.</span></div>
+
+        <header class="card trp-dhead">
+          <div class="card-content trp-dhead-body">
+            <p class="type-caption text-secondary trp-block"><a class="link link-hover link-inherit" href="/agent/trips/sample" data-slot="back-link">Back to the trip</a> · <span data-slot="client-name">Jordan Hayes</span></p>
+            <h1 class="type-h5 trp-fw-700 trp-mt-0_5" data-slot="title">Anniversary Week in Negril</h1>
+            <dl class="trp-figures">
+              <div><dt class="type-caption trp-dt">Trip total</dt><dd class="type-subtitle1 trp-dd trp-mono" data-slot="total">$12,845</dd></div>
+              <div><dt class="type-caption trp-dt">Your commission</dt><dd class="type-subtitle1 trp-dd trp-mono" data-slot="commission">$1,318</dd></div>
+              <div><dt class="type-caption trp-dt">What's in the trip</dt><dd class="type-subtitle1 trp-dd" data-slot="count">6 pieces</dd></div>
+            </dl>
+            <p class="type-caption text-secondary trp-hint-line"><svg class="icon trp-icon-12" aria-hidden="true"><use href="/assets/icons.svg#info"></use></svg>Adds up every piece below. Payments and deposits live on the trip's own screen.</p>
+          </div>
+        </header>
+
+        <div class="trp-bgrid" data-slot="grid">
+          <div class="trp-rail-cell">
+            <aside class="card trp-rail">
+              <div class="card-content trp-pad-12">
+                <p class="type-caption text-secondary trp-block trp-rail-title">ADD TO THIS TRIP</p>
+                <div class="trp-rail-list">
+                  <a class="trp-rail-item" href="/agent/trips/sample/builder?add=flight" data-slot="add-flight"><span class="avatar avatar-28 trp-avatar-rounded trp-tile-secondary"><svg class="icon trp-icon-13" aria-hidden="true"><use href="/assets/icons.svg#plane"></use></svg></span><span class="type-body2 trp-rail-label">Flight</span><span class="trp-rail-plus"><svg class="icon icon-11" aria-hidden="true"><use href="/assets/icons.svg#plus"></use></svg></span></a>
+                  <a class="trp-rail-item" href="/agent/trips/sample/builder?add=hotel" data-slot="add-hotel"><span class="avatar avatar-28 trp-avatar-rounded trp-tile-secondary"><svg class="icon trp-icon-13" aria-hidden="true"><use href="/assets/icons.svg#building"></use></svg></span><span class="type-body2 trp-rail-label">Hotel or resort</span><span class="trp-rail-plus"><svg class="icon icon-11" aria-hidden="true"><use href="/assets/icons.svg#plus"></use></svg></span></a>
+                  <a class="trp-rail-item" href="/agent/trips/sample/builder?add=cruise" data-slot="add-cruise"><span class="avatar avatar-28 trp-avatar-rounded trp-tile-secondary"><svg class="icon trp-icon-13" aria-hidden="true"><use href="/assets/icons.svg#ship"></use></svg></span><span class="type-body2 trp-rail-label">Cruise</span><span class="trp-rail-plus"><svg class="icon icon-11" aria-hidden="true"><use href="/assets/icons.svg#plus"></use></svg></span></a>
+                  <a class="trp-rail-item" href="/agent/trips/sample/builder?add=excursion" data-slot="add-excursion"><span class="avatar avatar-28 trp-avatar-rounded trp-tile-secondary"><svg class="icon trp-icon-13" aria-hidden="true"><use href="/assets/icons.svg#sparkle"></use></svg></span><span class="type-body2 trp-rail-label">Tour or activity</span><span class="trp-rail-plus"><svg class="icon icon-11" aria-hidden="true"><use href="/assets/icons.svg#plus"></use></svg></span></a>
+                  <a class="trp-rail-item" href="/agent/trips/sample/builder?add=transfer" data-slot="add-transfer"><span class="avatar avatar-28 trp-avatar-rounded trp-tile-secondary"><svg class="icon trp-icon-13" aria-hidden="true"><use href="/assets/icons.svg#trip"></use></svg></span><span class="type-body2 trp-rail-label">Transfer</span><span class="trp-rail-plus"><svg class="icon icon-11" aria-hidden="true"><use href="/assets/icons.svg#plus"></use></svg></span></a>
+                  <a class="trp-rail-item" href="/agent/trips/sample/builder?add=insurance" data-slot="add-insurance"><span class="avatar avatar-28 trp-avatar-rounded trp-tile-secondary"><svg class="icon trp-icon-13" aria-hidden="true"><use href="/assets/icons.svg#shield"></use></svg></span><span class="type-body2 trp-rail-label">Insurance</span><span class="trp-rail-plus"><svg class="icon icon-11" aria-hidden="true"><use href="/assets/icons.svg#plus"></use></svg></span></a>
+                  <a class="trp-rail-item" href="/agent/trips/sample/builder?add=custom" data-slot="add-custom"><span class="avatar avatar-28 trp-avatar-rounded trp-tile-secondary"><svg class="icon trp-icon-13" aria-hidden="true"><use href="/assets/icons.svg#receipt"></use></svg></span><span class="type-body2 trp-rail-label">Something else</span><span class="trp-rail-plus"><svg class="icon icon-11" aria-hidden="true"><use href="/assets/icons.svg#plus"></use></svg></span></a>
+                </div>
+                <div class="trp-mt-1_5">
+                  <button type="button" class="btn btn-outlined btn-small st-btn btn-block" data-dialog-open="trp-save-template">Save as template<span class="visually-hidden" data-slot="save-sr"> — Anniversary Week in Negril</span></button>
+                  <a class="link link-hover type-body2 trp-rail-templates" href="/agent/templates">Templates</a>
+                </div>
+              </div>
+            </aside>
+          </div>
+
+          <section>
+            <h2 class="type-subtitle1 trp-fw-600 trp-mb-1">What's in the trip</h2>
+            <div class="card trp-canvas-empty" data-slot="canvas-empty">
+              <div class="card-content trp-canvas-empty-body">
+                <p class="type-subtitle1 trp-fw-600">Nothing in it yet</p>
+                <p class="type-body2 text-secondary trp-canvas-empty-text">Start with whatever you have. A flight, a room, a day out — in whatever order they come to you.</p>
+              </div>
+            </div>
+            <ol class="trp-stack-6 trp-ol" data-slot="canvas">
+              <li class="paper paper-outlined trp-crow" data-repeat="comp" data-slot="comp">
+                <div class="trp-move">
+                  <form method="post" action="/agent/trips/sample/builder/move" data-slot="up-form">
+                    <input type="hidden" name="componentId" value="sample" data-slot="up-id">
+                    <input type="hidden" name="direction" value="up">
+                    <button type="submit" class="icon-btn trp-icon-btn-20" title="Move up" data-slot="up-btn"><svg class="icon icon-11" aria-hidden="true"><use href="/assets/icons.svg#chevron_up"></use></svg><span class="visually-hidden" data-slot="up-sr">Move up — AA 1413</span></button>
+                  </form>
+                  <form method="post" action="/agent/trips/sample/builder/move" data-slot="down-form">
+                    <input type="hidden" name="componentId" value="sample" data-slot="down-id">
+                    <input type="hidden" name="direction" value="down">
+                    <button type="submit" class="icon-btn trp-icon-btn-20" title="Move down" data-slot="down-btn"><svg class="icon icon-11" aria-hidden="true"><use href="/assets/icons.svg#chevron_down"></use></svg><span class="visually-hidden" data-slot="down-sr">Move down — AA 1413</span></button>
+                  </form>
+                </div>
+                <span class="avatar avatar-32 trp-avatar-rounded trp-tile-secondary shrink-0" aria-hidden="true">
+                  <svg class="icon icon-16" aria-hidden="true" data-slot="c-icon-plane"><use href="/assets/icons.svg#plane"></use></svg>
+                  <svg class="icon icon-16" aria-hidden="true" data-slot="c-icon-building"><use href="/assets/icons.svg#building"></use></svg>
+                  <svg class="icon icon-16" aria-hidden="true" data-slot="c-icon-ship"><use href="/assets/icons.svg#ship"></use></svg>
+                  <svg class="icon icon-16" aria-hidden="true" data-slot="c-icon-trip"><use href="/assets/icons.svg#trip"></use></svg>
+                  <svg class="icon icon-16" aria-hidden="true" data-slot="c-icon-sparkle"><use href="/assets/icons.svg#sparkle"></use></svg>
+                  <svg class="icon icon-16" aria-hidden="true" data-slot="c-icon-shield"><use href="/assets/icons.svg#shield"></use></svg>
+                  <svg class="icon icon-16" aria-hidden="true" data-slot="c-icon-receipt"><use href="/assets/icons.svg#receipt"></use></svg>
+                </span>
+                <div class="trp-crow-text">
+                  <p class="type-subtitle2 trp-fw-600" data-slot="c-title">AA 1413 · MIA → MBJ</p>
+                  <p class="type-caption text-secondary trp-block" data-slot="c-subtitle">Jan 13 · 06:40 · Miami</p>
+                </div>
+                <div class="trp-crow-end">
+                  <div class="type-caption trp-crow-cost" data-slot="c-cost">$842</div>
+                  <a class="btn btn-text btn-small st-btn" href="/agent/trips/sample/builder?edit=sample" data-slot="c-edit">Edit<span class="visually-hidden" data-slot="c-edit-sr"> AA 1413</span></a>
+                  <form method="post" action="/agent/trips/sample/builder/remove" data-slot="rm-form">
+                    <input type="hidden" name="componentId" value="sample" data-slot="rm-id">
+                    <button type="submit" class="icon-btn trp-icon-btn-28" title="Remove from trip"><svg class="icon trp-icon-13" aria-hidden="true"><use href="/assets/icons.svg#trash"></use></svg><span class="visually-hidden" data-slot="rm-sr">Remove from trip — AA 1413</span></button>
+                  </form>
+                </div>
+              </li>
+            </ol>
+          </section>
+
+          <!-- The sheet: the third column exists only while one is open. -->
+          <form class="card trp-sheet" method="post" action="/agent/trips/sample/builder/component" data-submit-once data-slot="sheet">
+            <input type="hidden" name="kind" value="flight" data-slot="s-kind">
+            <input type="hidden" name="componentId" value="" data-slot="s-id">
+            <input type="hidden" name="location" value="" data-slot="carry-location">
+            <input type="hidden" name="startDate" value="" data-slot="carry-start-date">
+            <input type="hidden" name="endDate" value="" data-slot="carry-end-date">
+            <input type="hidden" name="startTime" value="" data-slot="carry-start-time">
+            <input type="hidden" name="endTime" value="" data-slot="carry-end-time">
+            <input type="hidden" name="confirmationNumber" value="" data-slot="carry-confirmation-number">
+
+            <div class="trp-sheet-head">
+              <span class="avatar trp-avatar-36 trp-avatar-rounded trp-tile-primary shrink-0" aria-hidden="true">
+                <svg class="icon trp-icon-17" aria-hidden="true" data-slot="s-icon-plane"><use href="/assets/icons.svg#plane"></use></svg>
+                <svg class="icon trp-icon-17" aria-hidden="true" data-slot="s-icon-building"><use href="/assets/icons.svg#building"></use></svg>
+                <svg class="icon trp-icon-17" aria-hidden="true" data-slot="s-icon-ship"><use href="/assets/icons.svg#ship"></use></svg>
+                <svg class="icon trp-icon-17" aria-hidden="true" data-slot="s-icon-trip"><use href="/assets/icons.svg#trip"></use></svg>
+                <svg class="icon trp-icon-17" aria-hidden="true" data-slot="s-icon-sparkle"><use href="/assets/icons.svg#sparkle"></use></svg>
+                <svg class="icon trp-icon-17" aria-hidden="true" data-slot="s-icon-shield"><use href="/assets/icons.svg#shield"></use></svg>
+                <svg class="icon trp-icon-17" aria-hidden="true" data-slot="s-icon-receipt"><use href="/assets/icons.svg#receipt"></use></svg>
+              </span>
+              <div class="trp-minw0">
+                <p class="type-overline text-brand trp-block trp-lh-13" data-slot="s-overline">Add to this trip</p>
+                <h2 class="type-h5 truncate" data-slot="s-heading">Add a flight</h2>
+              </div>
+            </div>
+
+            <div class="alert alert-error trp-mb-1_5" role="alert" aria-live="polite" data-slot="s-error"><div class="alert-message" data-slot="s-error-text">That didn't save. Try again in a moment.</div></div>
+
+            <div class="trp-sheet-fields">
+              <div class="field">
+                <label class="field-label" for="component-displayName" data-slot="f-name-label">Flight</label>
+                <input class="input" id="component-displayName" name="displayName" required maxlength="200" placeholder="AA 1413 · MIA → MBJ" aria-describedby="component-displayName-hint" data-slot="f-name">
+                <p class="field-help" id="component-displayName-hint" data-slot="f-name-hint">The line the client reads on their itinerary.</p>
+                <p class="field-help field-error" id="component-displayName-error" data-slot="f-name-error">Give it a name — it's the line the client reads.</p>
+              </div>
+
+              <div class="field">
+                <label class="field-label" for="component-supplier">Supplier</label>
+                <div class="select"><select class="input" id="component-supplier" name="supplierId" data-trp-supplier>
+                  <option value="">Not on file</option>
+                  <optgroup label="Airlines" data-slot="sg-airline"><option value="s" data-repeat="sup-airline" data-slot="sup-airline">American Airlines</option></optgroup>
+                  <optgroup label="Hotel brands" data-slot="sg-hotel-brand"><option value="s" data-repeat="sup-hotel-brand" data-slot="sup-hotel-brand">Marriott</option></optgroup>
+                  <optgroup label="Resorts" data-slot="sg-resort"><option value="s" data-repeat="sup-resort" data-slot="sup-resort">Sandals</option></optgroup>
+                  <optgroup label="Cruise lines" data-slot="sg-cruise-line"><option value="s" data-repeat="sup-cruise-line" data-slot="sup-cruise-line">Royal Caribbean</option></optgroup>
+                  <optgroup label="Tour operators" data-slot="sg-tour-operator"><option value="s" data-repeat="sup-tour-operator" data-slot="sup-tour-operator">Viator</option></optgroup>
+                  <optgroup label="Insurance" data-slot="sg-insurance"><option value="s" data-repeat="sup-insurance" data-slot="sup-insurance">Allianz</option></optgroup>
+                  <optgroup label="Transfers" data-slot="sg-transfer"><option value="s" data-repeat="sup-transfer" data-slot="sup-transfer">Sun &amp; Fun</option></optgroup>
+                  <optgroup label="Other" data-slot="sg-other"><option value="s" data-repeat="sup-other" data-slot="sup-other">Other</option></optgroup>
+                </select></div>
+                <p class="field-help">Optional. Picking one fills in their usual commission rate.</p>
+              </div>
+
+              <div class="field" data-slot="f-location-cell">
+                <label class="field-label" for="component-location" data-slot="f-location-label">Departs from</label>
+                <input class="input" id="component-location" name="location" maxlength="200" data-slot="f-location">
+              </div>
+
+              <div class="trp-grid-2">
+                <div class="field" data-slot="f-start-date-cell">
+                  <label class="field-label" for="component-startDate" data-slot="f-start-date-label">Date</label>
+                  <input class="input" id="component-startDate" name="startDate" type="date" data-slot="f-start-date">
+                </div>
+                <div class="field" data-slot="f-end-date-cell">
+                  <label class="field-label" for="component-endDate" data-slot="f-end-date-label">Arrives on</label>
+                  <input class="input" id="component-endDate" name="endDate" type="date" data-slot="f-end-date">
+                  <p class="field-help field-error" id="component-endDate-error" data-slot="f-end-date-error">That's before it starts.</p>
+                </div>
+                <div class="field" data-slot="f-start-time-cell">
+                  <label class="field-label" for="component-startTime" data-slot="f-start-time-label">Departs</label>
+                  <input class="input" id="component-startTime" name="startTime" type="time" data-slot="f-start-time">
+                </div>
+                <div class="field" data-slot="f-end-time-cell">
+                  <label class="field-label" for="component-endTime" data-slot="f-end-time-label">Arrives</label>
+                  <input class="input" id="component-endTime" name="endTime" type="time" data-slot="f-end-time">
+                </div>
+              </div>
+
+              <div class="field" data-slot="f-confirmation-number-cell">
+                <label class="field-label" for="component-confirmationNumber" data-slot="f-confirmation-number-label">Booking reference</label>
+                <input class="input trp-mono" id="component-confirmationNumber" name="confirmationNumber" maxlength="80" data-slot="f-confirmation-number">
+              </div>
+
+              <label class="field" data-repeat="detail-text">
+                <span class="field-label" data-slot="dt-label">Flight number</span>
+                <input class="input" maxlength="200" data-slot="dt-input">
+              </label>
+
+              <label class="check trp-check-label" data-slot="f-flag-cell">
+                <input class="check-input trp-check-sm" type="checkbox" name="detail.gratuities_included" data-slot="f-flag">
+                <span class="type-body2">Gratuities included</span>
+              </label>
+
+              <div class="field">
+                <label class="field-label" for="component-detail-notes">Notes</label>
+                <textarea class="input trp-textarea" id="component-detail-notes" name="detail.notes" rows="3" maxlength="2000" data-slot="f-notes"></textarea>
+              </div>
+
+              <div class="trp-grid-2">
+                <div class="field">
+                  <label class="field-label" for="component-cost">Cost</label>
+                  <input class="input trp-mono" id="component-cost" name="cost" inputmode="decimal" placeholder="0.00" data-slot="f-cost">
+                  <p class="field-help field-error" id="component-cost-error" data-slot="f-cost-error">That doesn't look like an amount.</p>
+                </div>
+                <div class="field">
+                  <label class="field-label" for="component-commissionPct">Commission rate</label>
+                  <input class="input trp-mono" id="component-commissionPct" name="commissionPct" inputmode="decimal" placeholder="0" data-trp-pct data-slot="f-pct">
+                  <p class="field-help field-error" id="component-commissionPct-error" data-slot="f-pct-error">A rate is between 0 and 999.</p>
+                </div>
+              </div>
+              <p class="type-caption text-secondary trp-block trp-pull-up">What the client pays for this piece.</p>
+              <div class="field">
+                <label class="field-label" for="component-commission">Commission</label>
+                <input class="input trp-mono" id="component-commission" name="commission" inputmode="decimal" placeholder="0.00" data-slot="f-commission">
+                <p class="field-help field-error" id="component-commission-error" data-slot="f-commission-error">That doesn't look like an amount.</p>
+              </div>
+              <p class="type-caption text-secondary trp-block trp-pull-up">Leave this blank and the rate fills it in. Type an amount and yours wins.</p>
+
+              <div class="paper trp-note-paper">
+                <svg class="icon trp-icon-12" aria-hidden="true"><use href="/assets/icons.svg#info"></use></svg>
+                <span class="type-caption">Searching a supplier's live inventory arrives with Phase 2. Everything here is typed by hand for now.</span>
+              </div>
+            </div>
+
+            <div class="row wrap gap-1 trp-mt-2">
+              <button type="submit" class="btn btn-contained btn-brand st-btn">Save</button>
+              <a class="btn btn-outlined btn-secondary st-btn" href="/agent/trips/sample/builder" data-slot="s-cancel">Cancel</a>
+            </div>
+          </form>
+        </div>
+
+        <!-- SaveAsTemplateDialog, from the rail. -->
+        <dialog class="dialog trp-dialog-520" id="trp-save-template" aria-labelledby="trp-save-title" data-trp-modal data-slot="save-dialog">
+          <div class="trp-dialog-content">
+            <div class="row items-start gap-1_5">
+              <span class="avatar avatar-40 shrink-0 trp-tile-secondary" aria-hidden="true"><svg class="icon icon-18" aria-hidden="true"><use href="/assets/icons.svg#star"></use></svg></span>
+              <div class="trp-minw0">
+                <span class="type-overline text-secondary trp-block trp-lh-13">NEW TEMPLATE</span>
+                <h2 class="type-h5 trp-break-word" id="trp-save-title">Save as a template</h2>
+              </div>
+            </div>
+            <p class="type-body2 text-secondary trp-mt-1">Captures this trip's bookings and its day-by-day. Dates are stored as day offsets, so applying it to a March trip produces March dates.</p>
+            <p class="type-caption text-secondary trp-block trp-mt-0_75">Confirmation numbers and payment schedules are not captured — a booking reference belongs to one booking.</p>
+            <p class="type-body2 trp-mt-1_5" role="status" data-slot="save-receipt">Saved. 6 bookings and 4 days captured.</p>
+            <form method="post" action="/agent/trips/sample/builder/save-template" id="trp-save-form" data-submit-once data-slot="save-form">
+              <div class="field trp-mt-1_5">
+                <label class="field-label" for="template-name">Name</label>
+                <input class="input" id="template-name" name="name" required placeholder="e.g. Sandals Negril · 7 nights" data-trp-required data-slot="save-name">
+              </div>
+              <div class="field trp-mt-1_5">
+                <label class="field-label" for="template-description">What it is for (optional)</label>
+                <input class="input" id="template-description" name="description" placeholder="e.g. Ocean-view suite, transfer, catamaran, insurance" data-slot="save-description">
+              </div>
+              <p class="type-caption text-secondary trp-block trp-mt-1" data-trp-name-hint data-slot="save-name-hint">A template needs a name.</p>
+              <div class="alert alert-error trp-mt-1" role="alert" aria-live="polite" data-slot="save-error"><div class="alert-message" data-slot="save-error-text">That did not save. Try again in a moment.</div></div>
+            </form>
+          </div>
+          <div class="trp-dialog-actions trp-dialog-actions-split" data-slot="save-actions">
+            <button type="button" class="btn btn-outlined btn-small st-btn" data-dialog-close>Cancel</button>
+            <button type="submit" form="trp-save-form" class="btn btn-outlined btn-secondary btn-small st-btn" data-trp-submit>Save template</button>
+          </div>
+          <div class="trp-dialog-actions" data-slot="save-done">
+            <a class="btn btn-outlined btn-secondary btn-small st-btn" href="/agent/trips/sample/builder" data-slot="save-done-link">Done</a>
+          </div>
+        </dialog>
+      </div>
+    </div>
+  </div>
+  <script type="module" src="/assets/js/agent/trips/detail.js"></script>
+  <script type="module" src="/assets/js/agent/trips/builder.js"></script>
+</main>
+</body>
+</html>

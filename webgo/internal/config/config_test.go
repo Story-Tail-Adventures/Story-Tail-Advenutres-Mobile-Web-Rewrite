@@ -14,9 +14,11 @@ func env(m map[string]string) func(string) string {
 }
 
 var goodProd = map[string]string{
-	"SITE_URL":          "https://storytail-web.onrender.com",
-	"SUPABASE_URL":      "https://abcdefghij.supabase.co",
-	"SUPABASE_ANON_KEY": "anon-key",
+	"SITE_URL":                  "https://storytail-web.onrender.com",
+	"SUPABASE_URL":              "https://abcdefghij.supabase.co",
+	"SUPABASE_ANON_KEY":         "anon-key",
+	"SUPABASE_SERVICE_ROLE_KEY": "service-key",
+	"STA_CRON_SECRET":           "0123456789abcdef0123456789abcdef",
 }
 
 func with(base map[string]string, kv ...string) map[string]string {
@@ -84,11 +86,25 @@ func TestProductionRefuses(t *testing.T) {
 		"typo in STA_ENV":       with(goodProd, "STA_ENV", "prod"),
 		"bad port":              with(goodProd, "PORT", "eighty"),
 		"port out of range":     with(goodProd, "PORT", "70000"),
+		"no service role key":   with(goodProd, "SUPABASE_SERVICE_ROLE_KEY", ""),
+		"no cron secret":        with(goodProd, "STA_CRON_SECRET", ""),
+		"short cron secret":     with(goodProd, "STA_CRON_SECRET", "placeholder"),
 	}
 	for name, m := range cases {
 		if _, err := Load(env(m)); err == nil {
 			t.Errorf("%s: loaded without error", name)
 		}
+	}
+}
+
+// Development runs without the backend secrets: every function then passes through.
+func TestDevelopmentNeedsNoBackendSecrets(t *testing.T) {
+	c, err := Load(env(map[string]string{"STA_ENV": "development"}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if c.SupabaseServiceRoleKey != "" || c.CronSecret != "" {
+		t.Error("backend secrets must not be invented")
 	}
 }
 
@@ -161,7 +177,9 @@ func TestSecretsNeverPrinted(t *testing.T) {
 		"SUPABASE_ANON_KEY", "anon-SECRET-1",
 		"SERPAPI_API_KEY", "serp-SECRET-2",
 		"STA_HOTEL_SEARCH_TOKEN", "token-SECRET-3",
-		"STA_LEAD_FORM_KEY", "lead-SECRET-4")))
+		"STA_LEAD_FORM_KEY", "lead-SECRET-4",
+		"SUPABASE_SERVICE_ROLE_KEY", "service-SECRET-5",
+		"STA_CRON_SECRET", "cron-SECRET-6-0123456789abcdef0123456789")))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -187,7 +205,9 @@ func TestSecretsNeverPrinted(t *testing.T) {
 			t.Errorf("a secret was printed: %s", out)
 		}
 	}
-	if !strings.Contains(logged.String(), `"serpapi_key_set":true`) {
-		t.Errorf("log line should still say the key is set: %s", logged.String())
+	for _, set := range []string{`"serpapi_key_set":true`, `"service_role_key_set":true`, `"cron_secret_set":true`} {
+		if !strings.Contains(logged.String(), set) {
+			t.Errorf("log line should still say %s: %s", set, logged.String())
+		}
 	}
 }

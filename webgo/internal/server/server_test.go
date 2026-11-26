@@ -87,7 +87,12 @@ func TestHealthz(t *testing.T) {
 
 func TestUnknownPathsAre404WithNoOutboundCall(t *testing.T) {
 	h, _ := newHandler(t, config.Production)
-	for _, path := range []string{"/wp-login.php", "/.env", "/agent", "/dashboard", "/login", "/_demo"} {
+	// Paths no merged area serves. This list SHRINKS as areas land, so it conflicts on every
+	// area merge: /login went to auth, /dashboard to traveler, and /agent now REDIRECTS to
+	// sign-in since the agent areas landed, so the probe beneath it is used instead. "/" and
+	// /_demo have now gone too: the public area serves the front door and deletes the demo page,
+	// so neither is an unclaimed path any more.
+	for _, path := range []string{"/wp-login.php", "/.env", "/agent/no-such-page"} {
 		rec := do(h, http.MethodGet, path, nil)
 		if rec.Code != http.StatusNotFound {
 			t.Errorf("GET %s = %d, want 404", path, rec.Code)

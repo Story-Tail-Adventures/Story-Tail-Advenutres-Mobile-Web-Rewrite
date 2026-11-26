@@ -25,6 +25,9 @@ been updated yet, this doc and the rulings in section 3 win. Section 10 lists wh
 - **Skip Next.js on Render.** Production has been dark since Vercel paused it on 2026-10-26, and
   the Render service was never created. Rather than bring Next.js back and then replace it, the
   site comes back on Go: public pages first, then sign-in, the traveler side and the agent side.
+- **Local first, Render later.** Gyasi is not ready for Render (2026-11-06, ruling 16). Every
+  phase is built and verified locally against the local Supabase stack, and nothing waits on a
+  deploy. Production comes back when Gyasi chooses to do the Render setup in section 6.
 - **The backend moves by function, behind one door.** Go answers `/functions/v1/{name}` exactly
   the way Supabase does. A function not yet ported is passed through to Supabase, so mobile
   switches its address once and never notices each port after that.
@@ -62,8 +65,8 @@ been updated yet, this doc and the rulings in section 3 win. Section 10 lists wh
 - **The tests do not carry over as they are.** Logic tests port to Go table tests. React
   component tests become handler tests. No Edge Function handler has a test today, so the
   differential tests (section 5.9) are new work.
-- **A long dark period.** Production stays offline until Phase 2 ships and Gyasi's Render setup
-  is done.
+- **A long dark period.** Production stays offline until Gyasi does the Render setup, which is
+  deliberately decoupled from the build (ruling 16).
 - **It reverses a standing rule.** CLAUDE.md, BRD §15.1 and Tech-Rec §2.3 said "no separate
   backend service". Section 10 updates them first.
 - **New Go libraries need reviews**: htmlx (done, `docs/HTMLX-Library-Security-Review.md`), an
@@ -112,6 +115,7 @@ All settled by Gyasi on 2026-11-06.
 | 13 | Cron | pg_cron stays the clock. The 4 jobs that call functions point at Go and send a dedicated `STA_CRON_SECRET`, checked in constant time, instead of the service-role key |
 | 14 | One binary | Pages and API in one service. Web handlers call ported functions in process through the same registry mobile reaches over HTTP. Only `internal/api/...` can reach the service key |
 | 15 | New Go libraries | Each gets a review doc before use. SMTP, the FCM token and CSV use the standard library |
+| 16 | When to deploy | Not yet (2026-11-06). Build and verify every phase locally against the local Supabase stack; deploy to Render when Gyasi is ready. No phase waits on it |
 
 ---
 
@@ -215,24 +219,36 @@ This replaces React components, so it is built and tested before any screen.
 
 **Safety rules**
 
-- **htmlx is a reader only.** Allowed: `Parse`, `String` (tests), `Find`, `FindAll`, `FindNext`,
-  `FindPrev`, `Tag`, `TagName`, `HasAttrVal`, `ID`, `Class`, `Remove`, `RemoveChilds`,
-  `OuterHTML`, `Attr`. Banned: `SetHTML`, `SetText`, `SetAttr`, `RemoveAttr`, `AddClass`,
-  `Rename`, `Get`, `Load`, `Text`, `Stats`. Its setters have real bugs (`SetAttr` silently keeps
-  an existing value; `AddClass` never works when a class is already set). A test fails the build
-  on any banned name.
+- **htmlx only finds and removes** (approved by Gyasi 2026-11-06). Allowed: the find helpers
+  and matchers, `AttrVal`, `Remove`, `RemoveChilds`. Banned: every writer, the fetchers, the
+  double-unescaping readers, and every way to make an `htmlx.Node` (`Node`, `New`, `Parse`,
+  `String`), so none of its methods can be reached; pages parse with `x/net/html` directly. Its
+  setters have real bugs (`SetAttr` silently keeps an existing value; `AddClass` never works when
+  a class is already set). A test fails the build on any banned name. Full list in the review,
+  section 6.
 - **Only `internal/page` imports htmlx.** A test fails the build if another package does.
 - **Text goes in as a fresh text node**, never parsed as markup. The setter refuses an element
   inside `script`, `style`, `noscript`, `iframe`, `xmp`, `noembed`, `noframes` or `plaintext`,
   because `x/net/html` writes text there without escaping. (`textarea` and `title` are escaped
   on render, checked 2026-11-06, so a form can be re-filled with what the visitor typed.)
-- **Links are checked.** One setter for `href`, `src`, `action` and `formaction` allows only
-  relative paths, `https:`, `mailto:` and `tel:`, after trimming and lower-casing. **Pay links**
-  get a stricter setter: absolute `https://` only (CLAUDE.md rule 4), and on client pages they are
-  shown, never editable.
-- **Every slot a handler uses must exist.** Each page declares its slots in Go, and a startup
-  check confirms each is in the HTML (exactly once for single slots). A renamed slot fails at boot
-  and in CI.
+- **Links are checked.** One setter for `href`, `src`, `action` and `formaction`, each only on
+  the elements that take it, allows only relative paths, `https:`, `mailto:` and `tel:`, after
+  trimming and lower-casing. **Pay links** get a stricter setter: absolute `https://` only, on
+  `<a>` only (CLAUDE.md rule 4), and on client pages they are shown, never editable. Client pages
+  also show the link's host (lower-case, no `www.`, punycode), so a look-alike domain cannot pass
+  as the real one (owed in Phase 4).
+- **Every slot a handler uses must exist, both ways.** Each page declares its slots in Go, and a
+  startup check confirms each is in the HTML exactly once and that the HTML has no undeclared
+  slot. A renamed slot fails at boot and in CI. Slots on `base`, `link`, `meta`, `object` or
+  `embed`, and slots with namespaced attributes, are refused at load.
+- **No placeholder ships.** A page renders only when every slot was filled, removed or explicitly
+  kept, and every link attribute a slot carries in the HTML went through the link setters. Class,
+  boolean and (on non-void elements) plain attribute changes only adjust a slot; they do not fill
+  it. Text the HTML gives a slot is copy unless the handler sets it, so text that varies goes in
+  its own slot.
+- **A page file holds only `<title>` and `<main>`.** Load refuses head content beyond `<title>`
+  and `<meta>`, attributes on `<main>`, and anything in `<body>` outside `<main>`, rather than
+  dropping it silently. Shared CSS and scripts go in the layout.
 - **Never write raw HTML from the database.** Message text, notes and template bodies go in as
   text.
 - **Tests check rendered output**, never htmlx's `Text()`, which un-escapes a second time.
@@ -517,6 +533,37 @@ errors, its ownership checks and its 409 paths. A port is done when both agree o
 Each port also adds its entry to `contracts/openapi.yaml` (19 functions are missing today) and
 regenerates the TypeScript and Kotlin types.
 
+**Retired with no caller (not ported).** A function nobody calls is recorded here instead of
+ported, and goes away with the Deno functions (5.10):
+
+| Function | Why it has no caller | Recorded |
+|---|---|---|
+| `hotel-search` | Web hotel search moved into the web app itself in PR #48 (`web/lib/public/hotels.ts` calls SerpApi directly, one call and one key); mobile never called it. The Go web pages port that web module, not this function. Its `_shared/hotels/*` code and 37 Deno tests retire with it. | 2026-11-06 |
+
+**Track B status (2026-11-07).** All 34 names are accounted for: 33 run in Go behind the gate
+their Deno original had (`webgo/internal/api/ported.go`: user, open, cron or in-process), and
+`hotel-search` is retired with no caller (above). Each ported function has Go table tests and a
+differential test against its Deno original (`webgo/internal/api/difftest`), and every security-
+relevant area had an independent review with its proven findings fixed. Delivered as stacked
+draft PRs #182 to #193; the mobile Functions base URL is #181.
+
+- **New libraries.** IMAP uses `github.com/emersion/go-imap/v2` v2.0.0-beta.8
+  (`docs/IMAP-Go-Library-Security-Review.md`); Web Push is the standard library, no new module
+  (`docs/WebPush-Go-Library-Security-Review.md`). Both reviews were approved by Gyasi on 2026-11-25, as recommended.
+- **Cron.** Migration `20261106120000` makes each tick's bearer follow its URL: a Supabase
+  Functions URL keeps the service-role key, any other URL is the Go service and gets the vault
+  secret `sta_cron_secret` (32+ characters, equal to Render's `STA_CRON_SECRET`). The switch is
+  vault-only; the migration's header lists the exact statements.
+- **Known gap, needs a decision.** The card-number rule (SQL `text_has_card_digits`, Deno
+  `cardDigits.ts`, the Go port, web and Kotlin) joins digit groups split only by space, dot, dash
+  or no-break spaces, so a card split by `/`, `_`, `,`, `+` or `%20` is stored in a pay link,
+  paid reference or note. It must change in all five copies at once (review of #187).
+
+**How the differential test runs** (Track B): `webgo/internal/api/difftest/` (build tag
+`difftest`, never in CI). It needs a local stack whose migrations match the branch exactly
+(check with the `schema_migrations` diff in CLAUDE.md's gotchas; the shared stack is often
+behind) and `supabase functions serve` from that stack's `supabase/` folder. See its README.
+
 ### 5.10 Retiring a function
 
 1. The Go handler is live in production and the registry sends that name to it.
@@ -544,7 +591,8 @@ not delete what is already deployed, so step 4 is needed.
   the left-most `x-forwarded-for`). Run the forged-header test from `docs/RENDER-MIGRATION.md`
   §5.1 before any traffic. Once lead-message runs in Go, the address is read directly, and the
   forwarded-address trust between web and function goes away.
-- **Gyasi's setup before the first launch (Phase 2)**: create the Render service from
+- **Gyasi's setup, whenever production should come back** (no phase waits on it, ruling 16):
+  create the Render service from
   `render.yaml`, set the env vars, fill in `RENDER_SERVICE_ID`, add the `RENDER_API_KEY` repo
   secret, put Cloudflare in front, add the Render origin to Supabase's auth redirect allowlist,
   run the forged-header test.
@@ -587,14 +635,17 @@ Each phase is its own PR or PR series to `dev`. Sizes: S, M, L, XL.
 1. `webgo/` module: config, `internal/page` with every rule in 4.4 and its tests, clientaddr,
    uuid, security headers, `/healthz`, 404 for everything else, the `webgo` CI job.
 2. Session, `supa` clients (anon and user), gate (mounted), the `/functions/v1` registry passing
-   every name through, the cron secret check.
-3. `render.yaml` and `deploy.yml` re-aimed at Go.
+   every name through. Verified against the local Supabase stack. (The cron secret check arrives
+   with the first ported cron function in Track B; nothing calls it before then.)
 
-### Phase 2: Public pages and the first launch (M)
+`render.yaml` and `deploy.yml` are re-aimed at Go only when Gyasi is ready to deploy (ruling 16).
+
+### Phase 2: Public pages (M)
 
 13 public pages, `/quote`, email unsubscribe, explore results, the lead form, the join form,
-consent + GA. Content moves to JSON with the byte-identical Kotlin check. **Production comes back
-when this ships and Gyasi's Render setup (section 6) is done.**
+consent + GA. Content moves to JSON with the byte-identical Kotlin check. Built and verified
+locally. **Production comes back whenever Gyasi does the Render setup (section 6); from this phase
+on there is something worth deploying.**
 
 ### Phase 3: Auth (M, highest risk per line)
 
@@ -616,8 +667,9 @@ templates; commission; reports; settings.
 
 ### Track B: the backend (XL, alongside Phases 3 to 5)
 
-Starts when the Phase 1 registry is live. Order and proof in 5.9. The mobile switch (5.8) ships
-once Go is live in production.
+Starts when the Phase 1 registry is live. Order and proof in 5.9; the differential tests run on
+the local stack, so ports need no deploy. The mobile switch (5.8) is the one step that waits for
+Go to be live in production.
 
 ### Phase 6: Clean up (S to M)
 
@@ -629,6 +681,81 @@ once Go is live in production.
 - `supabase-reviewer` narrows to migrations and RLS; `new-edge-function` becomes a Go endpoint
   skill.
 - Update every doc to the final state.
+
+#### What is actually there (counted 2026-11-25, on `claude/go-track-b-background`)
+
+The "when" above is a condition, not a date, so here is what has to reach zero. Counts are from
+the tree, not from memory.
+
+| To delete | Size |
+|---|---|
+| `web/app` page screens | **97** `page.tsx`: 46 `(agent)`, 23 `(client)`, 13 `(public)`, 9 `(auth)`, 6 `(onboarding)` |
+| `web/app` route handlers | **6** `route.ts` (listed below) |
+| `supabase/functions` | **34** function folders plus `_shared` |
+
+The six route handlers are the ones that hide between areas, because they are not screens and no
+Screen Inventory section lists them. Every one is accounted for:
+
+| Next.js route handler | Go owner |
+|---|---|
+| `(agent)/agent/commission/ledger/export/route.ts` | money, `GET /agent/commission/ledger/export` |
+| `(agent)/agent/reports/download/route.ts` | money, §3.11, the one still to build |
+| `api/account/chrome/route.ts` | auth, `GET /api/account/chrome` |
+| `api/agent/messages/[conversationId]/read/route.ts` | people, `POST /api/agent/messages/{conversationId}/read` |
+| `auth/callback/route.ts` | auth, `GET /auth/callback` |
+| `quote/route.ts` | public, `GET /quote` |
+
+`contracts/openapi.yaml` already documents all 34 function paths, so the spec needs no catch-up
+work at cleanup; it only loses the ones whose folders go.
+
+#### One job is RE-POINTED, not retired: the Kotlin content codegen
+
+"Public content codegen is current" runs `npm run generate:public-content -w web` and then fails
+on any diff to
+`mobile/shared/src/commonMain/kotlin/com/storytail/adventures/content/public/GeneratedPublicContent.kt`.
+That generator lives in the `web` workspace, so deleting `web/` kills the mobile content pipeline
+unless the job moves with it, and nothing would be left to notice.
+
+It can move, and this was verified rather than assumed on 2026-11-25: `webgo/cmd/gen-kotlin`
+writes the same file, and run against the committed one it reproduced it **byte for byte** —
+69,974 bytes, identical SHA-256. So Phase 6 changes that job's command to
+
+    go run ./cmd/gen-kotlin        # from webgo/
+
+and keeps its `git diff --exit-code` guard exactly as it is. Do not fold this job into the list
+of checks that die with the Web job: it is the only thing standing between a content edit and
+mobile silently drifting.
+
+#### The two CI jobs that change, and the one that must not
+
+`ci.yml` has nine named jobs. Only two of them know about Next.js or Deno:
+
+- **Web** goes away entirely. It carries `npm ci`, `typecheck`, `lint`, `test` and `build` for the
+  `web` workspace, plus `check_mui_lockstep.py`, `check_public_prerender.py` and
+  `check_css_layer_order.py`. All three python checks live in this job and die with it.
+- **Supabase** keeps `supabase db start`, `db lint` and the RLS tests, and loses exactly three
+  steps: "Typecheck and lint Edge Functions", "Test Edge Function helpers" and "Every Edge
+  Function is declared for deployment".
+- **Web (Go)** is the one that must still be green through all of this. It is the job the rename
+  is most likely to break.
+
+`deploy.yml` names `web/` and `supabase/functions` too and changes in the same PR.
+
+#### The rename is the risky part, not the deletion
+
+`git mv webgo web` renames the directory that the stack-boundary hook, `.claude/settings.json`'s
+Go allow rules, `.claude/launch.json`, the `Web (Go)` job's `working-directory`, Dependabot's
+`gomod` entry and `go.mod`'s own module path all name separately. If the rename lands without
+them, **the stack-boundary guard denies the very writes it exists to permit** (it has done this
+before), and every `go` command in CI runs in a directory that no longer exists. Move them in one
+commit, and run the boundary hook against a sample payload before pushing.
+
+Do the deletion and the rename as **two PRs, in that order**. Deleting first leaves a tree where
+`webgo/` is the only web code, so a broken rename is a one-line revert rather than an archaeology
+problem.
+
+Also drop `web` from the root `package.json` workspaces (it is `["web", "contracts"]`; `contracts`
+stays) and from Dependabot's npm config.
 
 ---
 
@@ -655,7 +782,9 @@ once Go is live in production.
 14. **Missing zone data** in a slim build (4.10).
 15. **Copy drift** between web and mobile, or away from the brand voice. Strings move byte for
     byte; new copy goes through Design-System §2.
-16. **A long dark period** if Phase 2 stalls. It is the one phase that brings production back.
+16. **A long dark period.** Production stays offline until the Render setup, by choice (ruling
+    16). The local build keeps moving; the risk is code that has never met a real host. Run the
+    forged-header test and a full deploy rehearsal before the first real traffic.
 17. **MFA lockout** during Phase 3.
 18. **SMTP still broken in production** (535 since 2026-10-22), which blocks proving the email
     port there.
@@ -689,7 +818,8 @@ once Go is live in production.
 
 ## 11. Next steps
 
-1. Merge Phase 0 (this doc, the docs and the tooling).
-2. Gyasi: approve or reject the htmlx review.
-3. Phase 1 in order: skeleton and page builder, then session/supa/gate/registry, then Render.
-4. Gyasi: the Render setup in section 6, in time for Phase 2.
+1. Merge Phase 0 (this doc, the docs and the tooling). The htmlx review is approved.
+2. Phase 1 part 1 (skeleton and page builder, PR #177), then part 2 (session, supa, gate,
+   registry), all verified locally.
+3. Phase 2 onward, locally.
+4. Gyasi, when ready: the Render setup in section 6, then re-aim `render.yaml` and `deploy.yml`.

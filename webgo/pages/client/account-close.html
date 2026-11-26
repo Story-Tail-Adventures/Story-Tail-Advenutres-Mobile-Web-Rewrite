@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<!--
+  Screen 2.5.10 Account Closure (docs/Screen-Inventory.md §2.5.10). Ports
+  web/app/(client)/account/close/{page,content}.tsx; copy word for word from CLOSE.
+
+  READ-ONLY today: the CTA is disabled because NO function writes to `account`. The reason
+  field and the email confirmation are disabled alongside it rather than collecting
+  something nothing consumes.
+
+  EVERY LINE HERE IS A RETENTION OR LEGAL CLAIM, and two rules govern them:
+
+  1. No number goes in unless something enforces it. Data-Model §18.5 describes a 30-day
+     anonymization window and nothing implements it — no migration, no cron entry, no
+     function. So the copy states the intent and omits the deadline. Put "within 30 days"
+     back the day the scrubber ships, not before.
+  2. Nothing here sells. The artboard's "helps Gyasi follow up if you reconsider" is a
+     retention hook on a closure screen. The offer to talk to him stays — that is useful —
+     but the field is not framed as a way to win somebody back.
+-->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Close account · Story-Tail Adventures</title>
+  <meta name="robots" content="noindex, nofollow">
+</head>
+<body>
+  <main>
+    <div class="cl-account-page">
+      <header class="cl-account-head">
+        <a class="btn btn-text st-btn btn-small cl-back-link" href="/account/privacy" data-slot="back"><svg class="icon icon-14" aria-hidden="true"><use href="/assets/icons.svg#arrow_left"></use></svg>Privacy &amp; data</a>
+        <h1 class="type-h5 text-primary cl-account-title" data-slot="heading">Close your account?</h1>
+      </header>
+
+      <section class="cl-settings-group">
+        <h2 class="type-overline text-secondary cl-settings-label" data-slot="what-label">WHAT HAPPENS</h2>
+        <ul class="cl-update-facts">
+          <li class="type-body2 text-secondary" data-repeat="what"><span data-slot="what-item">Your trips are archived</span></li>
+        </ul>
+      </section>
+
+      <section class="card cl-card">
+        <div class="card-content cl-card-content">
+          <p class="type-body2 text-secondary cl-account-note" data-slot="reconsider-body">If something went wrong, Gyasi would rather hear it than lose you.</p>
+          <a class="btn btn-outlined btn-secondary st-btn btn-small" href="/messages/new" data-slot="reconsider-cta">Message him first</a>
+        </div>
+      </section>
+
+      <section class="card cl-card">
+        <div class="card-content cl-card-content">
+          <div class="field">
+            <label class="field-label" for="reason" data-slot="reason-label">Anything you want to tell us? (optional)</label>
+            <textarea class="input cl-new-body" id="reason" name="reason" rows="3" disabled placeholder="Only if you feel like it." data-slot="reason"></textarea>
+          </div>
+          <div class="field">
+            <label class="field-label" for="confirm" data-slot="confirm-label">Type your email address to confirm</label>
+            <input class="input" id="confirm" name="confirm" type="email" disabled placeholder="you@example.com" aria-describedby="confirm-hint" data-slot="confirm">
+            <p class="field-help" id="confirm-hint" data-slot="confirm-hint">This is the address you sign in with.</p>
+          </div>
+          <div class="cl-new-actions">
+            <span class="btn-tooltip" title="Coming with the next release" data-slot="confirm-wrap">
+              <button class="btn btn-contained st-btn btn-small" type="button" disabled tabindex="-1" aria-disabled="true" data-slot="confirm-cta">Close my account</button>
+            </span>
+            <a class="btn btn-text st-btn btn-small" href="/account" data-slot="keep-cta">Keep my account</a>
+          </div>
+        </div>
+      </section>
+    </div>
+  </main>
+</body>
+</html>

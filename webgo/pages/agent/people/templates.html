@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<!--
+  Screen 3.10.4 Template Library (A3104_TemplateLibrary). WEB ONLY.
+  app/(agent)/agent/messages/templates/page.tsx + components/agent/MessageTemplateLibrary.tsx.
+
+  UNDER MESSAGES, NOT AT /agent/templates, which is §3.4.13's trip templates. The doors are
+  the inbox header's "Templates" and the picker's "Manage templates"; the nav rail does not
+  change (§6.4).
+
+  WHAT IS NOT HERE FROM THE ARTBOARD: "Used 42×". Messages store their words only, with no
+  link back to a template, so an honest count does not exist (Gyasi, 2026-10-14).
+
+  Next draws one <section> per category, each with its own grid. The page builder allows no
+  nested repeat, so this is ONE grid holding every row: a heading spans it, and the cards flow
+  under it. people.css carries the gaps that the seven sections carried.
+-->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Message templates · Story-Tail Adventures</title>
+</head>
+<body>
+<main>
+  <div class="ppl-page ppl-tpl-page">
+    <a class="link type-body2" href="/agent/messages">Messages</a>
+    <header class="ppl-tpl-header">
+      <div class="ppl-flex1">
+        <h1 class="type-h5 fw-700 ppl-tpl-h1" id="templates-heading" tabindex="-1" data-slot="tpl-title">Templates</h1>
+        <p class="type-body2 text-secondary ppl-mt-0_5" data-slot="tpl-sub">Messages you send often, grouped by stage. Make each one your own before it goes.</p>
+      </div>
+      <div class="ppl-tpl-header-tools">
+        <a class="link type-body2" href="/agent/messages/templates?view=archived" data-slot="tpl-view">Archived</a>
+        <a class="btn btn-contained btn-brand btn-small ppl-btn-sm" href="/agent/messages/templates/new" data-slot="tpl-new"><svg class="icon ppl-icon-12" aria-hidden="true"><use href="/assets/icons.svg#plus"></use></svg> New template</a>
+      </div>
+    </header>
+
+    <p class="type-body2 text-error ppl-tpl-error" role="alert" data-slot="tpl-error">That didn't save. Try again in a moment.</p>
+    <p class="visually-hidden" role="status" data-slot="tpl-receipt">Copy made</p>
+
+    <div class="card ppl-state" data-slot="tpl-empty">
+      <div class="ppl-state-body">
+        <span class="avatar ppl-state-tile ppl-state-tile-neutral" aria-hidden="true"><svg class="icon ppl-icon-26" aria-hidden="true"><use href="/assets/icons.svg#sparkle"></use></svg></span>
+        <h2 class="type-h5" data-slot="tpl-empty-title">Templates</h2>
+        <p class="type-body2 text-secondary ppl-mt-1" data-slot="tpl-empty-body">No templates yet. Start one, and it'll be ready whenever you write to a client.</p>
+      </div>
+    </div>
+
+    <div class="ppl-tpl-grid" data-slot="tpl-grid">
+      <div class="ppl-contents" data-repeat="tpl">
+        <h2 class="type-overline text-secondary ppl-tpl-group" data-slot="t-group">Lead response</h2>
+        <article class="card ppl-tpl-card" data-slot="t-card">
+          <form class="card-content ppl-tpl-card-in" method="post" action="/agent/messages/templates" data-submit-once data-slot="t-form">
+            <input type="hidden" name="templateId" value="" data-slot="t-id">
+            <input type="hidden" name="view" value="" data-slot="t-view">
+            <h3 class="type-subtitle1 fw-600 ppl-tpl-name" data-slot="t-name">Lead response</h3>
+            <p class="type-caption text-secondary ppl-tpl-meta" data-slot="t-meta">Last edited Oct 14</p>
+            <div class="ppl-tpl-actions">
+              <a class="btn btn-outlined btn-secondary btn-small ppl-btn-xs grow" href="/agent/messages/templates/x" data-slot="t-edit">Edit<span class="visually-hidden" data-slot="t-edit-name"> Lead response</span></a>
+              <button class="btn btn-text btn-small ppl-btn-xs" type="submit" name="op" value="duplicate" data-slot="t-dup">Duplicate<span class="visually-hidden" data-slot="t-dup-name"> Lead response</span></button>
+              <button class="btn btn-text btn-small ppl-btn-xs" type="submit" name="op" value="archive" data-slot="t-arch">Archive<span class="visually-hidden" data-slot="t-arch-name"> Lead response</span></button>
+              <button class="btn btn-outlined btn-secondary btn-small ppl-btn-xs grow" type="submit" name="op" value="restore" data-slot="t-restore">Restore<span class="visually-hidden" data-slot="t-restore-name"> Lead response</span></button>
+            </div>
+          </form>
+        </article>
+      </div>
+    </div>
+  </div>
+</main>
+</body>
+</html>

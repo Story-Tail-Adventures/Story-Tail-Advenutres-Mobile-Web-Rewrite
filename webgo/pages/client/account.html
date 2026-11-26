@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<!--
+  Screen 2.5.1 Account Overview (docs/Screen-Inventory.md §2.5.1, §4.4 Pattern D variant:
+  a list of tiles on mobile, a grid on tablet and web). Ports
+  web/app/(client)/account/{page,content}.tsx; copy word for word from ACCOUNT.
+
+  This is the ROOT of the Account destination, so it is the one §2.5 screen reached from the
+  rail rather than pushed from a hub — and the only place in the app that owns SIGN OUT.
+
+  DEPARTURES FROM THE ARTBOARD, each recorded in the Screen Inventory note at 2.5.1:
+   · No "Member ID · STA-5839" chip — there is no such column anywhere, and inventing a
+     customer number is a support burden rather than a feature.
+   · The avatar is INITIALS, not a photograph. Every staImg('avatar*') in the artboards is a
+     stock portrait of a stranger.
+   · No "Payment methods" row. It opened §2.4.1 until §2.4 was retired on 2026-10-16: the
+     app never holds a card, and clients pay each supplier through a pay link on the trip.
+   · Notifications is disabled: notification_preference has RLS with no policy and no
+     row-creation path, so 2.5.6 would read zero rows forever.
+
+  A TILE WHOSE SCREEN IS NOT BUILT YET IS DISABLED, with the same "coming with the next
+  release" reason the notifications tile carries. A hub that links to a 404 is worse than one
+  that says plainly what is not ready; each becomes a link as its page lands.
+-->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Account · Story-Tail Adventures</title>
+  <meta name="robots" content="noindex, nofollow">
+</head>
+<body>
+  <main>
+    <div class="cl-account-page">
+      <div class="card cl-card cl-account-hero">
+        <div class="card-content cl-account-hero-content">
+          <span class="cl-account-avatar" aria-hidden="true" data-slot="initials">JH</span>
+          <div class="cl-account-who">
+            <p class="type-h5 cl-account-name" data-slot="name">Jordan Hayes</p>
+            <p class="type-body2 cl-account-since" data-slot="since">Traveling with Gyasi since March 2026</p>
+          </div>
+        </div>
+      </div>
+
+      <section class="cl-settings-group">
+        <h2 class="type-overline text-secondary cl-settings-label">YOU</h2>
+        <div class="cl-tiles">
+          <a class="card cl-tile" href="/account/personal" data-slot="personal">
+            <span class="cl-tile-icon cl-tile-secondary" aria-hidden="true"><svg class="icon icon-18"><use href="/assets/icons.svg#user"></use></svg></span>
+            <span class="cl-tile-text">
+              <span class="type-subtitle1 text-primary" data-slot="personal-label">Personal info</span>
+              <span class="type-caption text-secondary" data-slot="personal-sub">Name, email, phone, address</span>
+            </span>
+          </a>
+          <span class="card cl-tile cl-tile-off" title="Coming with the next release" data-slot="personal-off">
+            <span class="cl-tile-icon cl-tile-surface" aria-hidden="true"><svg class="icon icon-18"><use href="/assets/icons.svg#user"></use></svg></span>
+            <span class="cl-tile-text">
+              <span class="type-subtitle1 text-primary" data-slot="personal-off-label">Personal info</span>
+              <span class="type-caption text-secondary" data-slot="personal-off-sub">Name, email, phone, address</span>
+            </span>
+          </span>
+          <a class="card cl-tile" href="/account/preferences" data-slot="preferences">
+            <span class="cl-tile-icon cl-tile-secondary" aria-hidden="true"><svg class="icon icon-18"><use href="/assets/icons.svg#heart"></use></svg></span>
+            <span class="cl-tile-text">
+              <span class="type-subtitle1 text-primary" data-slot="preferences-label">Travel preferences</span>
+              <span class="type-caption text-secondary" data-slot="preferences-sub">Style, dietary, loyalty</span>
+            </span>
+          </a>
+          <span class="card cl-tile cl-tile-off" title="Coming with the next release" data-slot="preferences-off">
+            <span class="cl-tile-icon cl-tile-surface" aria-hidden="true"><svg class="icon icon-18"><use href="/assets/icons.svg#heart"></use></svg></span>
+            <span class="cl-tile-text">
+              <span class="type-subtitle1 text-primary" data-slot="preferences-off-label">Travel preferences</span>
+              <span class="type-caption text-secondary" data-slot="preferences-off-sub">Style, dietary, loyalty</span>
+            </span>
+          </span>
+          <a class="card cl-tile" href="/documents" data-slot="documents">
+            <span class="cl-tile-icon cl-tile-secondary" aria-hidden="true"><svg class="icon icon-18"><use href="/assets/icons.svg#passport"></use></svg></span>
+            <span class="cl-tile-text">
+              <span class="type-subtitle1 text-primary" data-slot="documents-label">Travel documents</span>
+              <span class="type-caption text-secondary" data-slot="documents-sub">Passports, visas, insurance</span>
+            </span>
+          </a>
+          <span class="card cl-tile cl-tile-off" title="Coming with the next release" data-slot="documents-off">
+            <span class="cl-tile-icon cl-tile-surface" aria-hidden="true"><svg class="icon icon-18"><use href="/assets/icons.svg#passport"></use></svg></span>
+            <span class="cl-tile-text">
+              <span class="type-subtitle1 text-primary" data-slot="documents-off-label">Travel documents</span>
+              <span class="type-caption text-secondary" data-slot="documents-off-sub">Passports, visas, insurance</span>
+            </span>
+          </span>
+        </div>
+      </section>
+
+      <section class="cl-settings-group">
+        <h2 class="type-overline text-secondary cl-settings-label">APP</h2>
+        <div class="cl-tiles">
+          <span class="card cl-tile cl-tile-off" title="Coming with the next release" data-slot="notifications">
+            <span class="cl-tile-icon cl-tile-surface" aria-hidden="true"><svg class="icon icon-18"><use href="/assets/icons.svg#bell"></use></svg></span>
+            <span class="cl-tile-text">
+              <span class="type-subtitle1 text-primary" data-slot="notifications-label">Notifications</span>
+              <span class="type-caption text-secondary" data-slot="notifications-sub">Coming with the next release</span>
+            </span>
+          </span>
+          <a class="card cl-tile" href="/account/security" data-slot="security">
+            <span class="cl-tile-icon cl-tile-secondary" aria-hidden="true"><svg class="icon icon-18"><use href="/assets/icons.svg#shield"></use></svg></span>
+            <span class="cl-tile-text">
+              <span class="type-subtitle1 text-primary" data-slot="security-label">Security</span>
+              <span class="type-caption text-secondary" data-slot="security-sub">Password and two-factor</span>
+            </span>
+          </a>
+          <span class="card cl-tile cl-tile-off" title="Coming with the next release" data-slot="security-off">
+            <span class="cl-tile-icon cl-tile-surface" aria-hidden="true"><svg class="icon icon-18"><use href="/assets/icons.svg#shield"></use></svg></span>
+            <span class="cl-tile-text">
+              <span class="type-subtitle1 text-primary" data-slot="security-off-label">Security</span>
+              <span class="type-caption text-secondary" data-slot="security-off-sub">Password and two-factor</span>
+            </span>
+          </span>
+          <a class="card cl-tile" href="/account/connected" data-slot="connected">
+            <span class="cl-tile-icon cl-tile-secondary" aria-hidden="true"><svg class="icon icon-18"><use href="/assets/icons.svg#link"></use></svg></span>
+            <span class="cl-tile-text">
+              <span class="type-subtitle1 text-primary" data-slot="connected-label">Connected accounts</span>
+              <span class="type-caption text-secondary" data-slot="connected-sub">Google and Apple sign-in</span>
+            </span>
+          </a>
+          <span class="card cl-tile cl-tile-off" title="Coming with the next release" data-slot="connected-off">
+            <span class="cl-tile-icon cl-tile-surface" aria-hidden="true"><svg class="icon icon-18"><use href="/assets/icons.svg#link"></use></svg></span>
+            <span class="cl-tile-text">
+              <span class="type-subtitle1 text-primary" data-slot="connected-off-label">Connected accounts</span>
+              <span class="type-caption text-secondary" data-slot="connected-off-sub">Google and Apple sign-in</span>
+            </span>
+          </span>
+        </div>
+      </section>
+
+      <section class="cl-settings-group">
+        <h2 class="type-overline text-secondary cl-settings-label">SUPPORT</h2>
+        <div class="cl-tiles">
+          <a class="card cl-tile" href="/account/help" data-slot="help">
+            <span class="cl-tile-icon cl-tile-secondary" aria-hidden="true"><svg class="icon icon-18"><use href="/assets/icons.svg#question"></use></svg></span>
+            <span class="cl-tile-text">
+              <span class="type-subtitle1 text-primary" data-slot="help-label">Help &amp; support</span>
+              <span class="type-caption text-secondary" data-slot="help-sub">Common questions, or message Gyasi</span>
+            </span>
+          </a>
+          <span class="card cl-tile cl-tile-off" title="Coming with the next release" data-slot="help-off">
+            <span class="cl-tile-icon cl-tile-surface" aria-hidden="true"><svg class="icon icon-18"><use href="/assets/icons.svg#question"></use></svg></span>
+            <span class="cl-tile-text">
+              <span class="type-subtitle1 text-primary" data-slot="help-off-label">Help &amp; support</span>
+              <span class="type-caption text-secondary" data-slot="help-off-sub">Common questions, or message Gyasi</span>
+            </span>
+          </span>
+          <a class="card cl-tile" href="/account/privacy" data-slot="privacy">
+            <span class="cl-tile-icon cl-tile-secondary" aria-hidden="true"><svg class="icon icon-18"><use href="/assets/icons.svg#lock"></use></svg></span>
+            <span class="cl-tile-text">
+              <span class="type-subtitle1 text-primary" data-slot="privacy-label">Privacy &amp; data</span>
+              <span class="type-caption text-secondary" data-slot="privacy-sub">Download a copy of your data</span>
+            </span>
+          </a>
+          <span class="card cl-tile cl-tile-off" title="Coming with the next release" data-slot="privacy-off">
+            <span class="cl-tile-icon cl-tile-surface" aria-hidden="true"><svg class="icon icon-18"><use href="/assets/icons.svg#lock"></use></svg></span>
+            <span class="cl-tile-text">
+              <span class="type-subtitle1 text-primary" data-slot="privacy-off-label">Privacy &amp; data</span>
+              <span class="type-caption text-secondary" data-slot="privacy-off-sub">Download a copy of your data</span>
+            </span>
+          </span>
+        </div>
+      </section>
+
+      <form class="cl-signout" method="post" action="/account/sign-out" data-submit-once data-slot="signout-form">
+        <button class="btn btn-outlined btn-secondary st-btn cl-signout-button" type="submit" data-slot="signout">Sign out</button>
+      </form>
+    </div>
+  </main>
+</body>
+</html>
