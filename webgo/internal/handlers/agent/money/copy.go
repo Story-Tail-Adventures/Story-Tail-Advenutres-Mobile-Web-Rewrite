@@ -146,9 +146,6 @@ func forecastMonthLabel(iso string, first bool) string {
 // Only what Go CHOOSES BETWEEN is here; a label the page always shows lives in the HTML.
 
 const (
-	copyTermsAfterTravel = "After travel"
-	copyTermsAtBooking   = "At booking"
-
 	copySupplierRequired    = "Pick a supplier."
 	copyGrossInvalid        = "Enter an amount like 6480.00."
 	copyRateInvalid         = "Enter a rate from 0 to 100."

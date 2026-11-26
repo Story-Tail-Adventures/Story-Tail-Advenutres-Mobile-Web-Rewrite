@@ -23,8 +23,9 @@ import (
 type option struct{ Value, Label string }
 
 // PAYMENT_TERMS_OPTIONS is not here: both its labels are always drawn, so they live in the
-// page files, and copy_test checks copyTermsAfterTravel / copyTermsAtBooking against the
-// TypeScript for the two places Go does choose between them.
+// page files (add.html and line.html, as <option> text). Go never chooses between them, so
+// it holds no constant for either. It used to, purely so copy_test could compare them with
+// the Next sources; that test went with web/ in Phase 6 and the constants with it.
 
 // createStatusOptions is CREATE_STATUS_OPTIONS: what a NEW line may be. A line has not been
 // paid when it is first entered.

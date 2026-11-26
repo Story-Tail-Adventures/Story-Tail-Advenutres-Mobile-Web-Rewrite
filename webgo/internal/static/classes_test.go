@@ -169,7 +169,6 @@ func TestAllowlistCatchesAnUndefinedClass(t *testing.T) {
 var (
 	spriteID = regexp.MustCompile(`<symbol id="([a-z_]+)" viewBox="0 0 24 24"><path d="([^"]+)"/></symbol>`)
 	iconUse  = regexp.MustCompile(`href="/assets/icons\.svg#([a-z_]+)"`)
-	tsPath   = regexp.MustCompile(`(?m)^\s*([a-z_]+):\s*"([^"]+)",?\s*$`)
 )
 
 func sprite(t *testing.T) map[string]string {
