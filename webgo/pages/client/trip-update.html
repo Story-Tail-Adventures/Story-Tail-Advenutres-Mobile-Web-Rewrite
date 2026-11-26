@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<!--
+  Screen 2.2.9 Trip Status Change Notification View (docs/Screen-Inventory.md §2.2.9). Ports
+  web/app/(client)/trips/[tripId]/update/{page,content}.tsx; copy word for word from
+  STATUS_CHANGE_MESSAGES.
+
+  A ROUTE, NOT A SHEET, and that is the one place this departs from both artboards. They draw
+  it as a bottom sheet over a dimmed dashboard, which is right when a status changes while
+  somebody is already looking at the app. But §2.2.9's own entry points are "push or email
+  notification" — so the first thing that has to work is a URL arriving cold, from a mail
+  client, on a device where the app was not open. A sheet has no URL.
+
+  WHAT IT CAN HONESTLY SAY is the real design work. Nothing in the schema records a status
+  DIFF: there is trip.status and trip.status_changed_at and that is all. So the heading and
+  the description come from the status it landed ON, and every supporting fact is a real row
+  rendered only when it exists. The artboard's "two room types to choose between" is never
+  said by anything.
+-->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Trip update · Story-Tail Adventures</title>
+  <meta name="robots" content="noindex, nofollow">
+</head>
+<body>
+  <main>
+    <div class="cl-doc-page cl-update-page">
+      <div class="cl-empty cl-not-found" data-slot="not-found">
+        <span class="cl-empty-icon" aria-hidden="true"><svg class="icon icon-24"><use href="/assets/icons.svg#warning"></use></svg></span>
+        <p class="type-subtitle1 text-primary cl-empty-title">We couldn't find that trip</p>
+        <p class="type-body2 text-secondary cl-empty-body">It may have been archived, or the link may belong to a different account.</p>
+        <a class="btn btn-contained st-btn btn-small" href="/trips">All trips</a>
+      </div>
+
+      <div data-slot="body">
+        <a class="btn btn-text st-btn btn-small cl-back-link" href="/trips/1" data-slot="back"><svg class="icon icon-14" aria-hidden="true"><use href="/assets/icons.svg#arrow_left"></use></svg>Back to trip</a>
+
+        <div class="card cl-card cl-update-hero">
+          <div class="card-content cl-update-hero-content">
+            <span class="cl-update-mark" aria-hidden="true"><svg class="icon icon-24"><use href="/assets/icons.svg#sparkle"></use></svg></span>
+            <div class="cl-update-head">
+              <!-- A DATE, never "2 min ago": that is true at the instant the notification
+                   fires and a confident lie by the time somebody opens the email the next
+                   morning. A date cannot go stale. -->
+              <p class="type-overline cl-update-overline"><span data-slot="overline">Status updated</span> · <span data-slot="changed-at">Mar 14, 2027</span></p>
+              <h1 class="type-h5 text-primary cl-update-title" data-slot="heading">Your proposal is ready</h1>
+              <p class="type-body2 text-secondary cl-update-body" data-slot="narrative">“Aruba in April” moved from an inquiry to a proposal.</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Only facts with a row behind them. An empty list hides the card rather than
+             printing a heading over nothing. -->
+        <section class="card cl-card" data-slot="facts">
+          <div class="card-content cl-card-content">
+            <h2 class="type-subtitle1 text-primary cl-card-title" data-slot="facts-title">What changed</h2>
+            <ul class="cl-update-facts">
+              <li class="type-body2 text-secondary" data-repeat="facts"><span data-slot="fact">Proposal · version 1</span></li>
+            </ul>
+          </div>
+        </section>
+
+        <section class="card cl-card">
+          <div class="card-content cl-card-content">
+            <h2 class="type-subtitle1 text-primary cl-card-title" data-slot="next-title">What’s next</h2>
+            <ol class="cl-update-steps">
+              <li class="type-body2 text-secondary" data-repeat="steps"><span data-slot="step">Have a read, no rush</span></li>
+            </ol>
+          </div>
+        </section>
+
+        <a class="btn btn-contained st-btn cl-update-cta" href="/trips/1" data-slot="primary">View the proposal</a>
+      </div>
+    </div>
+  </main>
+</body>
+</html>

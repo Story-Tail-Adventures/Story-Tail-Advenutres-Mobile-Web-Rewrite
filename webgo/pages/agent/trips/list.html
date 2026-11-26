@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<!--
+  Screen 3.4.1, Trip List. Ports app/(agent)/agent/trips/page.tsx with TripRosterFilters,
+  TripRosterTable, TripBulkStatus and RosterPagination. Filled by internal/handlers/agent/trips
+  (list.go). The first four slots are the frame every trips page shares (frame.go).
+-->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Trips · Story-Tail Adventures</title>
+</head>
+<body>
+<main>
+  <!-- AdminNoAccess: an admin has no desk here. -->
+  <div class="card trp-state" data-slot="no-access">
+    <div class="card-content trp-state-body">
+      <span class="avatar trp-state-tile" aria-hidden="true"><svg class="icon trp-icon-26" aria-hidden="true"><use href="/assets/icons.svg#shield"></use></svg></span>
+      <h2 class="type-h5">You don’t have access to this view</h2>
+      <p class="type-body2 text-secondary trp-mt-1">Your account is set up as an administrator. Story-Tail has no admin area yet, so there is nothing here for you — the traveler’s side and the advisor’s worklist are both somebody else’s desk.</p>
+      <form method="post" action="/account/sign-out">
+        <button type="submit" class="btn btn-outlined btn-secondary st-btn trp-mt-2">Sign out</button>
+      </form>
+    </div>
+  </div>
+
+  <div class="trp-col" data-slot="page">
+    <!-- RetryState (ErrorState with a retry): a read failed. -->
+    <div class="card trp-state" data-slot="retry">
+      <div class="card-content trp-state-body">
+        <span class="avatar trp-state-tile trp-state-tile-error" aria-hidden="true"><svg class="icon trp-icon-26" aria-hidden="true"><use href="/assets/icons.svg#warning"></use></svg></span>
+        <h2 class="type-h5 text-error">That didn’t load</h2>
+        <p class="type-body2 text-secondary trp-mt-1">Something went wrong on our side, not yours. Trying again usually sorts it.</p>
+        <div class="trp-state-actions">
+          <a class="btn btn-contained st-btn" href="/agent/trips" data-slot="retry-again">Try again</a>
+          <a class="btn btn-outlined st-btn" href="mailto:hello@story-tail.com?subject=Something%20went%20wrong"><svg class="icon icon-14" aria-hidden="true"><use href="/assets/icons.svg#message"></use></svg> Message Gyasi</a>
+        </div>
+      </div>
+    </div>
+
+    <div data-slot="body">
+      <header class="trp-head">
+        <div class="trp-head-text">
+          <h1 class="type-h5">Trips</h1>
+          <p class="type-body2 text-secondary trp-sub">Every trip you own or assist with.<span data-slot="pipeline"> · Pipeline <strong data-slot="pipeline-value">$48,200</strong></span></p>
+        </div>
+        <div class="row gap-1 shrink-0">
+          <a class="btn btn-outlined btn-small st-btn" href="/agent/templates">Templates</a>
+          <a class="btn btn-contained btn-brand btn-small st-btn" href="/agent/trips/new"><svg class="icon trp-icon-12" aria-hidden="true"><use href="/assets/icons.svg#plus"></use></svg> New trip</a>
+        </div>
+      </header>
+
+      <!-- The filters: a GET form, so the list lives in the URL. No page input, on purpose. -->
+      <form class="trp-filters" method="get" action="/agent/trips">
+        <div class="row wrap gap-1">
+          <label class="visually-hidden" for="trip-q">Search trips</label>
+          <input class="input trp-search" id="trip-q" type="search" name="q" placeholder="Trip, destination, or client…" data-slot="q">
+          <button type="submit" class="btn btn-outlined btn-secondary btn-small st-btn">Search trips</button>
+        </div>
+        <fieldset class="trp-chips">
+          <legend class="visually-hidden">Stage</legend>
+          <label class="chip chip-outlined chip-input" data-repeat="stage"><span class="chip-label"><input class="visually-hidden" type="checkbox" name="status" value="inquiry" data-slot="stage-input"><span data-slot="stage-label">Inquiry</span><span class="trp-chip-count" data-slot="stage-count">3</span></span></label>
+        </fieldset>
+      </form>
+
+      <!-- The bulk form wraps BOTH branches so its receipt outlives the rows. -->
+      <form class="trp-bulk" method="post" action="/agent/trips" data-submit-once data-slot="bulk-form">
+        <input type="hidden" name="return" value="/agent/trips" data-slot="bulk-return">
+        <div class="alert alert-success trp-receipt" role="status" data-slot="receipt"><div class="alert-message" data-slot="receipt-text">Moved 2 trips to Booked.</div></div>
+
+        <div class="card trp-state" data-slot="empty">
+          <div class="card-content trp-state-body">
+            <span class="avatar trp-state-tile" aria-hidden="true"><svg class="icon trp-icon-26" aria-hidden="true"><use href="/assets/icons.svg#trip"></use></svg></span>
+            <h2 class="type-h5" data-slot="empty-title">No trips yet</h2>
+            <p class="type-body2 text-secondary trp-mt-1" data-slot="empty-body">The first one arrives when you build it, or when a quote request comes in.</p>
+          </div>
+        </div>
+
+        <div class="card trp-table-card" data-slot="table">
+          <table class="table table-small table-hover">
+            <thead>
+              <tr>
+                <th scope="col" class="trp-cell-check"><input class="check-input trp-check" type="checkbox" id="trip-select-all" aria-label="Select every trip on this page" hidden data-trp-select-all></th>
+                <th scope="col">Trip</th>
+                <th scope="col">Client</th>
+                <th scope="col">Travel</th>
+                <th scope="col">Stage</th>
+                <th scope="col" class="cell-num">Value</th>
+                <th scope="col" class="cell-num">Comm</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr data-repeat="trip">
+                <td class="trp-cell-check"><input class="check-input trp-check" type="checkbox" name="trip" value="trip-id:booked" aria-label="Select Sandals honeymoon" data-slot="trip-pick"></td>
+                <td>
+                  <a class="link link-hover link-inherit trp-block" href="/agent/trips/sample" data-slot="trip-link">
+                    <span class="type-body2 fw-600 truncate trp-block" data-slot="trip-title">Sandals honeymoon · Aug 2026</span>
+                    <span class="type-caption text-secondary truncate trp-block" data-slot="trip-meta">Negril +1 · 4</span>
+                  </a>
+                </td>
+                <td class="trp-td-muted"><a class="link link-hover link-inherit" href="/agent/clients/sample" data-slot="trip-client">Jordan Hayes</a></td>
+                <td class="trp-td-travel" data-slot="trip-travel">Aug 12 – 19, 2026</td>
+                <td><span class="status-chip status-inquiry" data-slot="trip-stage">Booked</span></td>
+                <td class="cell-num trp-td-value" data-slot="trip-value">$12,845</td>
+                <td class="cell-num trp-td-comm" data-slot="trip-comm">$1,284</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Shown by CSS once a row is ticked (md and up), so it works with JS off. -->
+        <div class="paper paper-outlined trp-bulk-bar">
+          <span class="type-body2 fw-600">Move the trips you've ticked to</span>
+          <label class="visually-hidden" for="bulk-status">Stage</label>
+          <div class="select trp-select-auto">
+            <select class="input trp-input-40" id="bulk-status" name="toStatus" required>
+              <option value="" disabled selected>Stage…</option>
+              <option value="booked" data-repeat="bulk-to" data-slot="bulk-to-opt">Booked</option>
+            </select>
+          </div>
+          <button type="submit" class="btn btn-contained btn-brand btn-small st-btn">Move</button>
+        </div>
+      </form>
+
+      <nav class="trp-pager" aria-label="Roster pages" data-slot="pager">
+        <p class="type-body2 text-secondary" data-slot="pager-range">1–25 of 27</p>
+        <span class="row gap-1">
+          <a class="btn btn-outlined btn-small st-btn" href="/agent/trips?page=1" data-slot="pager-prev">Previous</a>
+          <span class="btn btn-outlined btn-small st-btn" aria-disabled="true" data-slot="pager-prev-off">Previous</span>
+          <a class="btn btn-outlined btn-small st-btn" href="/agent/trips?page=2" data-slot="pager-next">Next</a>
+          <span class="btn btn-outlined btn-small st-btn" aria-disabled="true" data-slot="pager-next-off">Next</span>
+        </span>
+      </nav>
+    </div>
+  </div>
+  <script type="module" src="/assets/js/agent/trips/bulk.js"></script>
+</main>
+</body>
+</html>

@@ -15,7 +15,13 @@ export interface paths {
         put?: never;
         /**
          * Live hotel search for the public Explore surface.
-         * @description Screen 2.0.4 in Hotels mode, and 2.3.3 later. Calls SerpApi's Google Hotels engine
+         * @deprecated
+         * @description RETIRED, NOT PORTED (2026-11-06). Nothing calls this function any more: the web app
+         *     does live hotel search itself since PR #48 (`web/lib/public/hotels.ts`), and mobile
+         *     never called it. It is not ported to Go and goes away with the Deno functions
+         *     (docs/GO-MIGRATION.md §5.10). The description below is kept as the record.
+         *
+         *     Screen 2.0.4 in Hotels mode, and 2.3.3 later. Calls SerpApi's Google Hotels engine
          *     for the dates given and returns normalised hotel content plus ONE indicative
          *     nightly rate per property.
          *
@@ -74,6 +80,11 @@ export interface paths {
          *     `X-STA-Search-Token` — the same credential `hotel-search` uses, from the same
          *     `HOTEL_SEARCH_CALLER_TOKEN` secret. The anon key ships in the browser bundle, so it
          *     authenticates nobody; the header is what does.
+         *
+         *     PORTED TO GO (2026-11-06). The Go service runs it IN PROCESS for its own web pages
+         *     and answers 404 on its HTTP door, so no caller token is needed or accepted there; the
+         *     request and reply below are unchanged. The `X-STA-Search-Token` header applies only to
+         *     the Deno function, until it is retired (GO-MIGRATION.md §5.10).
          *
          *     THE RESPONSE CARRIES NO FARE. `cruise_sailing.lead_price_cents` exists and is
          *     classified Internal (Data-Model §24.4); Free-Travel-APIs §4.7 says to launch the
@@ -232,7 +243,11 @@ export interface paths {
         put?: never;
         /**
          * Move a trip between pipeline stages.
-         * @description Screen 3.2.2 (Pipeline / Funnel View). Agent role only — a traveler gets a 403
+         * @description `op: bulk` moves many trips at once, each guarded by the status its row was
+         *     showing; a trip moved since, not this advisor's, or already there is skipped, and
+         *     the skipped ones are indistinguishable. Bulk refuses `cancelled` (400).
+         *
+         *     Screen 3.2.2 (Pipeline / Funnel View). Agent role only — a traveler gets a 403
          *     naming the other side of the platform, and so does an advisor whose `agent.status`
          *     is `archived`. Every read on this side already refuses that advisor
          *     (`current_agent_id()` tests `status <> 'archived'`); a write path that did not
@@ -516,12 +531,779 @@ export interface paths {
          *     Omitting `code` (or sending null) is a first-class exit: "I don't have a
          *     code" writes nothing but the cursor and returns `redeemed: false`.
          *
-         *     Every refusal returns 403 with a `detail` naming the reason — expired,
-         *     already used, revoked, already connected, claimed by another traveler,
-         *     or rate limited. The reason is deliberately specific: a traveler holding
-         *     a code that expired needs to know that, not "invalid code".
+         *     Every refusal carries a `detail` naming the reason. A refused CODE is a 400
+         *     (unknown, expired, already used, revoked, already connected, claimed by
+         *     another traveler); the rate limit, and a caller who is not a traveler, are
+         *     403. The reason is deliberately specific: a traveler holding a code that
+         *     expired needs to know that, not "invalid code". (Corrected 2026-11-06: this
+         *     used to say every refusal was a 403; the differential test against the
+         *     function showed otherwise.)
          */
         post: operations["redeemConnectCode"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/lead-message": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * The public "Message Gyasi" form, for a visitor with no account.
+         * @description Screen Inventory 2.0.12. NO SIGN-IN: a visitor who only messages Gyasi is a lead
+         *     (BRD §6.5, 2026-10-21); whoever asks for a quote is a client and uses `/quote-request`.
+         *
+         *     THE ANSWER NEVER SAYS WHAT HAPPENED. A new lead, a message joining an open lead, and
+         *     an address that already belongs to a client all answer `{ "ok": true }`, so the form
+         *     cannot be used to learn whether an address is a client's. A send that looks automated
+         *     (the hidden `website` field filled, or sent under three seconds after `startedAt`) is
+         *     dropped and answered the same way.
+         *
+         *     A card number anywhere in the message is REFUSED (400), never stored or masked
+         *     (CLAUDE.md rule 1). Five sends an hour per network address, then 429. 503 when there
+         *     is not exactly one active advisor to route to (ours to fix, not the visitor's).
+         *
+         *     In the Go service the web form calls this in process; the visitor's address comes
+         *     from the server, never from a header the caller sent.
+         */
+        post: operations["sendLeadMessage"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/agent-lead": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * The advisor's lead actions (3.8.4 and 3.8.5).
+         * @description One function, six `op`s. `create` adds a lead by hand (3.8.5); the rest act on an
+         *     existing lead of the caller's: `mark_contacted`, `close` (with a `reason` from the list
+         *     and an optional private `note`), `reopen`, `convert` (to one of the caller's clients),
+         *     and `delete_spam`. Every write is audited (`lead.created`, `lead.note_added`,
+         *     `lead.contacted`, `lead.closed`, `lead.reopened`, `lead.converted`,
+         *     `lead.deleted_as_spam`); a `noop` is not.
+         *
+         *     Advisor only (agent role, a second factor this session, not archived). A lead that is
+         *     not the caller's, or a `convert` to a client that is not theirs, is 404 "No such lead.".
+         *     409 when the lead moved since the page loaded, or (`reopen`) when the address already
+         *     has another open lead.
+         *
+         *     `create` answers `client_exists` with the client's id when the address is already a
+         *     client of theirs; nothing is written then.
+         */
+        post: operations["agentLead"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/quote-request": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Turn a search result into a trip in `inquiry` status.
+         * @description Screens 2.3.8 and 2.0.4 (P2). A quote request is a TRIP, not a lead (BRD §6.5,
+         *     decided 2026-09-09): the trip is created with its default status `inquiry`, and one
+         *     `trip_component` describes what the traveler was looking at. A signed-in CLIENT only
+         *     (`trip.client_id` and the client's names are NOT NULL, so there is no anonymous
+         *     path); an advisor or admin is 403 "Requires role: client.".
+         *
+         *     `tripId` is minted by the client (a recent UUID v7), which makes a retry land once:
+         *     a second send of the same id is 400 "That request has already been sent.". The
+         *     advisor is read from the caller's client record, never from the request.
+         *
+         *     MONEY STAYS ZERO. A provider's nightly rate is not a quote: the component's
+         *     `cost_cents` and `commission_cents` keep their zero defaults, and the figure rides in
+         *     `trip_component.payload` as `snapshot.indicativeRateCents`.
+         *
+         *     The component is best effort: if its insert fails the trip still stands (201), and
+         *     the `trip.inquiry_created` audit row records `componentWritten: false`. The advisor is
+         *     then alerted (push and/or email, by their settings); a failed alert never fails the
+         *     request.
+         */
+        post: operations["requestQuote"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/agent-trip": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * The trip builder's writes. Create, components, the payment schedule, pay links.
+         * @description Screens 3.4.3 (create), 3.4.4 to 3.4.12 (components), 3.4.15 (payment schedule) and
+         *     3.6.1 (pay links). ONE endpoint with eight ops, chosen by `op`, each its own request
+         *     and response shape. Agent role only, at aal2; an advisor whose `agent.status` is
+         *     `archived` is refused (403). A traveler gets 403 on every op: only the advisor
+         *     writes a pay link or marks a milestone paid (BRD §10).
+         *
+         *     Every op but `create` names `tripId`. A trip that is not this advisor's, is
+         *     archived or does not exist is ONE answer, 404 "That trip is not on your board.",
+         *     and so is a component or milestone that is not on that trip.
+         *
+         *     `create` mints the trip id (v7) and answers `{outcome: created, tripId}`, or
+         *     `{outcome: no_client}` with a 200 when the client is not this advisor's.
+         *     `travelerCount` is clamped to 1..64, not refused; a non-integer is 1.
+         *
+         *     `component_upsert` creates (no `componentId`) or edits. Unknown `detail` keys are
+         *     refused, never dropped. Cents are a JSON integer or a digit string (at most ten
+         *     digits). `commissionCents` left blank with a rate set is worked out from the rate;
+         *     anything typed, 0 included, wins. A save that changes nothing answers `noop`.
+         *     `component_archive` is soft. `component_reorder` sends EVERY live component in its
+         *     new order; a list that does not cover the trip is a 409.
+         *
+         *     `payment_upsert` creates or edits a milestone's kind, label, amount and due date.
+         *     `payment_paid` is the only op that moves what the client has paid: `paidCents`
+         *     absent means the whole amount, 0 means nothing landed; `paidReference` and
+         *     `paidNote` absent keep what is stored and "" clears them; `paidOn` may not be after
+         *     the advisor's today. `payment_delete` is a hard delete.
+         *
+         *     `payment_link` sets, changes or removes (null, "" or absent) the milestone's pay
+         *     link. NO CARD NUMBERS, EVER: a link, confirmation number or note holding a
+         *     Luhn-valid 13 to 19 digit run is a 400. A link must be `https://`, carry no user
+         *     name or password, and name a real host (not an IP, not `localhost`); it is stored
+         *     as parsed (`payUrl` in the reply is what was stored: host lower-cased, IDN in
+         *     punycode). A link the database CHECK still refuses is a 400 too. Every set, change
+         *     and removal, and every paid mark, writes its `audit_event` inside the same SQL
+         *     transaction as the write; a no-op writes none.
+         */
+        post: operations["agentTrip"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/agent-itinerary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * The Itinerary Editor's writes. Generate, a day, an activity, delete, reorder.
+         * @description Screen 3.4.14. ONE endpoint with five ops, chosen by `op`, each its own request
+         *     and response shape. Agent role only, at aal2, and an advisor whose `agent.status`
+         *     is `archived` is refused (403). Every op names `tripId`; a trip that is not this
+         *     advisor's, is archived, or does not exist is ONE answer, 404 "That trip is not on
+         *     your board.", and so is a day or activity that is not on that trip's itinerary.
+         *
+         *     `generate` adds a day for every date from the trip's start to its end, and an
+         *     activity for every live component (insurance excepted) that starts on one of those
+         *     days and is not on the itinerary yet. Additive and idempotent: a second press adds
+         *     nothing, answers `noop`, and writes no audit row. A trip without both dates
+         *     answers 200 with `outcome: no_dates`, not a 4xx, so the screen can say "give the
+         *     trip dates first" next to the dates.
+         *
+         *     `day_upsert` creates a day (`date` required) or edits one (`dayId`; a missing
+         *     `date` keeps the stored one). `activity_upsert` creates an activity on `dayId` or
+         *     edits `activityId` (moving it when `dayId` names another day). `block` omitted is
+         *     worked out from `startTime`. Blank text fields are stored as null; `label`,
+         *     `summary` and every activity field are replaced outright on an edit.
+         *
+         *     `activity_delete` is a hard delete; its audit row is the only record left.
+         *
+         *     `reorder` sends EVERY activity of one day in its new order. A list that does not
+         *     cover the day (it gained or lost an activity since the page rendered) is a 409.
+         *     `moved` counts the activities whose position changed; 0 writes no audit row.
+         *
+         *     Audit rows carry the trip id, never the label, summary or activity text.
+         */
+        post: operations["agentItinerary"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/agent-client": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Create, edit, archive or restore a client, or tag many at once.
+         * @description Screens 3.3.9 (create), 3.3.10 (edit), 3.3.12 (archive / restore) and 3.3.1's bulk tag.
+         *     ONE endpoint with four ops, chosen by `op`, each its own request shape.
+         *
+         *     ONLY A STALE `expectedVersion` IS A 409 (`update`, `archive`). Every other answer is a
+         *     200 with an `outcome`: `duplicate_email` is a 200 so the form can link to the record the
+         *     advisor already has (`create` returns its id as `existingClientId`).
+         *
+         *     A client that is not this advisor's, does not exist, or was merged away is a 404 on
+         *     `update` and `archive`. `bulk_tag` reports only how many changed: a client that is not
+         *     this advisor's, already carried the tag, or is at the 20-tag cap is skipped, and the
+         *     three are indistinguishable.
+         *
+         *     Audited per client: `client.created` / `client.updated` (the NAMES of the fields that
+         *     moved, never their values) / `client.archived` (with the reason) / `client.restored` /
+         *     `client.tag_added` / `client.tag_removed` (one row per changed client).
+         *
+         *     Text fields are trimmed; an empty string is null. Lengths are in UTF-16 units.
+         */
+        post: operations["agentClient"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/agent-client-notes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Add, edit or delete one of a client's internal notes.
+         * @description Screen 3.3.7 (Client Detail, Notes tab). `create` mints the note's id (v7) itself;
+         *     `update` and `archive` name an existing note by `noteId`. Delete is an ARCHIVE
+         *     (`client_note.archived_at`). No `expectedVersion`: `client_note` has no version column.
+         *
+         *     A client that is not this advisor's, does not exist or was merged away, and a note
+         *     that is not this client's, not this author's or already archived, are all the same
+         *     404. A re-save of identical text is `changed: false`. The audit row
+         *     (`client.note_created` / `client.note_changed` / `client.note_archived`) carries the
+         *     note id, never the note.
+         */
+        post: operations["agentClientNotes"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/agent-template": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Trip templates. Save a trip as one, rename it, retire it, or apply it to a trip.
+         * @description §3.4.13 Trip Template Library. ONE endpoint with four ops, chosen by `op`.
+         *
+         *     `save` snapshots a trip of the advisor's (its components and day-by-day, every date
+         *     as an offset from the trip's start; never confirmation numbers or the payment
+         *     schedule). `update` changes the name and description only. `archive` is a soft delete.
+         *     `apply` seeds a trip from a template: components are appended, days the trip already
+         *     has are left alone, and days need the trip to have a start date. A trip seeded once
+         *     answers `already_applied` and nothing is written.
+         *
+         *     A trip or template that is not this advisor's, does not exist or is archived is a 404.
+         *     Audited only when something changed: `trip_template.created` / `.updated` / `.archived`
+         *     and `trip.seeded_from_template`.
+         */
+        post: operations["agentTemplate"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/agent-message-template": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * The advisor's message templates. Create, edit, duplicate, archive or restore.
+         * @description §3.10 Stage 2 (Screens 3.10.4 Library and 3.10.5 Editor). ONE endpoint with four ops.
+         *
+         *     `create` and `duplicate` take an id the browser minted (a UUID v7 from the last hour),
+         *     so a double click or a retry answers `exists` and writes once. An id that belongs to
+         *     another advisor's template, and a template that is not the caller's or is archived
+         *     (for `update` and `duplicate`'s source), are the same 404. `duplicate` names its copy
+         *     "Copy of ..." cut to 80 characters. Only known `{{merge.fields}}` may appear in a body.
+         *     No audit rows: a template holds no client data.
+         */
+        post: operations["agentMessageTemplate"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/agent-settings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * The advisor's own settings. Profile, photo, availability, time away, alerts, signature.
+         * @description §3.12 (Screens 3.12.1 to 3.12.4). ONE endpoint with eight ops, chosen by `op`.
+         *
+         *     Every write is one SQL transaction that also writes its audit row, with {from, to} for
+         *     each changed field. A save that changes nothing writes nothing and answers `unchanged`.
+         *
+         *     `set_avatar` takes a photo the browser already squared (base64, at most 1 MiB decoded,
+         *     JPEG, PNG or WebP by its own first bytes). The server picks the Storage key and stores
+         *     a PATH (`/storage/v1/object/public/agent-avatars/<agent>/<file>`), which each surface
+         *     puts on its own public origin. The replaced photo is deleted after the profile moves.
+         *
+         *     Time away is checked against today in the advisor's own time zone. 409s here are
+         *     `overlap` (another block), `started` (edit a running block) and `past` (end one that
+         *     is over), as the phone and web key them; a missing or other advisor's block is a 404.
+         */
+        post: operations["agentSettings"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/agent-commission": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * The commission ledger's writes. Add, edit, mark received, remove, export, weights.
+         * @description Screens 3.7.3 (edit, mark received, remove), 3.7.4 (add), §3.7.2's export and 3.7.7's
+         *     stage weights. ONE endpoint with six ops, chosen by `op`.
+         *
+         *     Every write is audited INSIDE its SQL function, in the same transaction as the change
+         *     (`commission.created`, `commission.updated`, `commission.payment_recorded`,
+         *     `commission.removed`, `commission.exported`, `pipeline_weight.updated`).
+         *
+         *     `update`, `payment` and `remove` name one line by `commissionId` at the
+         *     `expectedVersion` the screen rendered; a mismatch is the 409. ONLY that optimistic
+         *     lock is a 409: every outcome a form shows against a field comes back 200 with an
+         *     `outcome` (`duplicate_reference`, `supplier_not_found`, `payment_would_clear`,
+         *     `bad_date`, `not_removable`). A line that is not this advisor's, does not exist or was
+         *     removed is the same 404 ("No such commission line."); a trip that is not theirs is
+         *     404 "No such trip on your book.".
+         *
+         *     Amounts in are whole cents (a number or a digit-string). `gapCents` and the CSV's
+         *     cells come back as exact decimal text, never a float.
+         */
+        post: operations["agentCommission"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/commission-import": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Upload, map, resolve, reconcile or discard an Inteletravel statement.
+         * @description Screens 3.7.5 (upload, map) and 3.7.6 (resolve each row, mark as reconciled, or
+         *     discard). ONE endpoint with five ops, chosen by `op`.
+         *
+         *     `upload` takes the CSV as base64 (512 KB at most, up to 1,000 rows and 60 columns),
+         *     reads it on the server (UTF-8, or Windows-1252 when it is not valid UTF-8; an Excel
+         *     workbook is refused by name), stores it in the private `commission-statements` bucket
+         *     under a key the server derives, and guesses a column map from the advisor's last
+         *     statement, then from the header names. The same file again (by SHA-256, not
+         *     discarded) is the `duplicate_file` outcome, with the earlier statement's id.
+         *
+         *     Every other op names one statement by `importId` at the `expectedVersion` the screen
+         *     rendered; a mismatch is the 409. ONLY that is a 409: every outcome a screen should
+         *     explain is a 200 with an `outcome`. A statement that is not this advisor's, does not
+         *     exist or was discarded is the same 404.
+         *
+         *     Only `reconcile` writes the ledger, in one SQL transaction with an audit row per line
+         *     (`commission.reconciled`, `commission.created`) and one for the statement
+         *     (`commission.statement_reconciled`). `upload` and `discard` are audited too
+         *     (`commission.statement_uploaded`, `commission.statement_discarded`); `discard` also
+         *     removes the stored file.
+         */
+        post: operations["commissionImport"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/agent-report": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Download a report, or an Export Center file, as CSV.
+         * @description §3.11 Reporting's audited download (P1). `export`: one report's own table for the
+         *     period on screen. `center`: the Export Center's four types (§3.11.8) over an inclusive
+         *     From/To range (none for clients). Reads for the SCREEN are not here: they are the
+         *     `agent_report_*` functions, called with the advisor's own token.
+         *
+         *     Every file writes one audit row in the same SQL call that returns its rows:
+         *     `report.exported` (and `commission.exported` for the ledger), so no file leaves
+         *     without its record.
+         *
+         *     The CSV travels inside the JSON reply: RFC 4180, CRLF line ends and a trailing CRLF,
+         *     no byte-order mark, money as exact decimals ("1234.56"), and a text cell starting with
+         *     = + - @ tab or CR prefixed with an apostrophe. The Export Center's 400 details are
+         *     written to be shown to the advisor as they are.
+         */
+        post: operations["agentReport"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/account-admin": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Login Support. Sign-in emails, verify, lock, sign out, flag, merge.
+         * @description Screens 3.9.1 to 3.9.7 (Client Detail's Account admin tab, the invite, and the merge
+         *     page, 3.9.7 = 3.3.11). ONE endpoint with ten ops, chosen by `op`, each its own request
+         *     shape. Advisors only.
+         *
+         *     THE MFA GATE. Every op needs an aal2 session. `verify_email` and `merge` also need the
+         *     second factor verified within the last 900 seconds (403 otherwise). `lock` does not:
+         *     locking has to be fast.
+         *
+         *     ANSWERS. Every answer the tab draws is a 200 with an `outcome`: `refused` (with the
+         *     tab's sentence in `reason`), `noop`, `capped`, `failed`, `duplicate`, `stale`, ...
+         *     A 4xx is only a malformed request (400), the MFA gate (403), or a client that is not
+         *     this advisor's, does not exist or was merged away (404, never 403, so an id's existence
+         *     is not confirmed). A 503 means email is not set up, and nothing was sent.
+         *
+         *     `reset`, `magic_link` and `invite` email the client a one-time sign-in link. The link
+         *     and its token are NEVER in the response. At most 3 of these per client per hour,
+         *     together (`capped`). A reset is refused for a Google- or Apple-only sign-in; an invite
+         *     is refused while the client has a sign-in that is verified or was not made by an
+         *     invite, is archived, shares its email with another live record, or has no email.
+         *
+         *     `lock` bans the sign-in in GoTrue, sets `account.locked_at` and ends every session;
+         *     `unlock` lifts both. Each needs a `reason`. `sign_out_everywhere` ends every session
+         *     without locking. `flag` / `unflag` mark one of the client's sign-ins (an
+         *     `authEventId` from the tab's activity list) as suspicious.
+         *
+         *     `verify_email` marks the sign-in's address confirmed, with a note of how the advisor
+         *     checked. Refused while the record's address differs from the sign-in's; `duplicate`
+         *     while another live record has the address (its id only when it is this advisor's).
+         *
+         *     `merge` folds `otherClientId` into `clientId` (the record KEPT). `keepVersion` and
+         *     `otherVersion` are the `version`s the confirm step showed; a mismatch is `stale`, not a
+         *     409. `choices` flips a field's default to `keep` or `retire`; a field the merge does not
+         *     offer is a 400.
+         *
+         *     Every write is audited (`client.signin_email_requested` / `_sent` / `_failed`,
+         *     `client.invited`, `client.email_verified_manually`, `client.account_locked` /
+         *     `_unlocked`, `client.signed_out_everywhere`, `client.signin_flagged` / `_unflagged`,
+         *     `client.merged` / `client.merged_away`).
+         */
+        post: operations["accountAdmin"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/cruise-sync": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Refresh the cruise catalog from track.cruises, or refetch one sailing. pg_cron only.
+         * @description P2. Screens 2.0.9 and 2.3.4 read the catalog this writes: cruise_line, cruise_ship,
+         *     cruise_port, cruise_sailing, cruise_port_call and cruise_sailing_cabin_price. What it
+         *     may fetch is configuration, in `cruise_sync_scope`; it decides only the order (by
+         *     priority) and when to stop (when the budget says so).
+         *
+         *     NO HUMAN CALLER. pg_cron calls it through `public.cruise_sync_tick()` with the body
+         *     `{"trigger":"cron"}`. On the Go service the bearer is `STA_CRON_SECRET`, checked in
+         *     constant time before the function runs (ruling 13); nothing else is accepted, not
+         *     even the service-role key. The Deno function took the service-role key instead and
+         *     refused any other token with 403 "The cruise sync runs as the service role, not as a
+         *     user."; on Go that refusal is the registry's 403 "This function runs on the
+         *     schedule, not for a caller." (401 "Missing bearer token." with no Authorization).
+         *
+         *     THE PROVIDER IS METERED: about 100 requests a month on the free tier, and an
+         *     overspent month cannot be bought back. Every attempt writes a `cruise_api_request`
+         *     ledger row; the budget is the smaller of a monthly ceiling below the plan
+         *     (`CRUISE_SYNC_MONTHLY_CEILING`, default 90) and the relay's own
+         *     `x-ratelimit-requests-remaining`. A run starts at most 8 requests (the relay also
+         *     throttles per minute).
+         *
+         *     ONE BODY, TWO JOBS. Without `sailingId` it is a sync RUN: it always writes one
+         *     `cruise_sync_run` row (opened as `running`, closed on every path) and one
+         *     `cruise.synced` system audit row, and answers `CruiseSyncRunResponse`. A run that does
+         *     nothing because the budget is spent, or because an earlier run is still going, is 200
+         *     with `status: skipped`: the expected outcome late in a month, not a failure. With
+         *     `sailingId` it is the demand-driven REFETCH of that one sailing from the provider's
+         *     detail endpoint (the only source of cabin prices), spent from the reserve the ceiling
+         *     holds back, with a ledger row whose `run_id` is null, one `cruise_sailing.refetched`
+         *     system audit row, and `CruiseSyncRefetchResponse`. A refetch refuses rather than
+         *     overspends: no provider coverage for the line, or no budget, is 200 with `skipped`.
+         *
+         *     Order of checks: the method (anything but POST is 403 "Use POST to run the cruise
+         *     sync."), then the body (`sailingId` that is not a UUID is 400 "sailingId must be a
+         *     UUID."), then the key (403 "TRACK_CRUISES_API_KEY is not set in the function
+         *     environment. See supabase/README.md." when the provider key is unset). A body that is
+         *     missing or not JSON is a cron run, never an error.
+         *
+         *     A provider redirect is never followed, and on the Go service it stops the run (error
+         *     code `provider_redirected`): a retry would spend budget on an answer a retry cannot
+         *     change.
+         */
+        post: operations["runCruiseSync"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/push-dispatch": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Send the notifications that are due, and the dismisses that are owed. pg_cron only.
+         * @description Screen 3.10.7 (§3.10 Stage 3b, Data-Model §12.7). NO HUMAN CALLER. pg_cron runs
+         *     `public.push_dispatch_tick()` every minute; only when something is due, owed or stuck
+         *     does it post here, with the body `{"trigger":"cron"}`. The body is never read. On the
+         *     Go service the bearer is `STA_CRON_SECRET`, checked in constant time before the
+         *     function runs (ruling 13); nothing else is accepted, not even the service-role key. The
+         *     Deno function took the service-role key instead and refused a user token with 403 "The
+         *     notification dispatcher runs as the service role, not as a user."; on Go that refusal is
+         *     the registry's 403 "This function runs on the schedule, not for a caller." (401
+         *     "Missing bearer token." with no Authorization).
+         *
+         *     One pass, in this order: claim up to 50 owed dismissals (`push_claim_dismissals`) and
+         *     send each to the advisor's PHONES only (never a browser); claim up to 50 due
+         *     notifications (`push_claim_due`, SKIP LOCKED); per advisor, each live row is its own
+         *     notification and everything held through rest hours or time away is ONE summary; each
+         *     row is finished (`push_finish`: sent, or back to pending for a retry, failed after three
+         *     tries); devices a push service reported gone are deleted (`push_device_gone`). A row
+         *     counts as sent when any device took it, or when no device was left to try.
+         *
+         *     Browsers get Web Push (RFC 8291 aes128gcm, RFC 8292 VAPID), end-to-end encrypted, with
+         *     the words. Android gets an FCM HTTP v1 data message with ids and a count only (Google
+         *     can read it). iOS is skipped. A push service answering 404 or 410 (Web Push), or FCM's
+         *     `UNREGISTERED`, means the device is gone; a redirect is never followed and counts as an
+         *     error.
+         *
+         *     Secrets: `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT` (web) and
+         *     `FCM_SERVICE_ACCOUNT_JSON` (Android). With NEITHER platform's keys the pass is a 500
+         *     BEFORE anything is claimed, so rows wait as pending instead of spending their tries.
+         *     With one platform's keys, devices of the other platform answer as errors (their rows
+         *     retry, then fail, visibly).
+         *
+         *     Each pass leaves its counts in this reply and in one log line (counts only: never a
+         *     token, an address or a word of a message).
+         */
+        post: operations["runPushDispatch"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/email-dispatch": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Email clients the advisor replies that are due, then the advisor's own alerts. pg_cron only.
+         * @description §3.10 Stage 4 and §3.12.3 (Data-Model §12.8, §12.9, §12.11). NO HUMAN CALLER. pg_cron
+         *     runs `public.email_dispatch_tick()` every minute; only when an email is due or stuck, or
+         *     an alert is waiting, does it post here, with the body `{"trigger":"cron"}`. The body is
+         *     never read. On the Go service the bearer is `STA_CRON_SECRET`, checked in constant time
+         *     before the function runs (ruling 13); nothing else is accepted. The Deno function took
+         *     the service-role key instead and refused a user token with 403 "The email dispatcher
+         *     runs as the service role, not as a user."; on Go that refusal is the registry's 403
+         *     "This function runs on the schedule, not for a caller." (401 "Missing bearer token."
+         *     with no Authorization). The Deno function checked the method BEFORE the caller; on Go
+         *     the caller is checked first, so a GET without the secret is a 401/403 there.
+         *
+         *     One pass: claim up to 10 due emails (`email_claim_due`, SKIP LOCKED; the SQL first clears
+         *     threads read in the app and skips opted-out, archived or unverified clients). Per email:
+         *     mint a reply token and an unsubscribe token and save their hashes FIRST
+         *     (`email_record_tokens`), read the advisor's signature
+         *     (`agent_signature_for_conversation`; a failed read costs only the signature), build the
+         *     email (card numbers masked to the last four), send it over SMTP, and finish the row
+         *     (`email_finish`: sent and the replies stamped "Emailed"; back to pending on a 4xx or a
+         *     dropped connection; failed at once on a 5xx or when there is nothing honest to send).
+         *     Then, if time is left, claim up to 10 advisor alerts (`agent_alert_email_claim`) and
+         *     send each the same way (`agent_alert_email_finish`). An alert never carries a client's
+         *     or a lead's words.
+         *
+         *     A pass stops starting sends after 90 seconds: rows not reached go back to waiting with
+         *     no try counted (`email_release`, `agent_alert_email_release`) and are counted as
+         *     `released`. One row's failure is its own; it is finished as a retry ("internal error")
+         *     and the pass goes on.
+         *
+         *     Secrets: `EMAIL_SMTP_HOST`, `EMAIL_SMTP_PORT` (465 only, except the local mail catcher),
+         *     `EMAIL_SMTP_USER`, `EMAIL_SMTP_PASSWORD`, `EMAIL_FROM_ADDRESS`, `EMAIL_SITE_URL`,
+         *     `EMAIL_UNSUBSCRIBE_URL`. Unset or refused settings are a 500 BEFORE anything is claimed,
+         *     so rows wait instead of spending their tries.
+         */
+        post: operations["runEmailDispatch"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/email-inbox": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Read client replies out of the app's mailbox over IMAP. pg_cron only.
+         * @description §3.10 Stage 4 (Data-Model §12.10). NO HUMAN CALLER. pg_cron's `public.email_inbox_tick()`
+         *     posts here every two minutes with the body `{"trigger":"cron"}`; the body is never read.
+         *     On the Go service the bearer is `STA_CRON_SECRET`, checked in constant time before the
+         *     function runs (ruling 13). The Deno function took the service-role key instead and
+         *     refused a user token with 403 "The email inbox reader runs as the service role, not as a
+         *     user."; on Go that refusal is the registry's 403 "This function runs on the schedule, not
+         *     for a caller." (401 "Missing bearer token." with no Authorization). The Deno function
+         *     checked the method BEFORE the caller; on Go the caller is checked first.
+         *
+         *     One run logs in to the mailbox (TLS on 993, certificates checked), takes up to 25
+         *     messages from INBOX, and for each: finds the reply token (the `<mailbox>+<token>@`
+         *     address, or our Message-ID in In-Reply-To / References), reads the receiving server's
+         *     Authentication-Results (pinned by `EMAIL_AUTHSERV_ID`), downloads only the text part,
+         *     keeps only the new words (card numbers masked), and records it with
+         *     `email_inbound_record`, which checks the token, the verified sender and the thread and
+         *     writes the message, the thread bump and its audit row. The message is then moved to
+         *     `Processed` (accepted), `Rejected` (anything else, including over 1,000,000 octets), or
+         *     `Failed` (it could not be read). An accepted reply that carried files gets one short
+         *     note, to the verified sender only. Handled mail older than 30 days is deleted from the
+         *     three folders. A run stops starting messages after 60 seconds; the rest wait.
+         *
+         *     Secrets: `EMAIL_FROM_ADDRESS` (the mailbox), `EMAIL_SMTP_USER` / `EMAIL_SMTP_PASSWORD`
+         *     (or `EMAIL_IMAP_USER` / `EMAIL_IMAP_PASSWORD`), optional `EMAIL_IMAP_HOST`
+         *     (imap.ionos.com) and `EMAIL_IMAP_PORT` (993), `EMAIL_AUTHSERV_ID` (unset: every sender
+         *     is unverified, so every reply is Rejected), and the SMTP settings of `/email-dispatch`
+         *     for the files note. Unset or refused settings are a 500 before any connection.
+         */
+        post: operations["runEmailInbox"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/email-unsubscribe": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Whether message emails are on for the person a link belongs to.
+         * @description §3.10 Stage 4 (Data-Model §12.9). NO SIGN-IN: the token in the link is the credential
+         *     (128 random bits, stored only as a hash, good for one person's one switch). Changes
+         *     NOTHING, so a mail scanner that follows links unsubscribes no one. An unknown, expired
+         *     or malformed token is `invalid`, never an error. The reply is `Cache-Control: no-store`.
+         */
+        get: operations["emailUnsubscribeStatus"];
+        put?: never;
+        /**
+         * Turn message emails off (RFC 8058 one-click) or back on (the web page).
+         * @description Two shapes, by Content-Type:
+         *     - `application/x-www-form-urlencoded` with the body `List-Unsubscribe=One-Click` (RFC 8058,
+         *       as Gmail, Yahoo and Apple Mail send it) and `?t=<token>`: turns emails OFF. Any other
+         *       form body is 400 "Use the link in the email.".
+         *     - `application/json` `{ token, on }`: the web page; `on` must be a boolean (400 "Say on:
+         *       true or false." otherwise) and `token` falls back to `?t=` when null or absent. A body
+         *       that is not JSON is 400 "Send JSON."; a JSON `null` body is a bare 500 (it was a
+         *       TypeError in the Deno function, kept for parity).
+         *     Only `channels.messages.email` changes; push and in-app are untouched. Each change is
+         *     audited in SQL (`notification_preference.updated`). An unknown, expired or malformed
+         *     token answers `invalid` with nothing changed.
+         */
+        post: operations["emailUnsubscribeSet"];
         delete?: never;
         options?: never;
         head?: never;
@@ -653,8 +1435,21 @@ export interface components {
             status: "inquiry" | "proposal" | "booked" | "in_progress" | "completed" | "cancelled";
             /** @description `trip.version` as the board was rendered from. A mismatch is a 409. Required: the board always has it, and omitting it would make every drop last-write-wins. */
             expectedVersion: number;
-            /** @description Required when `status` is `cancelled`, ignored otherwise. Reaches `trip.cancellation_reason`, which Screen 2.2.10 shows the traveler. */
+            /** @description Required (non-blank) when `status` is `cancelled`; on any other status it must be text if sent, and is not written. Trimmed. Reaches `trip.cancellation_reason`, which Screen 2.2.10 shows the traveler. */
             cancellationReason?: string;
+            /**
+             * @description Only with `cancelled` (otherwise a 400). Absent keeps the stored value.
+             * @enum {string}
+             */
+            refundStatus?: "none_expected" | "pending" | "partial" | "full";
+            /** @description Only with `cancelled` (otherwise a 400). Trimmed; blank keeps the stored value. */
+            refundDetail?: string;
+            /** @description Only with `cancelled` (otherwise a 400). The open ledger lines the cancel dialog listed under "Mark these as Lost", each at the version it showed. Lines still Expected or Invoiced at that version are marked Lost, each with its own audit row in the same transaction; the rest are skipped. */
+            closeCommission?: {
+                /** Format: uuid */
+                id: string;
+                version: number;
+            }[] | null;
         };
         AgentTripStatusResponse: {
             /** Format: uuid */
@@ -662,16 +1457,46 @@ export interface components {
             /** @enum {string} */
             status: "inquiry" | "proposal" | "booked" | "in_progress" | "completed" | "cancelled";
             /**
-             * @description Absent whenever the stage did not move — a no-op, or a cancellation-reason correction — because nothing was left behind.
+             * @description Absent whenever the stage did not move (a no-op, or a cancellation-detail correction), because nothing was left behind.
              * @enum {string}
              */
             previousStatus?: "inquiry" | "proposal" | "booked" | "in_progress" | "completed" | "cancelled";
             /** @description The version after the write. Send this as the next `expectedVersion`. */
             version: number;
-            /** @description False when the trip was already in this stage: no transition, so no `trip_status_history` row. It does NOT mean nothing was recorded — a corrected cancellation reason writes the column and an `audit_event` under `trip.cancellation_reason_changed`, and still reports false. */
+            /** @description False when the trip was already in this stage: no transition, so no `trip_status_history` row. It does NOT mean nothing was recorded: a corrected cancellation reason or refund detail writes the columns and an `audit_event` under `trip.cancellation_reason_changed`, and still reports false. */
             changed: boolean;
-            /** @description Present on every `cancelled` call and only those, because the reason is mandatory on all of them and the caller is owed an answer about where it went. True when this call wrote it to `trip.cancellation_reason` — either on a transition into `cancelled` or on a same-stage correction. False when the stored reason already read that way, so there was nothing to write. Either answer means the traveler now sees the sentence you sent, on Screen 2.2.10. */
+            /** @description Present on every `cancelled` call and only those. True when this call wrote the reason (a transition into `cancelled`, or a same-stage correction); false when the stored reason already read that way. */
             cancellationReasonUpdated?: boolean;
+            /** @description Present on every `cancelled` call. Lines this call marked Lost. */
+            commissionLinesClosed?: number;
+            /** @description Present on every `cancelled` call. Named lines left as they were: moved since the dialog opened (paid, edited, removed) or not on this trip. */
+            commissionLinesSkipped?: number;
+        };
+        AgentTripStatusBulkRequest: {
+            /** @enum {string} */
+            op: "bulk";
+            /**
+             * @description `cancelled` is refused: cancelling is one trip at a time.
+             * @enum {string}
+             */
+            status: "inquiry" | "proposal" | "booked" | "in_progress" | "completed";
+            trips: {
+                /** Format: uuid */
+                tripId: string;
+                /**
+                 * @description The status the row was showing. A trip no longer in it is skipped.
+                 * @enum {string}
+                 */
+                fromStatus: "inquiry" | "proposal" | "booked" | "in_progress" | "completed" | "cancelled";
+            }[];
+        };
+        AgentTripStatusBulkResponse: {
+            /** @enum {string} */
+            outcome: "moved";
+            /** @enum {string} */
+            status: "inquiry" | "proposal" | "booked" | "in_progress" | "completed";
+            movedCount: number;
+            requestedCount: number;
         };
         AgentTripNotesRequest: {
             /** Format: uuid */
@@ -901,6 +1726,8 @@ export interface components {
             dateOfBirth?: string | null;
             /** Format: date */
             passportExpiry?: string | null;
+            /** @description Two-letter country code, stored upper case. (A passport NUMBER is refused.) */
+            passportCountry?: string | null;
             /** @default false */
             advance: boolean;
         };
@@ -1113,6 +1940,1337 @@ export interface components {
             /** @description Soonest departure first. Archived sailings are never included. */
             results: components["schemas"]["CruiseSailing"][];
         };
+        OkResponse: {
+            /** @constant */
+            ok: true;
+        };
+        LeadMessageRequest: {
+            firstName: string;
+            lastName?: string | null;
+            /** Format: email */
+            email: string;
+            phone?: string | null;
+            /** @description A card number anywhere in it is refused. */
+            message: string;
+            /**
+             * @description Where the form was. An unknown value is dropped, not refused.
+             * @enum {string|null}
+             */
+            page?: "landing" | "how-it-works" | "about" | "topic" | "results" | "detail" | "join" | "app" | null;
+            /** @enum {string|null} */
+            aboutKind?: "trip" | "topic" | null;
+            aboutSlug?: string | null;
+            aboutLabel?: string | null;
+            utmSource?: string | null;
+            utmMedium?: string | null;
+            utmCampaign?: string | null;
+            /** @description When the form was drawn, epoch milliseconds. A send under three seconds later is treated as automated. */
+            startedAt: number;
+            /** @description The hidden field. Anything in it marks the send as automated. */
+            website?: string;
+        };
+        AgentLeadRequest: {
+            /** @enum {string} */
+            op: "create" | "mark_contacted" | "close" | "reopen" | "convert" | "delete_spam";
+            /**
+             * Format: uuid
+             * @description Every op but `create`.
+             */
+            leadId?: string;
+            /** @description `create` only. */
+            firstName?: string;
+            lastName?: string | null;
+            /**
+             * Format: email
+             * @description `create` only.
+             */
+            email?: string;
+            phone?: string | null;
+            /**
+             * @description `create` only.
+             * @enum {string}
+             */
+            source?: "email" | "phone" | "referral" | "social" | "other";
+            /** @description `create` only. A card number is refused. */
+            message?: string;
+            /**
+             * @description `close` only.
+             * @enum {string}
+             */
+            reason?: "not_a_fit" | "no_reply" | "went_elsewhere" | "other";
+            /** @description `close` only. Private to the advisor. */
+            note?: string | null;
+            /**
+             * Format: uuid
+             * @description `convert` only: one of the caller's clients.
+             */
+            clientId?: string;
+        };
+        AgentLeadCreateResponse: {
+            /** @enum {string} */
+            outcome: "created" | "added" | "client_exists";
+            /**
+             * Format: uuid
+             * @description On `created` and `added`.
+             */
+            leadId?: string;
+            /**
+             * Format: uuid
+             * @description On `client_exists`.
+             */
+            clientId?: string;
+        };
+        AgentLeadWriteResponse: {
+            /** Format: uuid */
+            leadId: string;
+            /** @enum {string} */
+            outcome: "changed" | "noop" | "deleted";
+            /**
+             * @description The lead's status after the op; null once deleted.
+             * @enum {string|null}
+             */
+            status: "new" | "contacted" | "closed" | "converted" | null;
+        };
+        /**
+         * @description Text fields are cleaned before use: control characters become spaces, runs of white
+         *     space one space, then trimmed and cut to the stated length in UTF-16 units. A field
+         *     that is not a string, or is empty after cleaning, counts as absent.
+         */
+        QuoteRequestRequest: {
+            /**
+             * Format: uuid
+             * @description Client-generated UUID v7, validated as recent (within an hour either way).
+             */
+            tripId: string;
+            /**
+             * @description The component kind. Only what a public search surface can produce.
+             * @enum {string}
+             */
+            kind: "hotel" | "cruise" | "excursion" | "custom";
+            /**
+             * @description Optional. Missing or unknown falls back to `cruise` for a cruise and `custom` otherwise; never refused.
+             * @enum {string}
+             */
+            tripType?: "cruise" | "all_inclusive" | "multi_destination" | "group" | "custom";
+            /** @description What the traveler is asking about. Becomes the component's display name and the trip title. */
+            name: string;
+            /** @description Optional. When present the title is "<name> · <location>" (cut to 120) and the trip's destinations are [location]. */
+            location?: string;
+            /**
+             * Format: date
+             * @description YYYY-MM-DD, a real calendar date. Send both dates or neither; null or "" is "not sent". A sent date that does not parse is a 400, never dropped.
+             */
+            checkIn?: string | null;
+            /**
+             * Format: date
+             * @description YYYY-MM-DD, after checkIn.
+             */
+            checkOut?: string | null;
+            /**
+             * @description Rounded, then held to 1..20. Anything not a finite number means 2.
+             * @default 2
+             */
+            travelers: number;
+            /** @description Optional. Becomes `trip.notes`. */
+            note?: string;
+            /**
+             * @description What the traveler saw, kept on the component's payload. Treated as hostile: only
+             *     these keys survive, and `capturedAt` (the server's time) is added. A non-object
+             *     is read as {}.
+             */
+            snapshot?: {
+                propertyType?: string;
+                photoUrl?: string;
+                propertyToken?: string;
+                /** @description The provider's nightly rate, kept as sent. Never a cost or a quote. */
+                indicativeRateCents?: number;
+                hotelClass?: number;
+                rating?: number;
+                reviewCount?: number;
+                /** @description The first 12 strings, each cut to 60. Non-strings are dropped. */
+                amenities?: string[];
+            } & {
+                [key: string]: unknown;
+            };
+            /**
+             * @description Where the result came from (`trip_component.api_source`). Missing or unknown is `curated`.
+             * @enum {string}
+             */
+            source?: "curated" | "serpapi_google_hotels" | "track_cruises";
+            /** @description The provider's id for the result (`trip_component.api_reference`). */
+            apiReference?: string;
+        };
+        QuoteRequestResponse: {
+            /**
+             * Format: uuid
+             * @description The id the caller sent, as sent.
+             */
+            tripId: string;
+            /** @constant */
+            status: "inquiry";
+        };
+        /** @description Integer minor units, as a JSON integer or a digit string of at most ten digits. Blank (absent, null or "") reads as 0 except where a field says otherwise. */
+        AgentTripCents: number | string;
+        AgentTripCreateRequest: {
+            /** @enum {string} */
+            op: "create";
+            /** Format: uuid */
+            clientId: string;
+            /** @enum {string} */
+            tripType: "cruise" | "all_inclusive" | "multi_destination" | "group" | "custom";
+            /** @description Trimmed; required. */
+            title: string;
+            /** @description Clamped to 1..64. Absent or not an integer is 1. */
+            travelerCount?: number;
+        };
+        AgentTripCreateResponse: {
+            /** @enum {string} */
+            outcome: "created" | "no_client";
+            /**
+             * Format: uuid
+             * @description Present only on `created`.
+             */
+            tripId?: string;
+        };
+        AgentTripComponentRequest: {
+            /** @enum {string} */
+            op: "component_upsert";
+            /** Format: uuid */
+            tripId: string;
+            /**
+             * Format: uuid
+             * @description Present edits that component; absent or null creates one ("" is a 400).
+             */
+            componentId?: string | null;
+            /** @enum {string} */
+            kind: "flight" | "hotel" | "cruise" | "transfer" | "excursion" | "insurance" | "custom";
+            /** Format: uuid */
+            supplierId?: string | null;
+            displayName: string;
+            /** Format: date */
+            startDate?: string | null;
+            /** Format: date */
+            endDate?: string | null;
+            /** @description HH:MM or HH:MM:SS. */
+            startTime?: string | null;
+            /** @description HH:MM or HH:MM:SS. */
+            endTime?: string | null;
+            location?: string | null;
+            confirmationNumber?: string | null;
+            costCents?: components["schemas"]["AgentTripCents"];
+            /** @description 0 to 999.99, rounded to two places. */
+            commissionPct?: number | string | null;
+            /** @description Blank with a rate set is worked out from the rate; anything typed wins. */
+            commissionCents?: components["schemas"]["AgentTripCents"] | null;
+            /** @description The kind's own fields (Data-Model §23), snake_case: flight_number, cabin, seat, room_type, board_basis, ship, itinerary_name, dining_seating, gratuities_included (true/false), dropoff, vehicle, duration, plan, coverage, notes, as the kind allows. Unknown keys are a 400. */
+            detail?: {
+                [key: string]: string | boolean;
+            } | null;
+        };
+        AgentTripComponentArchiveRequest: {
+            /** @enum {string} */
+            op: "component_archive";
+            /** Format: uuid */
+            tripId: string;
+            /** Format: uuid */
+            componentId: string;
+        };
+        AgentTripComponentResponse: {
+            /** @enum {string} */
+            outcome: "created" | "updated" | "noop" | "archived";
+            /** Format: uuid */
+            componentId: string;
+        };
+        AgentTripComponentReorderRequest: {
+            /** @enum {string} */
+            op: "component_reorder";
+            /** Format: uuid */
+            tripId: string;
+            /** @description Every live component of the trip, in the new order. Fewer or more is a 409. */
+            componentIds: string[];
+        };
+        AgentTripReorderResponse: {
+            /** @enum {string} */
+            outcome: "reordered";
+            moved: number;
+        };
+        AgentTripMilestoneRequest: {
+            /** @enum {string} */
+            op: "payment_upsert";
+            /** Format: uuid */
+            tripId: string;
+            /**
+             * Format: uuid
+             * @description Present edits that milestone; absent or null creates one.
+             */
+            milestoneId?: string | null;
+            /** @enum {string} */
+            kind: "deposit" | "interim" | "final";
+            label: string;
+            amountCents?: components["schemas"]["AgentTripCents"];
+            /** Format: date */
+            dueDate?: string | null;
+        };
+        AgentTripMilestoneDeleteRequest: {
+            /** @enum {string} */
+            op: "payment_delete";
+            /** Format: uuid */
+            tripId: string;
+            /** Format: uuid */
+            milestoneId: string;
+        };
+        AgentTripMilestoneResponse: {
+            /** @enum {string} */
+            outcome: "created" | "updated" | "noop" | "deleted";
+            /** Format: uuid */
+            milestoneId: string;
+        };
+        AgentTripMilestonePaidRequest: {
+            /** @enum {string} */
+            op: "payment_paid";
+            /** Format: uuid */
+            tripId: string;
+            /** Format: uuid */
+            milestoneId: string;
+            /** @enum {string} */
+            status: "scheduled" | "paid" | "waived" | "overdue";
+            /** @description Absent, null or "" means the whole amount; 0 means nothing landed. */
+            paidCents?: components["schemas"]["AgentTripCents"] | null;
+            /** @description Absent or null keeps the stored one; "" clears it. No card numbers. */
+            paidReference?: string | null;
+            /** @description Absent or null keeps the stored one; "" clears it. No card numbers. */
+            paidNote?: string | null;
+            /**
+             * Format: date
+             * @description When it was paid. Not after the advisor's today.
+             */
+            paidOn?: string | null;
+        };
+        AgentTripMilestonePaidResponse: {
+            /** @enum {string} */
+            outcome: "changed" | "noop";
+            /** Format: uuid */
+            milestoneId: string;
+            /** @description The milestone's paid amount after the write, integer minor units as a string. */
+            paidCents: string;
+        };
+        AgentTripPayLinkRequest: {
+            /** @enum {string} */
+            op: "payment_link";
+            /** Format: uuid */
+            tripId: string;
+            /** Format: uuid */
+            milestoneId: string;
+            /** @description The supplier's own https:// payment page (or a Travefy invoice carrying supplier cost only). Null, "" or absent removes the link. */
+            payUrl?: string | null;
+        };
+        AgentTripPayLinkResponse: {
+            /** @enum {string} */
+            outcome: "set" | "changed" | "removed" | "noop";
+            /** Format: uuid */
+            milestoneId: string;
+            /** @description The link as stored (parsed and normalised), or null when there is none. */
+            payUrl: string | null;
+        };
+        AgentItineraryGenerateRequest: {
+            /** @enum {string} */
+            op: "generate";
+            /** Format: uuid */
+            tripId: string;
+        };
+        AgentItineraryGenerateResponse: {
+            /** @enum {string} */
+            outcome: "generated" | "noop" | "no_dates";
+            daysAdded: number;
+            activitiesAdded: number;
+        };
+        AgentItineraryDayRequest: {
+            /** @enum {string} */
+            op: "day_upsert";
+            /** Format: uuid */
+            tripId: string;
+            /**
+             * Format: uuid
+             * @description Present edits that day. Absent, null or "" creates one.
+             */
+            dayId?: string | null;
+            /**
+             * Format: date
+             * @description yyyy-mm-dd. Required on a create; on an edit, absent or null keeps the stored date. A shape that is a date but not a real one is refused by Postgres (a 500), as before the port.
+             */
+            date?: string | null;
+            /** @description Trimmed; blank stores null. */
+            label?: string | null;
+            /** @description Trimmed; blank stores null. */
+            summary?: string | null;
+        };
+        AgentItineraryDayResponse: {
+            /** @enum {string} */
+            outcome: "created" | "updated" | "noop";
+            /** Format: uuid */
+            dayId: string;
+        };
+        AgentItineraryActivityRequest: {
+            /** @enum {string} */
+            op: "activity_upsert";
+            /** Format: uuid */
+            tripId: string;
+            /**
+             * Format: uuid
+             * @description Present edits that activity. Absent, null or "" creates one.
+             */
+            activityId?: string | null;
+            /**
+             * Format: uuid
+             * @description Required on a create. On an edit, a different day moves the activity.
+             */
+            dayId?: string | null;
+            /** @description Trimmed; required. */
+            title: string;
+            /**
+             * @description Omitted, null or "" is worked out from `startTime`.
+             * @enum {string|null}
+             */
+            block?: "morning" | "afternoon" | "evening" | "all_day" | null;
+            /** @description HH:MM or HH:MM:SS, 00:00 to 23:59:59. */
+            startTime?: string | null;
+            /** @description HH:MM or HH:MM:SS, 00:00 to 23:59:59. */
+            endTime?: string | null;
+            body?: string | null;
+            location?: string | null;
+            address?: string | null;
+            phone?: string | null;
+            confirmationNumber?: string | null;
+            gyasisTip?: string | null;
+        };
+        AgentItineraryActivityDeleteRequest: {
+            /** @enum {string} */
+            op: "activity_delete";
+            /** Format: uuid */
+            tripId: string;
+            /** Format: uuid */
+            activityId: string;
+        };
+        AgentItineraryActivityResponse: {
+            /** @enum {string} */
+            outcome: "created" | "updated" | "noop" | "deleted";
+            /** Format: uuid */
+            activityId: string;
+        };
+        AgentItineraryReorderRequest: {
+            /** @enum {string} */
+            op: "reorder";
+            /** Format: uuid */
+            tripId: string;
+            /** Format: uuid */
+            dayId: string;
+            /** @description Every activity on the day, in the new order. Fewer or more is a 409. */
+            activityIds: string[];
+        };
+        AgentItineraryReorderResponse: {
+            /** @enum {string} */
+            outcome: "reordered";
+            /** @description Activities whose position changed. */
+            moved: number;
+        };
+        AgentClientFields: {
+            firstName: string;
+            lastName: string;
+            preferredName?: string | null;
+            /** @description Loose on purpose: must contain `@`, not first or last. */
+            email: string;
+            phone?: string | null;
+            /**
+             * Format: date
+             * @description `yyyy-mm-dd`.
+             */
+            dateOfBirth?: string | null;
+            /** @description Lower-cased, trimmed, blanks and repeats dropped; each at most 40 characters. */
+            tags?: string[] | null;
+            importantDates?: {
+                label: string;
+                /** Format: date */
+                date: string;
+                /** @description Only `true` counts; anything else is false. */
+                recurring?: boolean;
+            }[] | null;
+            notes?: string | null;
+            /** @description Mailing address. All of line1, line2, city, region and postal code blank clears it; otherwise line1, city and country are required by the table (a missing one is a 500 today, as in the Deno function). */
+            address?: {
+                line1?: string | null;
+                line2?: string | null;
+                city?: string | null;
+                region?: string | null;
+                postalCode?: string | null;
+                /** @description ISO 3166-1 alpha-2; upper-cased. */
+                country?: string | null;
+            } | null;
+        };
+        AgentClientCreateRequest: {
+            /** @enum {string} */
+            op: "create";
+            client: components["schemas"]["AgentClientFields"];
+        };
+        AgentClientUpdateRequest: {
+            /** @enum {string} */
+            op: "update";
+            /** Format: uuid */
+            clientId: string;
+            /** @description `client.version` as the form was rendered from. A mismatch is a 409. */
+            expectedVersion: number;
+            /** @description The whole record; every field is overwritten. */
+            client: components["schemas"]["AgentClientFields"];
+        };
+        AgentClientArchiveRequest: {
+            /** @enum {string} */
+            op: "archive";
+            /** Format: uuid */
+            clientId: string;
+            expectedVersion: number;
+            /** @description True archives; false restores. */
+            archived: boolean;
+            /** @description Kept in the audit row of an archive only (the client table has no column for it). */
+            reason?: string | null;
+        };
+        AgentClientBulkTagRequest: {
+            /** @enum {string} */
+            op: "bulk_tag";
+            clientIds: string[];
+            /** @description Trimmed and lower-cased. */
+            tag: string;
+            /** @description True adds the tag; false removes it. */
+            add: boolean;
+        };
+        AgentClientCreateResponse: {
+            /** @enum {string} */
+            outcome: "created" | "duplicate_email";
+            /**
+             * Format: uuid
+             * @description `created` only: the new client's id (a v7 minted by the server).
+             */
+            clientId?: string;
+            /**
+             * Format: uuid
+             * @description `duplicate_email` only: the live client in this book with that email.
+             */
+            existingClientId?: string;
+        };
+        AgentClientUpdateResponse: {
+            /** @enum {string} */
+            outcome: "changed" | "noop" | "duplicate_email";
+            /**
+             * Format: uuid
+             * @description Absent on `duplicate_email`.
+             */
+            clientId?: string;
+            /** @description The version after the write (unchanged on `noop` and `duplicate_email`). */
+            version: number;
+        };
+        AgentClientArchiveResponse: {
+            /** @enum {string} */
+            outcome: "archived" | "restored" | "noop";
+            /** Format: uuid */
+            clientId: string;
+            version: number;
+        };
+        AgentClientBulkTagResponse: {
+            /** @enum {string} */
+            outcome: "tagged";
+            /** @description The tag as stored (trimmed */
+            tag: string;
+            add: boolean;
+            /** @description Clients that actually changed. */
+            changedCount: number;
+            /** @description Ids sent */
+            requestedCount: number;
+        };
+        AgentClientNoteRequest: {
+            /** Format: uuid */
+            clientId: string;
+            /** @enum {string} */
+            op: "create" | "update" | "archive";
+            /**
+             * Format: uuid
+             * @description Required on `update` and `archive`; ignored on `create`.
+             */
+            noteId?: string;
+            /** @description Required on `create` and `update`, with something in it besides whitespace (an empty body is not a delete). Stored trimmed. Ignored on `archive`. */
+            body?: string;
+        };
+        AgentClientNoteResponse: {
+            /** Format: uuid */
+            clientId: string;
+            /** Format: uuid */
+            noteId: string;
+            changed: boolean;
+            /**
+             * @description Present only when `changed` is true.
+             * @enum {string}
+             */
+            outcome?: "created" | "changed" | "archived";
+        };
+        AgentTemplateSaveRequest: {
+            /** @enum {string} */
+            op: "save";
+            /** Format: uuid */
+            tripId: string;
+            /** @description Trimmed. */
+            name: string;
+            /** @description Trimmed; blank or absent stores none. */
+            description?: string | null;
+        };
+        AgentTemplateUpdateRequest: {
+            /** @enum {string} */
+            op: "update";
+            /** Format: uuid */
+            templateId: string;
+            name: string;
+            /** @description Blank or absent CLEARS the stored description. */
+            description?: string | null;
+        };
+        AgentTemplateArchiveRequest: {
+            /** @enum {string} */
+            op: "archive";
+            /** Format: uuid */
+            templateId: string;
+        };
+        AgentTemplateApplyRequest: {
+            /** @enum {string} */
+            op: "apply";
+            /** Format: uuid */
+            templateId: string;
+            /** Format: uuid */
+            tripId: string;
+        };
+        AgentTemplateSaveResponse: {
+            /** Format: uuid */
+            templateId: string;
+            componentsSaved: number;
+            daysSaved: number;
+        };
+        AgentTemplateOutcomeResponse: {
+            /**
+             * @description `update` answers changed or noop; `archive` answers archived.
+             * @enum {string}
+             */
+            outcome: "changed" | "noop" | "archived";
+        };
+        AgentTemplateApplyResponse: {
+            /** @enum {string} */
+            outcome: "applied" | "already_applied";
+            componentsAdded: number;
+            /** @description 0 when the trip has no start date. */
+            daysAdded: number;
+            activitiesAdded: number;
+        };
+        AgentMessageTemplateWriteRequest: {
+            /** @enum {string} */
+            op: "create" | "update";
+            /**
+             * Format: uuid
+             * @description `create`: a fresh client-minted v7 (older than an hour is a 400). `update`: the template's id.
+             */
+            templateId: string;
+            /** @enum {string} */
+            category: "lead_response" | "proposal" | "booking_confirmation" | "pre_trip" | "post_trip" | "payment_reminder" | "other";
+            /** @description Trimmed. */
+            name: string;
+            /** @description Kept as written (not trimmed). Every `{{ token }}` must be one of client.firstName, trip.name, trip.destination, trip.dates, agent.firstName, payment.label, payment.amount, payment.dueDate, payment.link. */
+            body: string;
+            /** @description Trimmed; blanks and repeats (ignoring case, first spelling kept) dropped; at most 10 of at most 30 characters. */
+            tags?: string[] | null;
+        };
+        AgentMessageTemplateDuplicateRequest: {
+            /** @enum {string} */
+            op: "duplicate";
+            /**
+             * Format: uuid
+             * @description The template to copy.
+             */
+            templateId: string;
+            /**
+             * Format: uuid
+             * @description A fresh client-minted v7 for the copy.
+             */
+            newTemplateId: string;
+        };
+        AgentMessageTemplateArchiveRequest: {
+            /** @enum {string} */
+            op: "archive";
+            /** Format: uuid */
+            templateId: string;
+            /** @description True archives; false restores. */
+            archived: boolean;
+        };
+        AgentMessageTemplateResponse: {
+            /**
+             * @description `create`: created or exists. `update`: changed or noop. `duplicate`: created or exists. `archive`: changed or noop.
+             * @enum {string}
+             */
+            outcome: "created" | "exists" | "changed" | "noop";
+            /**
+             * Format: uuid
+             * @description `create`, `update` and `duplicate` (the copy's id); absent on `archive`.
+             */
+            templateId?: string;
+        };
+        AgentSettingsProfileRequest: {
+            /** @enum {string} */
+            op: "update_profile";
+            /** @description Trimmed. */
+            displayName: string;
+            pronouns?: string | null;
+            /** @description Digits and `+ - ( ) . x` and spaces, at least 7 digits. */
+            phone?: string | null;
+            bio?: string | null;
+            /** @description Normalised to https links. Instagram and Facebook take a bare handle or @handle; a link without a scheme gets https://; http:// is refused; the three networks must link to their own site with a path. Empty values are dropped. */
+            socialLinks?: {
+                instagram?: string | null;
+                facebook?: string | null;
+                linkedin?: string | null;
+                website?: string | null;
+            } | null;
+        };
+        AgentSettingsAvatarRequest: {
+            /** @enum {string} */
+            op: "set_avatar";
+            /** @description The photo's bytes. */
+            image: string;
+        };
+        AgentSettingsRemoveAvatarRequest: {
+            /** @enum {string} */
+            op: "remove_avatar";
+        };
+        AgentSettingsAvailabilityRequest: {
+            /** @enum {string} */
+            op: "update_availability";
+            /** @enum {string} */
+            timeZone: "America/St_Johns" | "America/Halifax" | "America/Puerto_Rico" | "America/New_York" | "America/Toronto" | "America/Cancun" | "America/Chicago" | "America/Winnipeg" | "America/Mexico_City" | "America/Regina" | "America/Denver" | "America/Edmonton" | "America/Phoenix" | "America/Los_Angeles" | "America/Vancouver" | "America/Tijuana" | "America/Anchorage" | "Pacific/Honolulu";
+            /** @description Every day, either null (off) or From and To on the half hour, ending after it starts ("24:00" may end one). */
+            weeklySchedule: {
+                mon: components["schemas"]["AgentSettingsDayHours"];
+                tue: components["schemas"]["AgentSettingsDayHours"];
+                wed: components["schemas"]["AgentSettingsDayHours"];
+                thu: components["schemas"]["AgentSettingsDayHours"];
+                fri: components["schemas"]["AgentSettingsDayHours"];
+                sat: components["schemas"]["AgentSettingsDayHours"];
+                sun: components["schemas"]["AgentSettingsDayHours"];
+            };
+            /** @description One of 2, 4, 12, 24 or 48 (anything else is a 400). Written as prose, not an enum, because the Kotlin generator emits enums of strings only. */
+            responseTimeHours: number;
+        };
+        AgentSettingsDayHours: {
+            start: string;
+            end: string;
+        } | null;
+        AgentSettingsSaveTimeOffRequest: {
+            /** @enum {string} */
+            op: "save_time_off";
+            /**
+             * Format: uuid
+             * @description With `isNew`, a fresh client-minted v7 (older than an hour is a 400); otherwise the block to edit.
+             */
+            timeOffId: string;
+            /** @description Only `true` creates. */
+            isNew?: boolean;
+            /**
+             * Format: date
+             * @description Today or later in the advisor's zone.
+             */
+            startsOn: string;
+            /**
+             * Format: date
+             * @description On or after startsOn
+             */
+            endsOn: string;
+            label?: string | null;
+            autoReplyEnabled?: boolean | null;
+            /** @description Required when autoReplyEnabled; only `{{return_date}}` may be filled. */
+            autoReplyText?: string | null;
+        };
+        AgentSettingsEndTimeOffRequest: {
+            /** @enum {string} */
+            op: "end_time_off";
+            /** Format: uuid */
+            timeOffId: string;
+        };
+        AgentSettingsNotificationsRequest: {
+            /** @enum {string} */
+            op: "update_notifications";
+            clientMessagesPush: boolean;
+            clientMessagesEmail: boolean;
+            quoteRequestsPush: boolean;
+            quoteRequestsEmail: boolean;
+        };
+        AgentSettingsSignatureRequest: {
+            /** @enum {string} */
+            op: "update_signature";
+            /** @description Plain text, at most 8 lines; only {{agent.name}}, {{agent.phone}} and {{agent.email}}. Empty, absent or the default's exact text stores none (the default is used). */
+            signature?: string | null;
+        };
+        AgentSettingsResponse: {
+            /**
+             * @description `save_time_off`: created, updated or unchanged. `end_time_off`: deleted (it had not started) or ended (it was running and now ends yesterday). Every other op: updated or unchanged.
+             * @enum {string}
+             */
+            outcome: "updated" | "unchanged" | "created" | "deleted" | "ended";
+            /** @description `set_avatar` only: the stored photo's path, to put on a public Storage origin. */
+            avatarPath?: string;
+            /**
+             * Format: uuid
+             * @description `save_time_off` only.
+             */
+            timeOffId?: string;
+        };
+        AgentCommissionLineFields: {
+            /** Format: uuid */
+            supplierId: string;
+            /** @description Gross booking value in cents. Required (absent or blank is a 400, never $0). */
+            grossCents: number | string;
+            /** @description 0 to 100; rounded to two decimals. Required. */
+            commissionPct: number | string;
+            /** @enum {string} */
+            paymentTerms: "at_booking" | "after_travel";
+            /** @description Whole days from 0 to 365. */
+            paymentLagDays: number | string;
+            /** @description Trimmed; blank is none. Unique per advisor. */
+            inteletravelReference?: string | null;
+            /** @description Trimmed; blank is none. Never exported. */
+            notes?: string | null;
+        };
+        AgentCommissionCreateRequest: components["schemas"]["AgentCommissionLineFields"] & {
+            /** @enum {string} */
+            op: "create";
+            /** Format: uuid */
+            tripId: string;
+            /**
+             * @default expected
+             * @enum {string|null}
+             */
+            status: "expected" | "invoiced" | null;
+        };
+        AgentCommissionUpdateRequest: components["schemas"]["AgentCommissionLineFields"] & {
+            /** @enum {string} */
+            op: "update";
+            /** Format: uuid */
+            commissionId: string;
+            expectedVersion: number;
+            /**
+             * @description Moving to received or disputed is the payment op's (a 400 here). Moving a paid line back to expected / invoiced / lost clears its payment, and only with `clearPayment: true`; without it the outcome is `payment_would_clear`.
+             * @enum {string}
+             */
+            status: "expected" | "invoiced" | "received" | "disputed" | "lost";
+            /** @description Only the JSON value true counts; anything else is false. */
+            clearPayment?: boolean;
+        };
+        AgentCommissionPaymentRequest: {
+            /** @enum {string} */
+            op: "payment";
+            /** Format: uuid */
+            commissionId: string;
+            expectedVersion: number;
+            /** @enum {string} */
+            status: "received" | "disputed";
+            /** @description Required. `received` with 0 is a 400 (record it as disputed instead). */
+            receivedCents: number | string;
+            /** @description Optional; absent or blank is 0. */
+            feeCents?: number | string | null;
+            /**
+             * Format: date
+             * @description A real calendar date. One after the advisor's today is the `bad_date` outcome.
+             */
+            receivedAt: string;
+        };
+        AgentCommissionRemoveRequest: {
+            /** @enum {string} */
+            op: "remove";
+            /** Format: uuid */
+            commissionId: string;
+            expectedVersion: number;
+        };
+        AgentCommissionExportRequest: {
+            /** @enum {string} */
+            op: "export";
+            /** @description The ledger's filters, as the web's ledgerQueryFromParams writes them. All optional. */
+            filters?: {
+                /** @description Repeats are dropped; an empty list is every status. */
+                statuses?: ("expected" | "invoiced" | "received" | "disputed" | "lost")[] | null;
+                /** @description A uuid; blank is none. */
+                supplierId?: string | null;
+                /** @description A uuid; blank is none. */
+                tripId?: string | null;
+                /** @description A date (trip start on or after); blank is none. */
+                travelFrom?: string | null;
+                /** @description A date (trip start on or before); blank is none. */
+                travelTo?: string | null;
+            } | null;
+        };
+        AgentCommissionStageWeights: {
+            inquiry: number;
+            proposal: number;
+            booked: number;
+            in_progress: number;
+        };
+        AgentCommissionWeightsRequest: {
+            /** @enum {string} */
+            op: "weights";
+            /** @description The weights the screen showed. If the stored ones differ, the save is a 409. */
+            expected: components["schemas"]["AgentCommissionStageWeights"];
+            weights: components["schemas"]["AgentCommissionStageWeights"];
+        };
+        AgentCommissionCreateResponse: {
+            /** @enum {string} */
+            outcome: "created" | "duplicate_reference" | "supplier_not_found";
+            /**
+             * Format: uuid
+             * @description Only on `created`. Minted by the server (v7).
+             */
+            commissionId?: string;
+            /** @description Only on `created`: always 1. */
+            version?: number;
+        };
+        /** @description `update` and `remove`. `commissionId` is echoed as it was sent. */
+        AgentCommissionLineResponse: {
+            /** @enum {string} */
+            outcome: "changed" | "noop" | "supplier_not_found" | "duplicate_reference" | "payment_would_clear" | "removed" | "not_removable";
+            /** Format: uuid */
+            commissionId: string;
+            /** @description The line's version now (after the write on changed / removed). */
+            version: number;
+        };
+        AgentCommissionPaymentResponse: {
+            /** @enum {string} */
+            outcome: "recorded" | "noop" | "bad_date";
+            /** Format: uuid */
+            commissionId: string;
+            version: number;
+            /** @description Expected - fee - received, in cents as a digit-string. Null on `bad_date`. */
+            gapCents: string | null;
+        };
+        AgentCommissionExportResponse: {
+            /** @enum {string} */
+            outcome: "exported";
+            rowCount: number;
+            /** @description RFC 4180, CRLF line ends with a trailing CRLF, no byte-order mark. Money as exact decimals ("1234.56"); a text cell starting with = + - @ tab or CR is prefixed with an apostrophe. Notes are not exported. */
+            csv: string;
+        };
+        AgentCommissionWeightsResponse: {
+            /** @enum {string} */
+            outcome: "saved" | "noop";
+        };
+        CommissionImportUploadRequest: {
+            /** @enum {string} */
+            op: "upload";
+            /** @description The name the advisor will recognise. Path parts are dropped; at most 255 characters kept. */
+            filename: string;
+            /** @description The CSV's bytes, base64 (forgiving: white space and padding as atob takes them). */
+            fileBase64: string;
+        };
+        /** @description Statement field to a 0-based column of the file. `received` is required; null is unmapped. */
+        CommissionImportColumnMap: {
+            reference?: number | null;
+            supplier?: number | null;
+            traveler?: number | null;
+            gross?: number | null;
+            received?: number | null;
+            fee?: number | null;
+            paid_on?: number | null;
+        };
+        CommissionImportMapRequest: {
+            /** @enum {string} */
+            op: "map";
+            /** Format: uuid */
+            importId: string;
+            expectedVersion: number;
+            columnMap: components["schemas"]["CommissionImportColumnMap"];
+            /**
+             * Format: date
+             * @description The paid-on date for rows with none. Blank or null is none. Required when no `paid_on` column is mapped.
+             */
+            statementDate?: string | null;
+        };
+        CommissionImportResolveRequest: {
+            /** @enum {string} */
+            op: "resolve";
+            /** Format: uuid */
+            importId: string;
+            expectedVersion: number;
+            /** @enum {string} */
+            action: "confirm" | "match" | "create" | "ignore";
+            /** Format: uuid */
+            rowId: string;
+            /**
+             * Format: uuid
+             * @description `match` only: the unpaid line this row pays.
+             */
+            commissionId?: string;
+            /**
+             * Format: uuid
+             * @description `create` only.
+             */
+            tripId?: string;
+            /**
+             * Format: uuid
+             * @description `create` only.
+             */
+            supplierId?: string;
+            /** @description `create` only; required. */
+            grossCents?: number | string;
+            /** @description `create` only; required, rounded to two decimals. */
+            commissionPct?: number | string;
+        };
+        /** @description `reconcile` and `discard`. */
+        CommissionImportStatementRequest: {
+            /** @enum {string} */
+            op: "reconcile" | "discard";
+            /** Format: uuid */
+            importId: string;
+            expectedVersion: number;
+        };
+        CommissionImportUploadResponse: {
+            /** @enum {string} */
+            outcome: "uploaded" | "duplicate_file";
+            /**
+             * Format: uuid
+             * @description The new statement's id, or (`duplicate_file`) the earlier one's.
+             */
+            importId: string;
+            /** @description `uploaded` only: the data rows read. */
+            rowCount?: number;
+            /**
+             * Format: date-time
+             * @description `duplicate_file` only: when the earlier statement was uploaded.
+             */
+            uploadedAt?: string;
+        };
+        /** @description `map`, `resolve` and `discard`. `importId` is echoed as it was sent. */
+        CommissionImportResponse: {
+            /** @enum {string} */
+            outcome: "mapped" | "resolved" | "discarded" | "not_open" | "not_allowed" | "line_unavailable" | "trip_not_found" | "supplier_not_found";
+            /** Format: uuid */
+            importId: string;
+            /** @description The statement's version now. Send it as the next `expectedVersion`. */
+            version: number;
+        };
+        CommissionImportReconcileResponse: {
+            /** @enum {string} */
+            outcome: "reconciled" | "needs_decisions" | "not_open";
+            /** Format: uuid */
+            importId: string;
+            version: number;
+            /** @description Lines marked received. */
+            paid: number;
+            /** @description Lines created and marked received. */
+            created: number;
+            alreadyRecorded: number;
+            /** @description `needs_decisions`: rows still suggested, unmatched, duplicate or unreadable. */
+            blocking: number;
+        };
+        AgentReportExportRequest: {
+            /** @enum {string} */
+            op: "export";
+            /** @enum {string} */
+            report: "revenue" | "suppliers" | "destinations" | "clients" | "funnel" | "pipeline";
+            /**
+             * @description Required for every report but clients and pipeline, which take none (one sent is a 400, not ignored).
+             * @enum {string|null}
+             */
+            period?: "ytd" | "12mo" | "qtd" | null;
+            /**
+             * @description Required for revenue; refused for every other report.
+             * @enum {string|null}
+             */
+            basis?: "booked" | "received" | null;
+        };
+        AgentReportCenterRequest: {
+            /** @enum {string} */
+            op: "center";
+            /** @enum {string} */
+            type: "ledger" | "trips" | "milestones" | "clients";
+            /**
+             * Format: date
+             * @description Required (a real date, on or before `to`) for every type but clients, which takes none.
+             */
+            from?: string | null;
+            /** Format: date */
+            to?: string | null;
+            /** @description Adds email, phone and mailing address columns. Clients only; true on any other type is a 400. Only the JSON values true, false and null are accepted. */
+            includeContact?: boolean | null;
+        };
+        AgentReportFile: {
+            /** @enum {string} */
+            outcome: "exported";
+            /** @description The rows SQL returned (for the funnel, the four stages; for the pipeline, stages plus month buckets). */
+            rowCount: number;
+            csv: string;
+            /** @description "revenue-booked-2026-01-01-to-2026-10-21.csv": the period it covers. Clients and the pipeline are dated by the advisor's own day ("clients-lifetime-value-2026-10-21.csv", "clients-with-contact-details-2026-10-21.csv"). */
+            fileName: string;
+        };
+        AccountAdminEmailRequest: {
+            /** @enum {string} */
+            op: "reset" | "magic_link" | "invite";
+            /** Format: uuid */
+            clientId: string;
+        };
+        AccountAdminEmailResponse: {
+            /**
+             * @description `failed`: GoTrue could not make the link, or the mail server refused the message. The claim still counts toward the hourly cap.
+             * @enum {string}
+             */
+            outcome: "sent" | "refused" | "capped" | "failed";
+            /**
+             * @description Present with `sent` only.
+             * @enum {string}
+             */
+            kind?: "reset" | "magic_link" | "invite";
+            /** @description Present with `refused` only. The sentence the tab shows. */
+            reason?: string;
+        };
+        AccountAdminVerifyEmailRequest: {
+            /** @enum {string} */
+            op: "verify_email";
+            /** Format: uuid */
+            clientId: string;
+            /** @description How the advisor confirmed the address. Trimmed; UTF-16 lengths. */
+            note: string;
+        };
+        AccountAdminVerifyEmailResponse: {
+            /** @enum {string} */
+            outcome: "changed" | "noop" | "refused" | "duplicate";
+            /** @description Present with `refused` only. */
+            reason?: string;
+            /**
+             * Format: uuid
+             * @description Present with `duplicate` only: the other record when it is this advisor's, null when it belongs to another advisor (its id is never shown across books).
+             */
+            duplicateClientId?: string | null;
+        };
+        AccountAdminLockRequest: {
+            /** @enum {string} */
+            op: "lock" | "unlock";
+            /** Format: uuid */
+            clientId: string;
+            /** @description Trimmed; UTF-16 lengths. Recorded on the account and the audit row. */
+            reason: string;
+        };
+        AccountAdminLockResponse: {
+            /** @enum {string} */
+            outcome: "changed" | "noop" | "refused";
+            /** @description Present with `changed` only. Always 0 on `unlock`. */
+            sessionsEnded?: number;
+            /** @description Present with `refused` only. */
+            reason?: string;
+        };
+        AccountAdminSignOutRequest: {
+            /** @enum {string} */
+            op: "sign_out_everywhere";
+            /** Format: uuid */
+            clientId: string;
+        };
+        /** @description A client with no sign-in is a 404. */
+        AccountAdminSignOutResponse: {
+            /** @enum {string} */
+            outcome: "changed";
+            sessionsEnded: number;
+        };
+        AccountAdminFlagRequest: {
+            /** @enum {string} */
+            op: "flag" | "unflag";
+            /** Format: uuid */
+            clientId: string;
+            /**
+             * Format: uuid
+             * @description One of this client's sign-ins. Anyone else's is a 404.
+             */
+            authEventId: string;
+        };
+        AccountAdminFlagResponse: {
+            /** @enum {string} */
+            outcome: "changed" | "noop";
+        };
+        AccountAdminMergeRequest: {
+            /** @enum {string} */
+            op: "merge";
+            /**
+             * Format: uuid
+             * @description The record KEPT.
+             */
+            clientId: string;
+            /**
+             * Format: uuid
+             * @description The record retired (it becomes `merged_into` and is never deleted).
+             */
+            otherClientId: string;
+            keepVersion: number;
+            otherVersion: number;
+            /** @description Field name to `keep` or `retire`, for the fields the advisor flipped; the rest take their default. Keys are lower-case field names (`^[a-z_]{1,40}$`). The email is pinned to the surviving sign-in's address and cannot be flipped. */
+            choices?: {
+                [key: string]: "keep" | "retire";
+            };
+        };
+        AccountAdminMergeResponse: {
+            /** @enum {string} */
+            outcome: "merged" | "refused" | "stale";
+            /** @description With `refused`: the kept record is archived, the two would have more than 12 companions, or the kept record would have no first or last name. */
+            reason?: string | null;
+            /**
+             * Format: uuid
+             * @description Present with `merged` only.
+             */
+            keptClientId?: string;
+            /** @description Present with `merged` only. What moved from the retired record. */
+            counts?: {
+                notes?: number;
+                trips?: number;
+                documents?: number;
+                companions?: number;
+                conversations?: number;
+                travelDocuments?: number;
+            };
+        };
+        /**
+         * @description Every field is optional, and a body that is missing, not JSON, or not an object is
+         *     read as `{"trigger":"cron"}`.
+         */
+        CruiseSyncRequest: {
+            /**
+             * @description "manual" marks a person's run; anything else (or nothing) is "cron".
+             * @default cron
+             * @enum {string}
+             */
+            trigger: "cron" | "manual";
+            /**
+             * @description Narrows a run to the one `cruise_sync_scope` whose `label` this is (trimmed; a
+             *     blank or non-string value is ignored). For manual runs: verifying one scope should
+             *     not spend the others' requests. pg_cron never sends it.
+             */
+            scope?: string;
+            /**
+             * Format: uuid
+             * @description Refetch this `cruise_sailing` instead of running the schedule. Any UUID shape
+             *     (either letter case); anything else, null included, is 400.
+             */
+            sailingId?: string;
+        };
+        CruiseSyncRunResponse: {
+            /**
+             * Format: uuid
+             * @description The `cruise_sync_run` row, which holds the same counts and the cause.
+             */
+            runId: string;
+            /**
+             * @description `partial` when some scope failed, the relay throttled the run, or a scope spent
+             *     requests and stored nothing; `failed` when that happened before any scope finished;
+             *     `skipped` when the budget is spent or an earlier run is still going.
+             * @enum {string}
+             */
+            status: "ok" | "partial" | "skipped" | "failed";
+            scopesRun: number;
+            /** @description Provider HTTP attempts this run made, retries included. */
+            requestsSpent: number;
+            rowsUpserted: number;
+            /** @description Rows soft-archived after a complete pass (cruise lines and ships only). */
+            rowsArchived: number;
+            budget: {
+                /** @description Our ledger's count for the calendar month (UTC), this run included. */
+                monthToDateSpend: number;
+                ceiling: number;
+                /** @description Requests a run may still make, the smaller of the ceiling's room and the relay's figure. */
+                allowanceRemaining: number;
+                /** @description The relay's latest `x-ratelimit-requests-remaining` this month, null when none. */
+                providerRemaining: number | null;
+                /**
+                 * @description (limit - remaining) - monthToDateSpend, when the relay reported both. Positive
+                 *     means quota was spent that our ledger never saw.
+                 */
+                drift: number | null;
+            };
+            /** @description Why scopes were skipped, deferred, stopped or failed, in order. Empty on a clean run. */
+            notes: string[];
+        };
+        CruiseSyncRefetchResponse: {
+            /** Format: uuid */
+            sailingId: string;
+            /** @description The provider's id for the sailing (`cruise_sailing.provider_key`). */
+            cruiseId: string | null;
+            /** @description The provider's company for the line; null when the line has no provider coverage. */
+            company: string | null;
+            cabinPricesWritten: number;
+            portCallsWritten: number;
+            /**
+             * @description The refreshed lead fare in minor units, only when the provider answered in the
+             *     sailing's own market; otherwise null and the stored fare is left alone. Internal
+             *     (Data-Model §24.4): never shown on a public page.
+             */
+            leadPriceCents: number | null;
+            /** @description ISO 4217, beside leadPriceCents. */
+            currency: string | null;
+            /** @description The budget after this request (before it, when nothing was spent). */
+            budget: {
+                ledgerSpent: number;
+                ceiling: number;
+                quotaRemaining: number | null;
+                quotaLimit: number | null;
+                allowance: number;
+                drift: number | null;
+            };
+            /**
+             * @description Present when no request was spent (the line has no provider coverage, or the
+             *     budget is gone, with the reason), or when the provider answered in another market
+             *     (cabin prices were still stored, tagged with that market). Absent otherwise.
+             */
+            skipped?: string;
+        };
+        PushDispatchResponse: {
+            /** @description Notification rows finished as sent (a summary counts each row it covered). */
+            sent: number;
+            /** @description Rows finished as not sent (back to pending, cleared for a newer row of the same thread, or failed on their third try). */
+            retried: number;
+            /** @description Owed dismisses claimed and sent to the advisor's phones (counted even when they have none). */
+            dismissed: number;
+            /** @description Devices forgotten because their push service said they no longer exist. */
+            gone: number;
+        };
+        EmailDispatchResponse: {
+            /** @description Client emails finished as sent. */
+            sent: number;
+            /** @description Advisor alert emails finished as sent. */
+            alertsSent: number;
+            /** @description Emails and alerts finished as not sent and not failed (back to pending, or cleared for a newer row of the same thread). */
+            retried: number;
+            /** @description Emails and alerts failed for good (a 5xx, nothing honest to send, or the third try). */
+            failed: number;
+            /** @description Claimed rows put back unsent, with no try counted, because the pass ran out of time. */
+            released: number;
+        };
+        EmailInboxResponse: {
+            /** @description Messages handled this run (the sum of `outcomes`). */
+            read: number;
+            /**
+             * @description How many messages ended each way, keyed in the order first seen. Only outcomes that
+             *     occurred appear. Keys: the `email_inbound_record` outcomes (`accepted`,
+             *     `unknown_token`, `expired_token`, `sender_mismatch`, `thread_closed`, `empty`,
+             *     `too_long`, `auto_reply`), plus `duplicate` (a re-delivered copy of a message already
+             *     recorded), `too_large` (over 1,000,000 octets, never read) and `failed` (could not be
+             *     read; moved to `Failed`).
+             */
+            outcomes: {
+                [key: string]: number;
+            };
+            /** @description Messages left in INBOX because the run ran out of time. */
+            skipped: number;
+            /** @description Handled messages older than 30 days deleted from Processed, Rejected and Failed. */
+            purged: number;
+        };
+        EmailUnsubscribeRequest: {
+            /** @description The unsubscribe token; null or absent uses ?t=. */
+            token?: string | null;
+            on: boolean;
+        };
+        EmailUnsubscribeResponse: {
+            /** @enum {string|null} */
+            status: "on" | "off" | "invalid" | null;
+        };
     };
     responses: {
         /** @description The request body or query failed validation. */
@@ -1253,6 +3411,7 @@ export interface operations {
             400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
         };
     };
     requestTripDocumentUpload: {
@@ -1280,6 +3439,7 @@ export interface operations {
             400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
         };
     };
     getTripDocumentUrl: {
@@ -1334,6 +3494,7 @@ export interface operations {
             400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
         };
     };
     setAgentTripStatus: {
@@ -1345,7 +3506,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["AgentTripStatusRequest"];
+                "application/json": components["schemas"]["AgentTripStatusRequest"] | components["schemas"]["AgentTripStatusBulkRequest"];
             };
         };
         responses: {
@@ -1359,7 +3520,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["AgentTripStatusResponse"];
+                    "application/json": components["schemas"]["AgentTripStatusResponse"] | components["schemas"]["AgentTripStatusBulkResponse"];
                 };
             };
             400: components["responses"]["BadRequest"];
@@ -1568,6 +3729,15 @@ export interface operations {
             400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
+            /** @description An `edit` of a companion who is not on the caller's list ("That companion is not on your list."). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
         };
     };
     redeemConnectCode: {
@@ -1595,8 +3765,8 @@ export interface operations {
             400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             /**
-             * @description The code was refused, or the caller is not a traveler. `detail`
-             *     names which.
+             * @description Too many attempts, or the caller is not a traveler. `detail` names
+             *     which. A refused code is a 400.
              */
             403: {
                 headers: {
@@ -1606,6 +3776,698 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+        };
+    };
+    sendLeadMessage: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LeadMessageRequest"];
+            };
+        };
+        responses: {
+            /** @description Received (whatever happened to it). */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OkResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            /** @description Five sends an hour from this address. `detail` is "Please try again a little later." */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description No single active advisor to route to. `detail` is "Messages can't be sent just now. Please try again later." */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    agentLead: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AgentLeadRequest"];
+            };
+        };
+        responses: {
+            /** @description The outcome. `create` answers its own shape; the other ops answer `AgentLeadWriteResponse`. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentLeadCreateResponse"] | components["schemas"]["AgentLeadWriteResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    requestQuote: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["QuoteRequestRequest"];
+            };
+        };
+        responses: {
+            /** @description The trip exists, in `inquiry`. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["QuoteRequestResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            /** @description The caller has no client record. `detail` is "No client record for this account." */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    agentTrip: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AgentTripCreateRequest"] | components["schemas"]["AgentTripComponentRequest"] | components["schemas"]["AgentTripComponentArchiveRequest"] | components["schemas"]["AgentTripComponentReorderRequest"] | components["schemas"]["AgentTripMilestoneRequest"] | components["schemas"]["AgentTripMilestonePaidRequest"] | components["schemas"]["AgentTripPayLinkRequest"] | components["schemas"]["AgentTripMilestoneDeleteRequest"];
+            };
+        };
+        responses: {
+            /** @description The op's outcome. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentTripCreateResponse"] | components["schemas"]["AgentTripComponentResponse"] | components["schemas"]["AgentTripReorderResponse"] | components["schemas"]["AgentTripMilestoneResponse"] | components["schemas"]["AgentTripMilestonePaidResponse"] | components["schemas"]["AgentTripPayLinkResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    agentItinerary: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AgentItineraryGenerateRequest"] | components["schemas"]["AgentItineraryDayRequest"] | components["schemas"]["AgentItineraryActivityRequest"] | components["schemas"]["AgentItineraryActivityDeleteRequest"] | components["schemas"]["AgentItineraryReorderRequest"];
+            };
+        };
+        responses: {
+            /** @description The op's outcome. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentItineraryGenerateResponse"] | components["schemas"]["AgentItineraryDayResponse"] | components["schemas"]["AgentItineraryActivityResponse"] | components["schemas"]["AgentItineraryReorderResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    agentClient: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AgentClientCreateRequest"] | components["schemas"]["AgentClientUpdateRequest"] | components["schemas"]["AgentClientArchiveRequest"] | components["schemas"]["AgentClientBulkTagRequest"];
+            };
+        };
+        responses: {
+            /** @description The op's outcome. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentClientCreateResponse"] | components["schemas"]["AgentClientUpdateResponse"] | components["schemas"]["AgentClientArchiveResponse"] | components["schemas"]["AgentClientBulkTagResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    agentClientNotes: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AgentClientNoteRequest"];
+            };
+        };
+        responses: {
+            /** @description The note was written, or (`changed: false`) already read that way. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentClientNoteResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    agentTemplate: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AgentTemplateSaveRequest"] | components["schemas"]["AgentTemplateUpdateRequest"] | components["schemas"]["AgentTemplateArchiveRequest"] | components["schemas"]["AgentTemplateApplyRequest"];
+            };
+        };
+        responses: {
+            /** @description The op's outcome. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentTemplateSaveResponse"] | components["schemas"]["AgentTemplateOutcomeResponse"] | components["schemas"]["AgentTemplateApplyResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    agentMessageTemplate: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AgentMessageTemplateWriteRequest"] | components["schemas"]["AgentMessageTemplateDuplicateRequest"] | components["schemas"]["AgentMessageTemplateArchiveRequest"];
+            };
+        };
+        responses: {
+            /** @description The op's outcome. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentMessageTemplateResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    agentSettings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AgentSettingsProfileRequest"] | components["schemas"]["AgentSettingsAvatarRequest"] | components["schemas"]["AgentSettingsRemoveAvatarRequest"] | components["schemas"]["AgentSettingsAvailabilityRequest"] | components["schemas"]["AgentSettingsSaveTimeOffRequest"] | components["schemas"]["AgentSettingsEndTimeOffRequest"] | components["schemas"]["AgentSettingsNotificationsRequest"] | components["schemas"]["AgentSettingsSignatureRequest"];
+            };
+        };
+        responses: {
+            /** @description The op's outcome. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentSettingsResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    agentCommission: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AgentCommissionCreateRequest"] | components["schemas"]["AgentCommissionUpdateRequest"] | components["schemas"]["AgentCommissionPaymentRequest"] | components["schemas"]["AgentCommissionRemoveRequest"] | components["schemas"]["AgentCommissionExportRequest"] | components["schemas"]["AgentCommissionWeightsRequest"];
+            };
+        };
+        responses: {
+            /** @description The op's outcome. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentCommissionCreateResponse"] | components["schemas"]["AgentCommissionLineResponse"] | components["schemas"]["AgentCommissionPaymentResponse"] | components["schemas"]["AgentCommissionExportResponse"] | components["schemas"]["AgentCommissionWeightsResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    commissionImport: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CommissionImportUploadRequest"] | components["schemas"]["CommissionImportMapRequest"] | components["schemas"]["CommissionImportResolveRequest"] | components["schemas"]["CommissionImportStatementRequest"];
+            };
+        };
+        responses: {
+            /** @description The op's outcome. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CommissionImportUploadResponse"] | components["schemas"]["CommissionImportResponse"] | components["schemas"]["CommissionImportReconcileResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    agentReport: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AgentReportExportRequest"] | components["schemas"]["AgentReportCenterRequest"];
+            };
+        };
+        responses: {
+            /** @description The file. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentReportFile"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    accountAdmin: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AccountAdminEmailRequest"] | components["schemas"]["AccountAdminVerifyEmailRequest"] | components["schemas"]["AccountAdminLockRequest"] | components["schemas"]["AccountAdminSignOutRequest"] | components["schemas"]["AccountAdminFlagRequest"] | components["schemas"]["AccountAdminMergeRequest"];
+            };
+        };
+        responses: {
+            /** @description The op's outcome. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AccountAdminEmailResponse"] | components["schemas"]["AccountAdminVerifyEmailResponse"] | components["schemas"]["AccountAdminLockResponse"] | components["schemas"]["AccountAdminSignOutResponse"] | components["schemas"]["AccountAdminFlagResponse"] | components["schemas"]["AccountAdminMergeResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description `reset`, `magic_link`, `invite`: email is not set up, so nothing was sent. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    runCruiseSync: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["CruiseSyncRequest"];
+            };
+        };
+        responses: {
+            /**
+             * @description A run (`CruiseSyncRunResponse`) or a refetch (`CruiseSyncRefetchResponse`), by
+             *     whether the request carried `sailingId`. A run that failed partway is still 200,
+             *     with `status: partial`; a run that could not proceed at all is a 500.
+             */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CruiseSyncRunResponse"] | components["schemas"]["CruiseSyncRefetchResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            /**
+             * @description Not POST ("Use POST to run the cruise sync."), the provider key is unset, or the
+             *     bearer is not the cron secret.
+             */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description A refetch of a sailing that does not exist. `detail` is "No such sailing." */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /**
+             * @description The run could not go on (the scope read failed, the provider answered a refetch
+             *     with an error, an audit write failed). No `detail`. The run row is closed as
+             *     `failed` with `error_code: run_threw` before this is sent.
+             */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    runPushDispatch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": Record<string, never>;
+            };
+        };
+        responses: {
+            /** @description The pass ran. What it did, as counts. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PushDispatchResponse"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            /** @description Not POST ("Use POST to run the dispatcher."), or the bearer is not the cron secret. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /**
+             * @description No push keys at all (nothing was claimed), or a claim, a device lookup for a
+             *     dismissal, or a device cleanup failed. No `detail`. One advisor's failed device
+             *     lookup is NOT a 500: their rows go back for a retry and the pass goes on.
+             */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    runEmailDispatch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": Record<string, never>;
+            };
+        };
+        responses: {
+            /** @description The pass ran. What it did, as counts. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EmailDispatchResponse"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            /**
+             * @description Not POST ("Use POST to run the email dispatcher."), or the bearer is not the cron
+             *     secret.
+             */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /**
+             * @description Email is not set up, or a setting is refused (nothing was claimed); or the email
+             *     claim or the alert claim failed. No `detail`.
+             */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    runEmailInbox: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": Record<string, never>;
+            };
+        };
+        responses: {
+            /** @description The run finished. What it did, as counts. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EmailInboxResponse"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            /** @description Not POST ("Use POST to read the inbox."), or the bearer is not the cron secret. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /**
+             * @description The inbox is not set up or a setting is refused; the mailbox could not be reached,
+             *     logged in to, listed, selected, fetched or changed; or recording a reply failed (the
+             *     message stays in INBOX for the next run). No `detail`.
+             */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    emailUnsubscribeStatus: {
+        parameters: {
+            query?: {
+                /** @description The unsubscribe token from the email's link (26 base32 characters). */
+                t?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The switch as it stands. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EmailUnsubscribeResponse"];
+                };
+            };
+        };
+    };
+    emailUnsubscribeSet: {
+        parameters: {
+            query?: {
+                t?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["EmailUnsubscribeRequest"];
+                "application/x-www-form-urlencoded": {
+                    /** @enum {string} */
+                    "List-Unsubscribe"?: "One-Click";
+                };
+            };
+        };
+        responses: {
+            /** @description The switch after the change. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EmailUnsubscribeResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
         };
     };
 }

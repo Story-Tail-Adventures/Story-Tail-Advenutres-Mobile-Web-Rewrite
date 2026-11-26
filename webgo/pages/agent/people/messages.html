@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<!--
+  Screens 3.10.1 Agent Inbox and 3.10.2 Conversation Thread (A3101, A3102):
+  app/(agent)/agent/messages (layout.tsx, page.tsx, @list/*, [conversationId]/page.tsx) and
+  components/agent/{AgentMessagesFrame,AgentInboxHeader,AgentInboxList,AgentThreadView,
+  AgentReplyBox}.tsx. Copy word for word from AGENT_MESSAGES_COPY.
+
+  ONE PAGE, TWO COLUMNS, RENDERED FROM THE URL (docs/GO-MIGRATION.md §4.9). Next splits the
+  list into a parallel @list slot so it stays mounted; a Go page load has nothing to keep
+  mounted, so the handler fills the list and ONE of the right-hand panes. Which column shows
+  below lg is a class on the frame, not a script.
+
+  EVERY CONTROL IS A LINK OR A FORM: the filters and the search are GET, the bulk archive is
+  a checkbox form that posts ids, and the reply box is a POST that redirects.
+-->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Messages · Story-Tail Adventures</title>
+</head>
+<body>
+<main>
+  <div class="ppl-msg-frame" data-slot="frame">
+    <div class="ppl-msg-list-pane">
+      <a class="ppl-msg-new-banner" href="/agent/messages" hidden data-new-banner data-slot="new-banner">New messages — refresh</a>
+      <div class="ppl-msg-head">
+        <div class="ppl-msg-head-top">
+          <h1 class="type-h5 fw-700 ppl-flex1" data-slot="list-title-h1">Messages</h1>
+          <h2 class="type-h5 fw-700 ppl-flex1" data-slot="list-title-h2">Messages</h2>
+          <a class="link link-hover type-body2" href="/agent/messages?view=archived" data-slot="view-link">Archived (4)</a>
+          <a class="link link-hover type-body2" href="/agent/messages/templates">Templates</a>
+        </div>
+        <p class="type-caption text-secondary ppl-block" data-slot="headline">2 unread · 1 overdue</p>
+
+        <div class="ppl-msg-chips">
+          <a class="chip chip-small chip-outlined" href="/agent/messages?unread=1" data-slot="chip-unread"><span class="chip-label">Unread</span></a>
+          <a class="chip chip-small chip-outlined" href="/agent/messages?overdue=1" data-slot="chip-overdue"><span class="chip-label">Overdue</span></a>
+          <a class="chip chip-small chip-outlined" href="/agent/messages" aria-label="This client · Show all" data-slot="chip-client"><span class="chip-label">This client</span></a>
+          <a class="chip chip-small chip-outlined" href="/agent/messages" aria-label="This trip · Show all" data-slot="chip-trip"><span class="chip-label">This trip</span></a>
+        </div>
+
+        <form class="ppl-msg-search" method="get" action="/agent/messages" role="search" data-slot="search-form">
+          <input type="hidden" name="view" value="archived" data-slot="hid-view">
+          <input type="hidden" name="unread" value="1" data-slot="hid-unread">
+          <input type="hidden" name="overdue" value="1" data-slot="hid-overdue">
+          <input type="hidden" name="client" value="" data-slot="hid-client">
+          <input type="hidden" name="trip" value="" data-slot="hid-trip">
+          <div class="ppl-flex1">
+            <div class="field">
+              <label class="field-label" for="inbox-search">Search messages</label>
+              <input class="input ppl-search" id="inbox-search" name="q" type="search" placeholder="Name, trip or message" data-slot="in-q">
+            </div>
+          </div>
+          <button type="submit" class="btn btn-outlined st-btn btn-small">Search</button>
+        </form>
+        <a class="link link-hover type-caption ppl-block ppl-mt-0_5" href="/agent/messages" data-slot="clear-filter">Show all</a>
+      </div>
+
+      <form method="post" action="/agent/messages" data-submit-once data-bulk-archive data-slot="bulk-form">
+        <input type="hidden" name="op" value="archive">
+        <input type="hidden" name="archived" value="true" data-slot="bulk-flag">
+        <p class="type-body2 text-error ppl-msg-error" role="alert" data-slot="list-error">That didn't save. Try again in a moment.</p>
+        <div class="ppl-msg-receipt" data-slot="receipt"><div class="alert alert-success" role="status" aria-live="polite"><div class="alert-message" data-slot="receipt-text">2 archived</div></div></div>
+        <div class="ppl-msg-bulk" role="region" aria-label="Selected threads" hidden data-bulk-bar data-slot="bulk-bar">
+          <p class="type-body2 ppl-flex1" data-bulk-count>1 selected</p>
+          <button type="submit" class="btn btn-outlined st-btn btn-small" data-slot="bulk-submit">Archive</button>
+        </div>
+        <p class="type-body2 text-secondary ppl-msg-empty" data-slot="empty">No messages yet. When a client writes to you, it shows up here.</p>
+
+        <ul class="ppl-msg-list" aria-label="Message threads" data-slot="list">
+          <li data-repeat="threads">
+            <div class="ppl-msg-item" data-slot="r-item">
+            <label class="ppl-msg-check"><input class="check-input" type="checkbox" name="conversationId" value="c1" aria-label="Select Maya Carter · Sandals · Jul" data-slot="r-check"></label>
+            <a class="ppl-msg-row" href="/agent/messages/c1" data-slot="r-link">
+              <span class="ppl-msg-row-top">
+                <span class="type-subtitle2 ppl-nowrap ppl-flex1" data-slot="r-name">Maya Carter</span>
+                <span class="type-caption ppl-noshrink" data-slot="r-time">2:14p</span>
+              </span>
+              <span class="type-caption text-secondary ppl-block ppl-nowrap" data-slot="r-preview">Yes lock the upgrade!</span>
+              <span class="ppl-msg-row-foot">
+                <span class="type-overline ppl-msg-trip ppl-nowrap ppl-flex1" data-slot="r-trip"><span data-slot="r-trip-name">Sandals · Jul</span><span class="ppl-msg-replyby" data-slot="r-replyby"> · Reply by Tue</span></span>
+                <span class="chip chip-small ppl-msg-unread" data-slot="r-unread"><span class="chip-label">2<span class="visually-hidden"> unread</span></span></span>
+              </span>
+              </a>
+            </div>
+          </li>
+        </ul>
+      </form>
+
+      <nav class="ppl-msg-pager" aria-label="Inbox pages" data-slot="pager">
+        <a class="link link-hover type-body2" href="/agent/messages?page=1" data-slot="pg-newer">Newer</a>
+        <a class="link link-hover type-body2" href="/agent/messages?page=3" data-slot="pg-older">Older</a>
+      </nav>
+    </div>
+
+    <div class="ppl-msg-detail-pane">
+      <div class="ppl-msg-pick" data-slot="pane-pick"><p class="type-body2 text-secondary" data-slot="pick-text">Pick a thread to read it here.</p></div>
+
+      <div class="ppl-msg-new" data-slot="pane-new">
+        <a class="link link-hover type-body2 ppl-msg-back" href="/agent/messages">All messages</a>
+        <h1 class="type-h5 ppl-msg-new-title" data-slot="new-title">Message Maya</h1>
+        <p class="type-body2 text-secondary ppl-mt-0_25 ppl-mb-2" data-slot="new-sub">Maya Carter · General</p>
+        <form class="ppl-msg-new-box" method="post" action="/agent/messages/new" data-submit-once data-slot="new-form">
+          <input type="hidden" name="client" value="" data-slot="new-client">
+          <input type="hidden" name="trip" value="" data-slot="new-trip">
+          <input type="hidden" name="messageId" value="" data-slot="new-id">
+          <input type="hidden" name="draftFor" value="" data-slot="new-draftfor">
+          <p class="type-body2 text-error ppl-mb-1" role="alert" data-slot="new-error">That didn't send. Try again in a moment.</p>
+          <div class="field">
+            <label class="field-label" for="new-body">Message</label>
+            <textarea class="input ppl-msg-text" id="new-body" name="body" rows="3" required placeholder="Write a message…" data-slot="new-text"></textarea>
+          </div>
+          <div class="ppl-msg-reply-foot">
+            <div class="ppl-ml-auto"><button type="submit" class="btn btn-contained st-btn btn-small">Send</button></div>
+          </div>
+          <p class="type-caption text-secondary ppl-block ppl-mt-0_75" data-slot="new-nologin">Maya hasn't set up a login yet, so this won't be emailed. It will be waiting when they sign in.</p>
+        </form>
+      </div>
+
+      <section class="ppl-msg-thread" aria-label="Maya Carter" data-slot="pane-thread">
+        <div class="ppl-msg-thread-head">
+          <a class="link link-hover type-body2 ppl-msg-back" href="/agent/messages" data-slot="th-back">All messages</a>
+          <div class="ppl-msg-thread-top">
+            <div class="ppl-msg-thread-who">
+              <h1 class="type-h6 ppl-anywhere" data-slot="th-name">Maya Carter</h1>
+              <p class="type-caption text-secondary ppl-block" data-slot="th-trip">Sandals · Jul</p>
+            </div>
+            <div class="ppl-msg-thread-tools">
+              <span class="chip chip-small chip-outlined" data-slot="th-archived"><span class="chip-label">Archived</span></span>
+              <span class="chip chip-small chip-outlined ppl-chip-error" data-slot="th-overdue"><span class="chip-label">Overdue</span></span>
+              <span class="chip chip-small chip-outlined" data-slot="th-replyby"><span class="chip-label">Reply by end of Tue</span></span>
+              <a class="btn btn-outlined btn-secondary btn-small ppl-btn-sm" href="/agent/trips/t1" data-slot="th-open"><svg class="icon ppl-icon-12" aria-hidden="true" data-slot="th-open-trip-icon"><use href="/assets/icons.svg#briefcase"></use></svg><svg class="icon ppl-icon-12" aria-hidden="true" data-slot="th-open-client-icon"><use href="/assets/icons.svg#user"></use></svg><span data-slot="th-open-text">Open trip</span></a>
+              <form class="ppl-contents" method="post" action="/agent/messages/c1" data-submit-once data-slot="th-archive-form">
+                <input type="hidden" name="op" value="archive">
+                <input type="hidden" name="archived" value="true" data-slot="th-archive-flag">
+                <button type="submit" class="btn btn-text st-btn btn-small" data-slot="th-archive-btn">Archive</button>
+              </form>
+            </div>
+          </div>
+        </div>
+
+        <div class="ppl-msg-scroll" role="region" tabindex="0" aria-label="Messages" data-msg-scroll>
+          <p class="type-caption text-secondary ppl-msg-truncated" data-slot="th-truncated">Showing the latest 500 messages.</p>
+          <p class="type-body2 text-secondary" data-slot="th-empty">No messages in this thread yet.</p>
+          <div class="ppl-msg-days" data-slot="th-messages">
+            <div data-repeat="tmsg">
+              <div class="ppl-msg-rowbox" data-msg-row data-slot="m-box">
+              <div class="ppl-msg-day" data-slot="m-day"><span class="chip chip-small"><span class="chip-label" data-slot="m-day-label">Today</span></span></div>
+              <div class="paper paper-outlined ppl-msg-note" data-slot="m-note">
+                <p class="type-overline text-secondary ppl-msg-note-tag"><svg class="icon ppl-icon-12" aria-hidden="true"><use href="/assets/icons.svg#lock"></use></svg>Internal note · only you can see this</p>
+                <p class="type-body2 ppl-preline ppl-mt-0_5" data-slot="m-note-body">Call them back.</p>
+                <p class="type-caption text-secondary ppl-msg-note-time" data-slot="m-note-time">2:14p</p>
+              </div>
+              <div class="ppl-msg-bubble-wrap" data-slot="m-bubble">
+                <div class="ppl-msg-bubble" data-slot="m-paper">
+                  <p class="type-body2 ppl-preline"><span class="visually-hidden" data-slot="m-sender">You: </span><span data-slot="m-body">Yes lock the upgrade!</span></p>
+                </div>
+                <div data-slot="m-attach">
+                  <span class="paper paper-outlined ppl-msg-attach"><svg class="icon ppl-icon-12" aria-hidden="true"><use href="/assets/icons.svg#attach"></use></svg><span class="type-caption ppl-nowrap" data-slot="m-attach-name">passport.pdf</span></span>
+                </div>
+                <p class="type-caption text-secondary ppl-msg-time" data-slot="m-time">2:14p</p>
+              </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- The op travels on the button that was clicked, never as a hidden field: a hidden
+             op=send would be the FIRST op in the post and would win over "Insert template". -->
+        <form class="ppl-msg-reply" method="post" action="/agent/messages/c1" data-submit-once data-slot="rp-form">
+          <input type="hidden" name="messageId" value="" data-slot="rp-id">
+          <input type="hidden" name="seenUpTo" value="" data-slot="rp-seen">
+          <input type="hidden" name="draftFor" value="" data-slot="rp-draftfor">
+          <span class="visually-hidden" role="status" data-slot="rp-status">Template added. Read it over, then send.</span>
+          <p class="type-body2 text-error ppl-mb-1" role="alert" data-slot="rp-error">That didn't send. Try again in a moment.</p>
+          <div class="field">
+            <label class="field-label" for="reply-body" data-reply-label data-note-label="Internal note" data-slot="rp-label">Reply</label>
+            <textarea class="input ppl-msg-text" id="reply-body" name="body" rows="3" required placeholder="Write a reply…" data-reply-text data-note-placeholder="Write a note only you can see…" data-slot="rp-text"></textarea>
+          </div>
+          <div class="ppl-msg-reply-foot">
+            <button type="submit" formnovalidate class="btn btn-text btn-small ppl-btn-sm ppl-msg-tpl" name="op" value="picker" data-slot="rp-picker"><svg class="icon ppl-icon-14" aria-hidden="true"><use href="/assets/icons.svg#sparkle"></use></svg> Insert template</button>
+            <label class="check ppl-msg-note-switch" data-slot="rp-note-label"><input class="check-input ppl-note-switch" type="checkbox" name="internalNote" value="true" data-slot="rp-note"><span class="type-body2">Internal note</span></label>
+            <div class="ppl-ml-auto">
+              <button type="submit" name="op" value="send" class="btn btn-contained st-btn btn-small ppl-msg-send">Send</button>
+              <button type="submit" name="op" value="send" class="btn btn-contained st-btn btn-small ppl-msg-send-note">Add note</button>
+            </div>
+          </div>
+          <p class="type-caption text-secondary ppl-msg-note-hint"><svg class="icon ppl-icon-12" aria-hidden="true"><use href="/assets/icons.svg#lock"></use></svg>Only you can see this note.</p>
+          <p class="type-caption text-secondary ppl-block ppl-mt-0_75" data-slot="rp-nologin">Maya hasn't set up a login yet, so this won't be emailed. It will be waiting when they sign in.</p>
+        </form>
+
+        <!-- 3.10.3, drawn over the pane. It does not claim aria-modal: with no script the
+             page behind it is still reachable, and saying otherwise would mislead a screen
+             reader. Everything in it is a submit, so the draft survives every click. -->
+        <div class="ppl-pk-scrim" data-slot="pk-scrim">
+          <div class="ppl-pk paper" role="dialog" aria-labelledby="pk-title">
+            <form method="post" action="/agent/messages/c1" data-slot="pk-form">
+              <input type="hidden" name="body" value="" data-slot="pk-body">
+              <input type="hidden" name="internalNote" value="false" data-slot="pk-note">
+              <input type="hidden" name="messageId" value="" data-slot="pk-id">
+              <!-- Which template is showing. A list button says so in its own op; every other
+                   button in here (Search, Insert, Insert as-is) reads it from this field. -->
+              <input type="hidden" name="tpl" value="" data-slot="pk-sel">
+              <!-- Trip Detail's milestone, so every click in here keeps filling payment.*;
+                   and the draft's fingerprint, so a round trip does not re-mint its id. -->
+              <input type="hidden" name="remind" value="" data-slot="pk-remind">
+              <input type="hidden" name="draftFor" value="" data-slot="pk-draftfor">
+              <div class="ppl-pk-head">
+                <span class="ppl-pk-spark" aria-hidden="true"><svg class="icon ppl-icon-18"><use href="/assets/icons.svg#sparkle"></use></svg></span>
+                <h2 class="type-h5 ppl-pk-title" id="pk-title">Insert a template</h2>
+              </div>
+
+              <p class="type-body2 ppl-pk-empty" data-slot="pk-empty">No templates yet. <a class="link" href="/agent/messages/templates/new" data-slot="pk-empty-new">New template</a></p>
+
+              <!-- Next searches as you type. Without a script this needs a button, and it
+                   has to be the FIRST submit in the form: Enter in the box clicks that one. -->
+              <div class="field ppl-pk-search" data-slot="pk-search-field">
+                <label class="field-label" for="pk-q">Search templates</label>
+                <div class="ppl-pk-search-row">
+                  <input class="input" id="pk-q" name="tq" type="search" placeholder="Name, tag or words" value="" data-slot="pk-search">
+                  <button class="btn btn-outlined btn-secondary btn-small ppl-btn-sm" type="submit" name="op" value="search">Search</button>
+                </div>
+              </div>
+
+              <div class="ppl-pk-cols" data-slot="pk-body-grid">
+                <div class="paper paper-outlined ppl-pk-side">
+                  <p class="type-body2 text-secondary ppl-pk-nomatch" data-slot="pk-no-match">No templates match.</p>
+                  <ul class="ppl-pk-list" data-slot="pk-list">
+                    <li class="ppl-contents" data-repeat="pk">
+                      <p class="type-caption ppl-pk-group" data-slot="pk-group">Lead response</p>
+                      <button class="ppl-pk-item" type="submit" name="op" value="pick:" data-slot="pk-item"><span class="type-body2 fw-500" data-slot="pk-item-name">Lead response</span></button>
+                    </li>
+                  </ul>
+                </div>
+                <section class="paper paper-outlined ppl-pk-preview" aria-live="polite">
+                  <p class="type-body2 text-secondary ppl-pk-pickone" data-slot="pk-pick-one">Pick a template to see it here.</p>
+                  <div data-slot="pk-preview">
+                    <p class="type-overline text-secondary ppl-pk-for" data-slot="pk-preview-for">Preview · for Maya</p>
+                    <p class="type-body2 pre-line ppl-pk-text" data-slot="pk-preview-text">Hi Maya,</p>
+                    <p class="type-caption text-secondary ppl-pk-missing" data-slot="pk-missing"><svg class="icon ppl-icon-12" aria-hidden="true"><use href="/assets/icons.svg#info"></use></svg><span data-slot="pk-missing-text">This one needs trip dates.</span></p>
+                  </div>
+                </section>
+              </div>
+
+              <div class="ppl-pk-foot">
+                <a class="link type-body2" href="/agent/messages/templates">Manage templates</a>
+                <div class="ppl-pk-buttons">
+                  <button class="btn btn-text btn-small ppl-btn-sm" type="submit" name="op" value="close">Cancel</button>
+                  <button class="btn btn-tertiary btn-small ppl-btn-sm" type="submit" name="op" value="insert" data-slot="pk-insert">Insert &amp; edit</button>
+                  <button class="btn btn-contained st-btn btn-small ppl-btn-sm" type="submit" name="op" value="insert-asis" data-slot="pk-insert-asis">Insert as-is</button>
+                </div>
+              </div>
+              <button class="icon-btn ppl-pk-close" type="submit" name="op" value="close"><svg class="icon ppl-icon-16" aria-hidden="true"><use href="/assets/icons.svg#close"></use></svg><span class="visually-hidden">Close</span></button>
+            </form>
+          </div>
+        </div>
+      </section>
+    </div>
+  </div>
+  <script type="module" src="/assets/js/agent/people/inbox.js"></script>
+</main>
+</body>
+</html>

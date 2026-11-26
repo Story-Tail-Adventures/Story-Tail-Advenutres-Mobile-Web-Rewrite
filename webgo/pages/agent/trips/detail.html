@@ -1,0 +1,412 @@
+<!DOCTYPE html>
+<!--
+  Screen 3.4.2, Trip Detail (agent view). Ports app/(agent)/agent/trips/[tripId]/page.tsx with
+  TripDetailHeader (StageMenu, SaveAsTemplateDialog, CancelTripDialog), TripDetailTabs,
+  AtAGlanceGrid, CostCommissionCard, PaymentsSummaryCard, TripComponentsList,
+  TripItineraryView, TripDocumentsList, TripMessagesThread, TripNotesEditor,
+  TripActivityTimeline and TripNotFound. Filled by internal/handlers/agent/trips (detail.go).
+
+  Eight tabs, one URL each (?tab=), each its own page load reading only that tab's data. The
+  header and the two side cards render on every tab. Every tab pane is here; the handler
+  removes all but the one asked for.
+-->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Trip · Story-Tail Adventures</title>
+</head>
+<body>
+<main>
+  <div class="card trp-state" data-slot="no-access">
+    <div class="card-content trp-state-body">
+      <span class="avatar trp-state-tile" aria-hidden="true"><svg class="icon trp-icon-26" aria-hidden="true"><use href="/assets/icons.svg#shield"></use></svg></span>
+      <h2 class="type-h5">You don’t have access to this view</h2>
+      <p class="type-body2 text-secondary trp-mt-1">Your account is set up as an administrator. Story-Tail has no admin area yet, so there is nothing here for you — the traveler’s side and the advisor’s worklist are both somebody else’s desk.</p>
+      <form method="post" action="/account/sign-out">
+        <button type="submit" class="btn btn-outlined btn-secondary st-btn trp-mt-2">Sign out</button>
+      </form>
+    </div>
+  </div>
+
+  <div class="trp-col" data-slot="page">
+    <div class="card trp-state" data-slot="retry">
+      <div class="card-content trp-state-body">
+        <span class="avatar trp-state-tile trp-state-tile-error" aria-hidden="true"><svg class="icon trp-icon-26" aria-hidden="true"><use href="/assets/icons.svg#warning"></use></svg></span>
+        <h2 class="type-h5 text-error">That didn’t load</h2>
+        <p class="type-body2 text-secondary trp-mt-1">Something went wrong on our side, not yours. Trying again usually sorts it.</p>
+        <div class="trp-state-actions">
+          <a class="btn btn-contained st-btn" href="/agent/trips" data-slot="retry-again">Try again</a>
+          <a class="btn btn-outlined st-btn" href="mailto:hello@story-tail.com?subject=Something%20went%20wrong"><svg class="icon icon-14" aria-hidden="true"><use href="/assets/icons.svg#message"></use></svg> Message Gyasi</a>
+        </div>
+      </div>
+    </div>
+
+    <div data-slot="body">
+      <!-- TripNotFound: no such trip, or another advisor's. One sentence for both. -->
+      <div class="trp-notfound" data-slot="not-found">
+        <span class="avatar trp-state-tile" aria-hidden="true"><svg class="icon trp-icon-26" aria-hidden="true"><use href="/assets/icons.svg#briefcase"></use></svg></span>
+        <h1 class="type-h5">No such trip</h1>
+        <p class="type-body2 text-secondary trp-mt-1">It may have been deleted, or it belongs to another advisor.</p>
+        <a class="btn btn-outlined btn-secondary st-btn trp-mt-2_5" href="/agent">Back to the worklist</a>
+      </div>
+
+      <div data-slot="trip">
+        <header class="card trp-dhead">
+          <div class="card-content trp-dhead-body">
+            <div class="trp-dhead-row">
+              <div class="trp-minw0">
+                <p class="type-body2 text-secondary"><a class="link link-hover link-inherit" href="/agent">Worklist</a> · <span data-slot="client-name">Jordan Hayes</span></p>
+                <div class="trp-dhead-title">
+                  <h1 class="type-h5 trp-fw-700" data-slot="title">Anniversary Week in Negril</h1>
+                  <span class="status-chip status-booked" data-slot="status">Booked</span>
+                </div>
+              </div>
+              <div class="row wrap gap-1">
+                <a class="btn btn-contained btn-brand btn-small st-btn" href="/agent/trips/sample/builder" data-slot="build-link">Build</a>
+                <button type="button" class="btn btn-outlined btn-small st-btn" data-dialog-open="trp-save-template">Save as template<span class="visually-hidden" data-slot="save-sr"> — Anniversary Week in Negril</span></button>
+                <span class="btn-tooltip" title="Client preview arrives with §3.5.6."><button type="button" class="btn btn-outlined btn-small st-btn" disabled title="Client preview arrives with §3.5.6.">Client preview<span class="visually-hidden"> — Client preview arrives with §3.5.6.</span></button></span>
+                <span class="btn-tooltip" title="Sending a proposal arrives with §3.5."><button type="button" class="btn btn-outlined btn-small st-btn" disabled title="Sending a proposal arrives with §3.5.">Send proposal<span class="visually-hidden"> — Sending a proposal arrives with §3.5.</span></button></span>
+                <button type="button" class="btn btn-outlined btn-small st-btn" data-dialog-open="trp-cancel"><span data-slot="cancel-open">Cancel trip</span><span class="visually-hidden" data-slot="cancel-sr"> — Anniversary Week in Negril</span></button>
+              </div>
+            </div>
+            <!-- StageMenu: the trip's stage, checked against the version this page read. -->
+            <form class="trp-stage" method="post" action="/agent/trips/sample/stage" data-slot="stage-form">
+              <input type="hidden" name="expectedVersion" value="1" data-slot="stage-version">
+              <input type="hidden" name="tab" value="" data-slot="stage-tab">
+              <input type="hidden" name="from" value="" data-slot="stage-from">
+              <label class="visually-hidden" for="trp-stage">Move stage</label>
+              <div class="select"><select class="input" id="trp-stage" name="status" data-trp-autosubmit>
+                <option value="inquiry" data-repeat="stage-opt" data-slot="stage-opt">Inquiry</option>
+              </select></div>
+              <button type="submit" class="btn btn-outlined btn-small st-btn trp-nojs trp-mt-1">Move stage</button>
+              <p class="type-body2 text-error trp-mt-0_5" role="alert" data-slot="stage-error">This trip moved since the board was loaded. Reload and try again.</p>
+            </form>
+          </div>
+        </header>
+
+        <nav class="trp-tabs" aria-label="Trip detail views">
+          <a class="chip chip-outlined tap-target trp-tab" href="/agent/trips/sample" data-slot="ttab-overview"><span class="chip-label">Overview</span></a>
+          <a class="chip chip-outlined tap-target trp-tab" href="/agent/trips/sample?tab=components" data-slot="ttab-components"><span class="chip-label">Components</span></a>
+          <a class="chip chip-outlined tap-target trp-tab" href="/agent/trips/sample?tab=itinerary" data-slot="ttab-itinerary"><span class="chip-label">Itinerary</span></a>
+          <a class="chip chip-outlined tap-target trp-tab" href="/agent/trips/sample?tab=payments" data-slot="ttab-payments"><span class="chip-label">Payments</span></a>
+          <a class="chip chip-outlined tap-target trp-tab" href="/agent/trips/sample?tab=documents" data-slot="ttab-documents"><span class="chip-label">Documents</span></a>
+          <a class="chip chip-outlined tap-target trp-tab" href="/agent/trips/sample?tab=messages" data-slot="ttab-messages"><span class="chip-label">Messages</span></a>
+          <a class="chip chip-outlined tap-target trp-tab" href="/agent/trips/sample?tab=notes" data-slot="ttab-notes"><span class="chip-label">Notes</span></a>
+          <a class="chip chip-outlined tap-target trp-tab" href="/agent/trips/sample?tab=activity" data-slot="ttab-activity"><span class="chip-label">Activity</span></a>
+        </nav>
+
+        <div class="trp-dgrid">
+          <div class="trp-minw0">
+            <!-- A tab whose own read failed: ErrorState, the rest of the page stays. -->
+            <div class="card trp-state" data-slot="tab-error">
+              <div class="card-content trp-state-body">
+                <span class="avatar trp-state-tile trp-state-tile-error" aria-hidden="true"><svg class="icon trp-icon-26" aria-hidden="true"><use href="/assets/icons.svg#warning"></use></svg></span>
+                <h2 class="type-h5 text-error">That didn’t load</h2>
+                <p class="type-body2 text-secondary trp-mt-1">Something went wrong on our side, not yours. Trying again usually sorts it.</p>
+                <div class="trp-state-actions">
+                  <a class="btn btn-contained st-btn" href="/agent/trips" data-slot="tab-retry">Try again</a>
+                  <a class="btn btn-outlined st-btn" href="mailto:hello@story-tail.com?subject=Something%20went%20wrong"><svg class="icon icon-14" aria-hidden="true"><use href="/assets/icons.svg#message"></use></svg> Message Gyasi</a>
+                </div>
+              </div>
+            </div>
+
+            <!-- Overview: the at-a-glance grid. -->
+            <div class="card" data-slot="pane-overview">
+              <div class="card-content trp-pad-14">
+                <div class="trp-glance">
+                  <div><div class="type-caption trp-glance-label">Trip type</div><div class="type-body2 trp-mt-0_25" data-slot="g-type">All-inclusive resort</div></div>
+                  <div><div class="type-caption trp-glance-label">Destination</div><div class="type-body2 trp-mt-0_25" data-slot="g-destination">Negril</div></div>
+                  <div><div class="type-caption trp-glance-label">Travelers</div><div class="type-body2 trp-mt-0_25" data-slot="g-travelers">2 travelers</div></div>
+                  <div><div class="type-caption trp-glance-label">Dates</div><div class="type-body2 trp-mt-0_25" data-slot="g-dates">Jan 13 – Jan 20</div></div>
+                  <div><div class="type-caption trp-glance-label">Last activity</div><div class="type-body2 trp-mt-0_25" data-slot="g-activity">Sep 07</div></div>
+                  <div data-slot="g-reason-cell"><div class="type-caption trp-glance-label">Cancellation reason</div><div class="type-body2 trp-mt-0_25" data-slot="g-reason">Family schedule conflict</div></div>
+                  <div data-slot="g-refund-cell"><div class="type-caption trp-glance-label">Refund status</div><div class="type-body2 trp-mt-0_25" data-slot="g-refund">Partial</div></div>
+                  <div data-slot="g-refund-detail-cell"><div class="type-caption trp-glance-label">Refund detail</div><div class="type-body2 trp-mt-0_25" data-slot="g-refund-detail">Refunded $1,640 on Feb 12</div></div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Components: read-only; the builder is where they change. -->
+            <div data-slot="pane-components">
+              <div class="trp-tab-action"><a class="btn btn-outlined btn-secondary btn-small st-btn" href="/agent/trips/sample/builder" data-slot="edit-components">Edit components</a></div>
+              <p class="type-body2 text-secondary trp-empty" data-slot="components-empty">No components added yet.</p>
+              <div class="trp-stack-6">
+                <div class="card" data-repeat="component">
+                  <div class="card-content trp-row-card">
+                    <span class="avatar avatar-32 trp-avatar-rounded trp-tile-secondary" aria-hidden="true">
+                      <svg class="icon icon-16" aria-hidden="true" data-slot="c-icon-plane"><use href="/assets/icons.svg#plane"></use></svg>
+                      <svg class="icon icon-16" aria-hidden="true" data-slot="c-icon-building"><use href="/assets/icons.svg#building"></use></svg>
+                      <svg class="icon icon-16" aria-hidden="true" data-slot="c-icon-ship"><use href="/assets/icons.svg#ship"></use></svg>
+                      <svg class="icon icon-16" aria-hidden="true" data-slot="c-icon-trip"><use href="/assets/icons.svg#trip"></use></svg>
+                      <svg class="icon icon-16" aria-hidden="true" data-slot="c-icon-sparkle"><use href="/assets/icons.svg#sparkle"></use></svg>
+                      <svg class="icon icon-16" aria-hidden="true" data-slot="c-icon-shield"><use href="/assets/icons.svg#shield"></use></svg>
+                      <svg class="icon icon-16" aria-hidden="true" data-slot="c-icon-receipt"><use href="/assets/icons.svg#receipt"></use></svg>
+                    </span>
+                    <div class="grow">
+                      <div class="type-subtitle1 trp-fw-600 trp-lh-13" data-slot="c-title">Sandals Negril · Ocean-view suite</div>
+                      <span class="type-caption text-secondary trp-block" data-slot="c-subtitle">Jan 13 · 15:00 · Negril</span>
+                    </div>
+                    <span class="chip chip-small chip-outlined trp-badge"><span class="chip-label" data-slot="c-badge">Manual</span></span>
+                    <span class="type-body2 trp-money-12 trp-minw-70" data-slot="c-cost">$8,400</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Itinerary: read-only; days and their activities, flattened into one list. -->
+            <div data-slot="pane-itinerary">
+              <div class="trp-tab-action"><a class="btn btn-outlined btn-secondary btn-small st-btn" href="/agent/trips/sample/itinerary" data-slot="edit-itinerary">Write the itinerary</a></div>
+              <div class="trp-it-badge"><span class="chip chip-small chip-outlined"><span class="chip-label" data-slot="it-published">Draft</span></span></div>
+              <p class="type-body2 text-secondary trp-empty" data-slot="it-empty">No itinerary drafted yet.</p>
+              <div>
+                <div data-repeat="it-row" data-slot="it-row">
+                  <div data-slot="it-day">
+                    <div class="trp-it-dayline">
+                      <span class="type-script trp-it-daynum" data-slot="it-daynum">Day 1</span>
+                      <span class="type-subtitle1 trp-fw-600" data-slot="it-daylabel">Arrival</span>
+                      <span class="type-body2 text-secondary" data-slot="it-daydate">Jan 13</span>
+                    </div>
+                    <p class="type-body2 text-secondary trp-mt-0_5" data-slot="it-summary">Land, check in, and let the island set the pace.</p>
+                  </div>
+                  <div class="card" data-slot="it-act">
+                    <div class="card-content trp-pad-12">
+                      <div class="row gap-1">
+                        <span class="type-overline text-brand trp-lh-13" data-slot="it-block">AFTERNOON</span>
+                        <span class="type-subtitle1 trp-fw-600 grow" data-slot="it-title">15:00 · Check in</span>
+                      </div>
+                      <p class="type-body2 trp-mt-0_5" data-slot="it-body">Ocean-view suite, top floor.</p>
+                      <div class="paper trp-tip" data-slot="it-tip">
+                        <span class="type-overline shrink-0 trp-lh-13">GYASI'S TIP</span>
+                        <span class="type-body2" data-slot="it-tip-text">Ask for the sunset side.</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Payments: the schedule, read-only; it is worked on at its own route. -->
+            <div data-slot="pane-payments">
+              <div class="trp-tab-action"><a class="btn btn-outlined btn-secondary btn-small st-btn" href="/agent/trips/sample/payments" data-slot="edit-schedule">Edit schedule</a></div>
+              <div class="card">
+                <div class="card-content trp-pad-14">
+                  <div class="type-subtitle1 trp-fw-600">Payments</div>
+                  <p class="type-body2 text-secondary trp-mt-1" data-slot="pay-full-empty">No payments scheduled.</p>
+                  <div class="trp-pay-row" data-repeat="pay-full">
+                    <span class="trp-dot trp-dot-warn" aria-hidden="true" data-slot="pf-dot"></span>
+                    <span class="type-body2 grow" data-slot="pf-label">Deposit · Sep 14</span>
+                    <span class="type-body2 trp-money-12" data-slot="pf-amount">$1,000</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Documents. -->
+            <div data-slot="pane-documents">
+              <p class="type-body2 text-secondary trp-empty" data-slot="documents-empty">No documents on file for this trip.</p>
+              <div class="trp-stack-6">
+                <div class="card" data-repeat="document">
+                  <div class="card-content trp-row-card">
+                    <span class="trp-doc-icon"><svg class="icon icon-16" aria-hidden="true"><use href="/assets/icons.svg#passport"></use></svg></span>
+                    <div class="grow">
+                      <div class="type-subtitle1 trp-fw-600 trp-lh-13 truncate" data-slot="d-name">passport-jordan.pdf</div>
+                      <span class="type-caption text-secondary trp-block" data-slot="d-meta">Passport · 240 KB · Sep 07</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Messages: reading here; replying happens in the thread itself. -->
+            <div data-slot="pane-messages">
+              <div class="trp-stack-8">
+                <div class="trp-msg-reply"><a class="btn btn-outlined btn-secondary btn-small st-btn" href="/agent/messages/new" data-slot="msg-reply"><svg class="icon trp-icon-12" aria-hidden="true"><use href="/assets/icons.svg#message"></use></svg> Open in Messages</a></div>
+                <p class="type-body2 text-secondary trp-empty" data-slot="messages-empty">No messages on this trip yet.</p>
+                <div class="card" data-repeat="message" data-slot="m-card">
+                  <div class="card-content trp-pad-12">
+                    <div class="row gap-1">
+                      <span class="type-overline text-secondary trp-lh-13" data-slot="m-sender">Client</span>
+                      <span class="chip chip-small chip-outlined" data-slot="m-internal"><span class="chip-label">Internal note</span></span>
+                      <span class="type-caption text-secondary trp-push-end" data-slot="m-date">Sep 07</span>
+                    </div>
+                    <p class="type-body2 trp-mt-0_5" data-slot="m-body">Can we move dinner to eight?</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Notes: the one write here besides the stage, checked against the trip's version. -->
+            <form method="post" action="/agent/trips/sample/notes" data-slot="pane-notes" data-submit-once>
+              <input type="hidden" name="expectedVersion" value="1" data-slot="notes-version">
+              <label class="visually-hidden" for="trip-notes">Trip notes</label>
+              <textarea class="input trp-notes" id="trip-notes" name="notes" rows="5" placeholder="Flight changes, a promise you made them, anything worth remembering…" data-trp-notes data-slot="notes">Sample note</textarea>
+              <div class="row gap-1_5 trp-mt-1">
+                <button type="submit" class="btn btn-outlined btn-secondary btn-small st-btn" data-slot="notes-save">Save note</button>
+                <span class="type-body2 text-secondary" data-trp-notes-saved data-slot="notes-saved">Saved</span>
+                <p class="type-body2 text-error" role="alert" data-slot="notes-error">This trip changed since you opened it. Reload and try again.</p>
+              </div>
+            </form>
+
+            <!-- Activity: the stage history, newest first. -->
+            <div data-slot="pane-activity">
+              <p class="type-body2 text-secondary trp-empty" data-slot="activity-empty">No activity recorded yet.</p>
+              <ol class="trp-stack-8 trp-ol">
+                <li class="card" data-repeat="history">
+                  <div class="card-content trp-pad-12 trp-history">
+                    <span class="trp-history-bar" aria-hidden="true"></span>
+                    <div class="grow">
+                      <div class="type-subtitle1 trp-fw-600 trp-lh-13" data-slot="h-change">Proposal ready → Booked</div>
+                      <span class="type-caption text-secondary trp-block" data-slot="h-who">Gyasi Story</span>
+                    </div>
+                    <span class="type-caption text-secondary" data-slot="h-when">Sep 07</span>
+                  </div>
+                </li>
+              </ol>
+            </div>
+          </div>
+
+          <aside class="trp-aside">
+            <!-- CostCommissionCard. -->
+            <div class="card">
+              <div class="card-content trp-pad-14">
+                <div class="type-subtitle1 trp-fw-600">Cost &amp; commission</div>
+                <div class="trp-kv trp-mt-1"><span class="type-body2 text-secondary">Client total</span><span class="type-body2 trp-fw-700" data-slot="cost-total">$12,845</span></div>
+                <div class="trp-kv"><span class="type-body2 text-secondary">Paid so far</span><span class="type-body2" data-slot="cost-paid">$2,560</span></div>
+                <div class="trp-kv trp-kv-commission"><span class="type-h6">Commission</span><span class="type-h6" data-slot="cost-commission">$1,318</span></div>
+                <div class="trp-cost-links">
+                  <a class="link link-hover type-body2" href="/agent/commission/ledger" data-slot="ledger-link">Commission lines</a>
+                  <a class="link link-hover type-body2" href="/agent/commission/ledger/new" data-slot="ledger-add">Add commission line</a>
+                </div>
+              </div>
+            </div>
+            <!-- PaymentsSummaryCard: the next three unpaid. -->
+            <div class="card">
+              <div class="card-content trp-pad-14">
+                <div class="type-subtitle1 trp-fw-600">Payments</div>
+                <p class="type-body2 text-secondary trp-mt-1" data-slot="pay-side-empty">All payments settled.</p>
+                <div class="trp-pay-row" data-repeat="pay-side">
+                  <span class="trp-dot trp-dot-warn" aria-hidden="true" data-slot="ps-dot"></span>
+                  <span class="type-body2 grow" data-slot="ps-label">Final balance · Nov 14</span>
+                  <span class="type-body2 trp-money-12" data-slot="ps-amount">$8,845</span>
+                </div>
+              </div>
+            </div>
+          </aside>
+        </div>
+
+        <!-- SaveAsTemplateDialog. Opened by its button through ui.js; on a failed save the
+             page comes back with it open. -->
+        <dialog class="dialog trp-dialog-520" id="trp-save-template" aria-labelledby="trp-save-title" data-trp-modal data-slot="save-dialog">
+          <div class="trp-dialog-content">
+            <div class="row items-start gap-1_5">
+              <span class="avatar avatar-40 shrink-0 trp-tile-secondary" aria-hidden="true"><svg class="icon icon-18" aria-hidden="true"><use href="/assets/icons.svg#star"></use></svg></span>
+              <div class="trp-minw0">
+                <span class="type-overline text-secondary trp-block trp-lh-13">NEW TEMPLATE</span>
+                <h2 class="type-h5 trp-break-word" id="trp-save-title">Save as a template</h2>
+              </div>
+            </div>
+            <p class="type-body2 text-secondary trp-mt-1">Captures this trip's bookings and its day-by-day. Dates are stored as day offsets, so applying it to a March trip produces March dates.</p>
+            <p class="type-caption text-secondary trp-block trp-mt-0_75">Confirmation numbers and payment schedules are not captured — a booking reference belongs to one booking.</p>
+            <p class="type-body2 trp-mt-1_5" role="status" data-slot="save-receipt">Saved. 6 bookings and 4 days captured.</p>
+            <form method="post" action="/agent/trips/sample/save-template" id="trp-save-form" data-submit-once data-slot="save-form">
+              <input type="hidden" name="tab" value="" data-slot="save-tab">
+              <div class="field trp-mt-1_5">
+                <label class="field-label" for="template-name">Name</label>
+                <input class="input" id="template-name" name="name" required placeholder="e.g. Sandals Negril · 7 nights" data-trp-required data-slot="save-name">
+              </div>
+              <div class="field trp-mt-1_5">
+                <label class="field-label" for="template-description">What it is for (optional)</label>
+                <input class="input" id="template-description" name="description" placeholder="e.g. Ocean-view suite, transfer, catamaran, insurance" data-slot="save-description">
+              </div>
+              <p class="type-caption text-secondary trp-block trp-mt-1" data-trp-name-hint data-slot="save-name-hint">A template needs a name.</p>
+              <div class="alert alert-error trp-mt-1" role="alert" aria-live="polite" data-slot="save-error"><div class="alert-message" data-slot="save-error-text">That did not save. Try again in a moment.</div></div>
+            </form>
+          </div>
+          <div class="trp-dialog-actions trp-dialog-actions-split" data-slot="save-actions">
+            <button type="button" class="btn btn-outlined btn-small st-btn" data-dialog-close>Cancel</button>
+            <button type="submit" form="trp-save-form" class="btn btn-outlined btn-secondary btn-small st-btn" data-trp-submit>Save template</button>
+          </div>
+          <div class="trp-dialog-actions" data-slot="save-done">
+            <a class="btn btn-outlined btn-secondary btn-small st-btn" href="/agent/trips/sample" data-slot="save-done-link">Done</a>
+          </div>
+        </dialog>
+
+        <!-- CancelTripDialog (§3.4.16): cancel, or correct a cancellation afterwards. -->
+        <dialog class="dialog trp-dialog-560" id="trp-cancel" data-trp-modal data-slot="cancel-dialog">
+          <div class="trp-dialog-content">
+            <div class="row items-start gap-1_5">
+              <span class="avatar avatar-40 shrink-0 trp-tile-error" aria-hidden="true"><svg class="icon icon-18" aria-hidden="true"><use href="/assets/icons.svg#warning"></use></svg></span>
+              <div class="trp-minw0">
+                <span class="type-overline text-error trp-block trp-lh-13" data-slot="cancel-eyebrow">CANCEL TRIP</span>
+                <h2 class="type-h5 trp-anywhere" data-slot="cancel-title">Anniversary Week in Negril</h2>
+              </div>
+            </div>
+
+            <div data-slot="cancel-done">
+              <p class="type-body2 trp-mt-1_5" id="cancel-receipt" role="status" data-slot="cancel-receipt">Trip cancelled. 1 commission line marked Lost.</p>
+              <div class="trp-dialog-end">
+                <a class="btn btn-outlined btn-small st-btn" href="/agent/trips/sample" aria-describedby="cancel-receipt" data-slot="cancel-done-link">Done</a>
+              </div>
+            </div>
+
+            <form method="post" action="/agent/trips/sample/cancel" data-submit-once data-slot="cancel-form">
+              <input type="hidden" name="expectedVersion" value="1" data-slot="cancel-version">
+              <input type="hidden" name="tab" value="" data-slot="cancel-tab">
+              <p class="type-body2 text-secondary trp-mt-1" data-slot="cancel-body">This marks the trip cancelled and tells the client's screen why. It does not contact any supplier or move any money. Those are still yours to do.</p>
+
+              <div class="paper paper-outlined trp-flat trp-mt-1_5" data-slot="cancel-impact">
+                <div class="trp-pad-12">
+                  <span class="type-caption text-secondary trp-block fw-500">WHAT THIS CHANGES</span>
+                  <p class="type-body2 text-secondary trp-mt-0_5" data-slot="impact-none">Nothing is attached to this trip yet, so nothing else changes.</p>
+                  <ul class="trp-bullets trp-gap-4" data-slot="impact-list">
+                    <li class="type-body2 text-secondary" data-repeat="impact" data-slot="impact-line">Commission expected drops by $1,318 — a cancelled trip leaves the forecast.</li>
+                  </ul>
+                </div>
+              </div>
+
+              <p class="type-body2 text-secondary trp-mt-1_5" data-slot="cancel-lines-unavailable">We couldn't check this trip's commission lines just now, so any open ones stay open. You can mark them Lost from the ledger.</p>
+              <div class="paper paper-outlined trp-flat trp-mt-1_5" data-slot="cancel-lines">
+                <div class="trp-pad-12">
+                  <span class="type-caption text-secondary trp-block fw-500" id="cancel-lines-title">COMMISSION STILL OPEN</span>
+                  <ul class="trp-bullets trp-gap-2" aria-labelledby="cancel-lines-title">
+                    <li class="type-body2" data-repeat="cancel-line"><input type="hidden" name="line" value="id:1" data-slot="cl-value"><span data-slot="cl-text">Sandals · Expected · $1,318</span></li>
+                  </ul>
+                  <label class="check trp-check-label trp-mt-0_5"><input class="check-input trp-check-sm" type="checkbox" name="closeLines" value="1" aria-describedby="cancel-lines-help" data-slot="cancel-close"><span class="type-body2" data-slot="cancel-close-label">Mark this line as Lost</span></label>
+                  <span class="type-caption text-secondary trp-block" id="cancel-lines-help">Received and Disputed lines are left alone. If a supplier pays after all, you can reopen the line in the ledger.</span>
+                </div>
+              </div>
+
+              <div class="field trp-mt-1_5">
+                <label class="field-label" for="cancel-reason">Reason — the client sees this</label>
+                <textarea class="input trp-textarea" id="cancel-reason" name="reason" rows="2" required placeholder="e.g. Family schedule conflict" data-trp-reason data-slot="cancel-reason">Family schedule conflict</textarea>
+              </div>
+              <div class="trp-cancel-grid trp-mt-1_5">
+                <div class="field">
+                  <label class="field-label" for="cancel-refund">Refund (optional)</label>
+                  <div class="select"><select class="input" id="cancel-refund" name="refundStatus">
+                    <option value="">Not stated yet</option>
+                    <option value="pending" data-repeat="refund-opt" data-slot="refund-opt">Pending</option>
+                  </select></div>
+                </div>
+                <div class="field">
+                  <label class="field-label" for="cancel-refund-detail">Refund detail (optional)</label>
+                  <input class="input" id="cancel-refund-detail" name="refundDetail" placeholder="e.g. Refunded $1,640 on Feb 12; $240 credit through Dec 2027" data-slot="cancel-refund-detail">
+                </div>
+              </div>
+              <p class="type-body2 text-secondary trp-mt-0_5">“Partial” cannot carry an amount, a date or a credit that expires. This can.</p>
+              <p class="type-body2 text-secondary trp-mt-1" data-trp-reason-hint data-slot="cancel-reason-hint">A cancelled trip needs a reason. The client's screen shows it.</p>
+              <p class="type-body2 text-error trp-mt-1" role="alert" data-slot="cancel-error">That did not save. Try again in a moment.</p>
+              <div class="row gap-1 trp-mt-1_75">
+                <button type="button" class="btn btn-outlined btn-small st-btn" data-dialog-close>Keep trip</button>
+                <button type="submit" class="btn btn-contained btn-error btn-small st-btn trp-push-end" data-trp-needs-reason data-slot="cancel-submit">Cancel trip</button>
+              </div>
+            </form>
+          </div>
+        </dialog>
+      </div>
+    </div>
+  </div>
+  <script type="module" src="/assets/js/agent/trips/detail.js"></script>
+</main>
+</body>
+</html>
