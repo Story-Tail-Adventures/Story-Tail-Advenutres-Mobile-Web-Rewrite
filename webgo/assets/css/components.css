@@ -1,0 +1,59 @@
+/* Story-Tail Adventures — the plain-CSS component classes that outlived Tailwind.
+ *
+ * This file was the port of design/source-prototype/styles/app.css (button, card, chip,
+ * input classes). Those all became MUI components or sx in the MUI v9 migration (step 2),
+ * and were deleted with Tailwind in PR 7. What is left is what MUI cannot do before
+ * hydration: swapping brand artwork and chrome on the `.scheme-dark` class, so the right
+ * half paints on the first frame. The status-chip colors now live in lib/mui/tokens.ts.
+ *
+ * test/class-allowlist.test.ts fails on any className in web/ that no CSS file defines.
+ */
+
+@layer components {
+  /* ── Brand mark (Design-System §11) · P1 ── */
+  /* The light and dark lockups are different artworks, not two colourways of one drawing
+     — see components/brand/BrandMark.tsx. Both <img> are rendered and CSS hides one, so
+     the correct lockup paints on the very first frame with no hydration flash; the scheme
+     is not knowable at SSR. `.sta-art-fixed` is the pinned-tone case (a surface that is
+     dark whatever the scheme), which must not participate in the swap. */
+  .sta-art { display: inline-flex; }
+  .sta-art-fixed { display: block; }
+  .sta-art-light { display: block; }
+  .sta-art-dark  { display: none; }
+  .scheme-dark .sta-art-light { display: none; }
+  .scheme-dark .sta-art-dark  { display: block; }
+
+  /* Scheme-gated chrome: emit both halves of a light/dark pair, show one. Same idiom as
+     .sta-art-* above, under generic names because those carry brand-artwork meaning and
+     the print block hides them outright (`.sta-art { display: none !important }`).
+
+     THE GLYPH IS THE SCHEME YOU ARE SWITCHING *TO* — the theme toggle shows a moon while
+     light and a sun while dark — so .sta-light-only holds the moon. That reads backwards
+     at a glance and it is correct; do not "fix" it.
+
+     `display: none`, and callers must NOT set `display` in sx on the same element: MUI's
+     rule lands in @layer mui, which this beats, so the sx would silently do nothing.
+
+     The gate goes on the CONTROL, not on a label inside it. `display: none` reliably keeps
+     the hidden half out of the accessibility tree and out of the tab order — but it does
+     not help an element earn a NAME, and a visually-hidden label (a clipped 1×1 box)
+     contributes nothing to name-from-content in Chrome. So each half is a whole
+     button with its own `aria-label`; see ThemeToggle.tsx.
+
+     They beat MuiIconButton's own `display: inline-flex` on layer order (components is
+     above mui), not on specificity.
+
+     Mirrored in design/source-prototype/styles/app.css. */
+  .sta-light-only { display: inline-flex; }
+  .sta-dark-only  { display: none; }
+  .scheme-dark .sta-light-only { display: none; }
+  .scheme-dark .sta-dark-only  { display: inline-flex; }
+
+  /* ── Hero gradients (tropical accent for hero areas only) ── */
+  .tropical-gradient {
+    background:
+      radial-gradient(120% 80% at 18% 12%, rgba(255,200,63,0.55), transparent 55%),
+      radial-gradient(120% 70% at 88% 18%, rgba(91,182,255,0.55), transparent 60%),
+      linear-gradient(160deg, #0D2137 0%, #050D1A 80%);
+  }
+}

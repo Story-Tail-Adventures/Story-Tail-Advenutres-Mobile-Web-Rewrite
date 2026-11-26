@@ -1,0 +1,497 @@
+/* Story-Tail Adventures — the layout chrome (webgo/pages/layout/*.html).
+ *
+ * The geometry of the Next shells, rule for rule: the public top bar, drawer and footer
+ * (components/public/*), the auth split pane (app/(auth)/layout.tsx), the client and agent
+ * top bars, rails and bottom bars (components/client/*, components/agent/*). Their sx values
+ * are the source; the comments name the component each block replaces.
+ *
+ * @layer components, like public.css and client.css, so the gates there and here beat the
+ * ui.css component rules a shell element also carries (an .icon-btn's own display). */
+
+@layer components {
+  /* ── Brand mark (components/brand/BrandMark.tsx) ──────────────────────────────────────────
+     Both lockups are in the HTML and components.css shows one per scheme (.sta-art-*); these
+     set the rendered height. object-fit: contain keeps a squeezed mark in proportion. */
+  .brand-80 img { height: 80px; width: auto; object-fit: contain; }
+  .brand-96 img { height: 96px; width: auto; object-fit: contain; }
+  .brand-120 img { height: 120px; width: auto; object-fit: contain; }
+
+  /* The page's own content slot inside a layout column: its children join the column's flex
+     flow (and its gap) as if the slot were not there. */
+  .layout-slot { display: contents; }
+
+  /* ── Skip link (components/public/SkipLink.tsx): hidden until focused ─────────────────── */
+  .skip-link {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+    border: 0;
+  }
+  .skip-link:focus {
+    top: 8px;
+    left: 8px;
+    z-index: 50;
+    width: auto;
+    height: auto;
+    min-height: 32px;
+    padding-left: 16px;
+    padding-right: 16px;
+    margin: 0;
+    overflow: visible;
+    clip: auto;
+  }
+
+  /* ── Public shell (app/(public)/layout.tsx, (hero) and (plain)) ───────────────────────── */
+  .pub-surface {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    min-height: 100dvh;
+    background-color: var(--mui-palette-background-default);
+    color: var(--mui-palette-text-primary);
+  }
+  .pub-region { position: relative; display: flex; flex: 1; flex-direction: column; }
+  .pub-main { display: flex; flex: 1; flex-direction: column; }
+
+  /* PlaceholderBanner: shown while any marketing claim is still a placeholder. */
+  .placeholder-banner {
+    margin: 0;
+    padding: 8px 16px;
+    font: var(--mui-font-body2);
+    text-align: center;
+    background-color: var(--mui-palette-warning-container);
+    color: var(--mui-palette-text-primary);
+  }
+
+  /* PublicTopBar: a 96px AppBar with a hairline, z-index 40 (the legacy stacking). */
+  .pub-topbar {
+    position: sticky;
+    top: 0;
+    z-index: 40;
+    display: flex;
+    flex-direction: column;
+    flex-shrink: 0;
+    box-sizing: border-box;
+    width: 100%;
+    height: var(--public-topbar-h);
+    background-color: var(--mui-palette-surface-1);
+    color: var(--mui-palette-text-primary);
+    border-bottom: 1px solid var(--mui-palette-divider);
+  }
+  /* Overlay: transparent over the hero photo below md, then the same solid sticky bar. */
+  .pub-topbar-overlay {
+    position: absolute;
+    left: 0;
+    right: 0;
+    background-color: transparent;
+    border-bottom: 0;
+  }
+  @media (min-width: 768px) {
+    .pub-topbar-overlay {
+      position: sticky;
+      background-color: var(--mui-palette-surface-1);
+      border-bottom: 1px solid var(--mui-palette-divider);
+    }
+  }
+  .pub-toolbar {
+    position: relative;
+    display: flex;
+    align-items: center;
+    height: 100%;
+    gap: 10px;
+    padding: 0 14px;
+  }
+  @media (min-width: 768px) and (max-width: 1199.95px) {
+    .pub-toolbar { padding: 0 16px; }
+  }
+  @media (min-width: 1200px) {
+    .pub-toolbar { gap: 14px; padding: 0 20px; }
+  }
+  .pub-brand { display: inline-flex; flex-shrink: 0; text-decoration: none; }
+  /* The hero bar's two lockups: the tropical one in an inline wrapper below md, the swapping
+     pair in an inline-flex one from md (PublicTopBar's two Box spans). */
+  .pub-brand > .from-md { display: inline-flex; }
+
+  /* PublicNav, desktop: the five links from md. */
+  .pub-nav { display: none; }
+  @media (min-width: 768px) {
+    .pub-nav { display: flex; flex-direction: row; align-items: center; gap: 2px; margin-left: 4px; }
+  }
+  @media (min-width: 1200px) {
+    .pub-nav { gap: 4px; margin-left: 8px; }
+  }
+  .pub-nav-link {
+    padding: 10px 5px;
+    border-radius: 4px;
+    font: var(--mui-font-body2);
+    font-size: 12.5px;
+    font-weight: 500;
+    line-height: 1;
+    white-space: nowrap;
+    text-decoration: none;
+    color: var(--mui-palette-text-secondary);
+  }
+  .pub-nav-link:hover { color: var(--mui-palette-text-primary); }
+  .pub-nav-link[aria-current="page"] { color: var(--mui-palette-text-primary); font-weight: 600; }
+  @media (min-width: 1200px) {
+    .pub-nav-link { padding: 10px 8px; }
+  }
+
+  /* The menu trigger shows through tablet: the sign-in buttons live in the drawer until lg. */
+  @media (min-width: 1024px) {
+    .pub-menu-button { display: none; }
+  }
+
+  /* PublicAuthCluster: from lg. Both states ship; public.css's gate picks one. */
+  .pub-auth { display: none; }
+  @media (min-width: 1024px) {
+    .pub-auth { display: flex; }
+  }
+  .pub-signin.st-btn,
+  .pub-signin { min-height: 32px; padding-left: 12px; padding-right: 12px; }
+  .pub-create { min-height: 32px; padding-left: 14px; padding-right: 14px; }
+  @media (min-width: 1200px) {
+    .pub-signin,
+    .pub-create { padding-left: 16px; padding-right: 16px; }
+  }
+
+  /* The drawer (PublicNav's MUI Drawer, anchor right), as a popover: Escape and a click
+     outside close it with no script. */
+  .pub-drawer {
+    position: fixed;
+    inset: 0 0 0 auto;
+    box-sizing: border-box;
+    width: 100%;
+    max-width: 360px;
+    height: 100dvh;
+    max-height: none;
+    margin: 0;
+    padding: 20px;
+    border: 0;
+    overflow-y: auto;
+    background-color: var(--mui-palette-background-paper);
+    background-image: var(--mui-overlays-16, none);
+    color: var(--mui-palette-text-primary);
+    box-shadow: var(--mui-shadows-16);
+  }
+  .pub-drawer:popover-open { display: flex; flex-direction: column; }
+  .pub-drawer::backdrop { background-color: rgba(0, 0, 0, 0.5); }
+  .pub-drawer-head { display: flex; align-items: center; justify-content: space-between; }
+  .pub-drawer-nav { margin-top: 24px; }
+  .pub-drawer-list { margin: 0; padding: 0; list-style: none; }
+  .pub-drawer-link {
+    display: flex;
+    align-items: center;
+    box-sizing: border-box;
+    min-height: 44px;
+    padding: 10px 8px;
+    border-radius: 4px;
+    font: var(--mui-font-subtitle1);
+    font-weight: 600;
+    line-height: 1.25;
+    color: var(--mui-palette-text-primary);
+    text-decoration: none;
+    transition: background-color 150ms cubic-bezier(0.4, 0, 0.2, 1) 0ms;
+  }
+  .pub-drawer-link:hover { background-color: var(--mui-palette-action-hover); }
+  .pub-drawer-link[aria-current="page"],
+  .pub-drawer-link[aria-current="page"]:hover {
+    background-color: var(--mui-palette-secondary-container);
+    color: var(--mui-palette-secondary-onContainer);
+  }
+  .pub-drawer-actions { display: flex; flex-direction: column; gap: 8px; margin-top: auto; padding-top: 24px; }
+  .pub-drawer-actions .btn { min-height: 48px; padding-left: 28px; padding-right: 28px; }
+  /* The drawer answers to the session the same way the bar does: both states ship, and the
+     pre-paint flag picks one. */
+  .pub-drawer-in { display: none; }
+  html[data-sta-auth] .pub-drawer-out { display: none; }
+  html[data-sta-auth] .pub-drawer-in { display: contents; }
+  .pub-drawer-small {
+    display: flex;
+    flex-wrap: wrap;
+    column-gap: 16px;
+    row-gap: 8px;
+    margin: 20px 0 0;
+    padding: 0;
+    list-style: none;
+    color: var(--mui-palette-text-secondary);
+  }
+  .pub-drawer-small a { font: var(--mui-font-caption); font-weight: 500; color: inherit; text-decoration: none; }
+  .pub-drawer-small a:hover { text-decoration: underline; }
+
+  /* PublicFooter. */
+  .pub-footer { border-top: 1px solid var(--mui-palette-divider); background-color: var(--mui-palette-surface-1); }
+  .pub-footer-inner {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding-top: 14px;
+    padding-bottom: 14px;
+    color: var(--mui-palette-text-secondary);
+  }
+  @media (min-width: 768px) {
+    .pub-footer-inner { flex-direction: row; align-items: center; justify-content: space-between; padding-top: 12px; padding-bottom: 12px; }
+  }
+  .pub-footer-copy { margin: 0; font: var(--mui-font-caption); font-weight: 500; }
+  .pub-footer-links { display: flex; flex-wrap: wrap; column-gap: 16px; row-gap: 8px; margin: 0; padding: 0; list-style: none; }
+  .pub-footer-link {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+    font: var(--mui-font-caption);
+    font-weight: 500;
+    color: inherit;
+    text-decoration: none;
+  }
+  .pub-footer-link:hover { color: var(--mui-palette-text-primary); text-decoration: underline; }
+  .pub-footer-link-external { gap: 4px; }
+  @media (min-width: 768px) {
+    .pub-footer-link { min-height: 0; }
+  }
+
+  /* ── Auth shell, Pattern A (app/(auth)/layout.tsx) ────────────────────────────────────── */
+  .auth-shell { display: flex; flex: 1; min-height: 100dvh; background-color: var(--mui-palette-surface-main); }
+  .auth-brand-panel {
+    position: relative;
+    display: none;
+    flex: 0 0 42%;
+    flex-direction: column;
+    overflow: hidden;
+    padding: 32px 36px;
+    color: var(--mui-palette-common-white);
+  }
+  @media (min-width: 1024px) {
+    .auth-brand-panel { display: flex; }
+  }
+  /* The decorative passport stamp (MuiScreenSplitBrand). */
+  .auth-stamp {
+    position: absolute;
+    top: 28px;
+    right: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 96px;
+    height: 96px;
+    border-radius: 50%;
+    border: 1.5px dashed color-mix(in srgb, currentColor 45%, transparent);
+    color: var(--mui-palette-common-white);
+    transform: rotate(-10deg);
+  }
+  .auth-stamp .icon { opacity: 0.8; stroke-width: 1.6; }
+  .auth-panel-copy { margin-top: auto; }
+  .auth-panel-overline {
+    display: block;
+    margin: 0 0 10px;
+    font: var(--mui-font-overline);
+    font-weight: 600;
+    line-height: 1.3;
+    text-transform: uppercase;
+    color: var(--mui-palette-brandSource-gold);
+  }
+  .auth-panel-title {
+    margin: 0;
+    font: var(--mui-font-h4);
+    font-weight: 700;
+    line-height: 1.1;
+    white-space: pre-line;
+    color: var(--mui-palette-common-white);
+  }
+  .auth-panel-body { margin: 8px 0 0; font: var(--mui-font-body2); color: var(--mui-palette-common-white); opacity: 0.85; }
+  .auth-main { display: flex; flex: 1; align-items: center; justify-content: center; padding: 24px; }
+  @media (min-width: 640px) {
+    .auth-main { padding: 32px; }
+  }
+  .auth-column { display: flex; flex-direction: column; gap: 14px; width: 100%; max-width: 440px; }
+  /* The brand panel is hidden below lg, so the wordmark comes along into the column. */
+  .auth-mobile-brand { display: block; margin-bottom: 4px; }
+  @media (min-width: 1024px) {
+    .auth-mobile-brand { display: none; }
+  }
+
+  /* ── Onboarding shell, Pattern G (app/(onboarding)/layout.tsx): no chrome at all ────── */
+  .onboarding-shell {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    min-height: 100dvh;
+    background-color: var(--mui-palette-background-default);
+  }
+
+  /* ── The signed-in shells: client (app/(client)/layout.tsx) and agent ((agent)/layout.tsx) */
+  .app-shell { display: flex; min-height: 100dvh; background-color: var(--mui-palette-background-default); color: var(--mui-palette-text-primary); }
+  .app-column { display: flex; flex: 1; flex-direction: column; min-width: 0; min-height: 100dvh; }
+  .app-main { flex: 1; min-width: 0; }
+  /* The agent shell reserves room under its fixed bottom bar (the legacy .agent-main 68px);
+     the client shell's reserve is in client.css, keyed on .client-bottom-nav. */
+  .agent-main { padding-bottom: calc(68px + max(env(safe-area-inset-bottom), 8px)); }
+  @media (min-width: 768px) {
+    .agent-main { padding-bottom: 0; }
+  }
+
+  /* ClientTopBar / AgentTopBar: 104px (--client-topbar-h, border included), sticky, z 30. */
+  .app-topbar {
+    position: sticky;
+    top: 0;
+    z-index: 30;
+    display: flex;
+    flex-direction: column;
+    flex-shrink: 0;
+    box-sizing: border-box;
+    width: 100%;
+    height: var(--client-topbar-h);
+    border-bottom: 1px solid var(--mui-palette-divider);
+    color: var(--mui-palette-text-primary);
+  }
+  /* The client bar: 92% surface with a blur. The agent bar: solid paper. */
+  .client-topbar { background-color: rgba(var(--mui-palette-surface-mainChannel) / 0.92); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); }
+  .agent-topbar { background-color: var(--mui-palette-background-paper); }
+  .app-toolbar { display: flex; align-items: center; height: 100%; gap: 12px; padding: 0 16px; }
+  .app-brand { display: inline-flex; min-width: 0; color: inherit; text-decoration: none; }
+  /* AgentTopBar's link sets no display, so it is inline and the lockup sits on its line box
+     (3px higher than the client bar's inline-flex link). Kept, so nothing moves. */
+  .agent-topbar .app-brand { display: inline; }
+  /* Quick-add yields to the theme toggle below sm (AgentTopBar's measured note). */
+  .agent-quick-add { display: none; }
+  @media (min-width: 640px) {
+    .agent-quick-add { display: flex; }
+  }
+  .agent-account-trigger { width: 44px; height: 44px; padding: 2px; }
+  .agent-menu { min-width: 176px; }
+
+  /* The rail (ClientNavRail / AgentNavRail): 72px, sticky, from md. */
+  .app-rail {
+    position: sticky;
+    top: 0;
+    align-self: flex-start;
+    flex-shrink: 0;
+    box-sizing: border-box;
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    width: 72px;
+    height: 100dvh;
+    margin: 0;
+    padding: 14px 0;
+    list-style: none;
+    background-color: var(--mui-palette-surface-main);
+    border-right: 1px solid var(--mui-palette-divider);
+  }
+  @media (min-width: 768px) {
+    .app-rail { display: flex; }
+  }
+  .agent-rail { color: var(--mui-palette-text-secondary); }
+  /* One destination (the prototype's RailItem on ListItemButton). */
+  .rail-item {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    flex-grow: 0;
+    box-sizing: border-box;
+    width: 60px;
+    gap: 2px;
+    padding: 6px 4px;
+    border-radius: 4px;
+    text-align: center;
+    text-decoration: none;
+    color: inherit;
+    -webkit-tap-highlight-color: transparent;
+    transition: background-color 150ms cubic-bezier(0.4, 0, 0.2, 1) 0ms;
+  }
+  .rail-item:hover { background-color: var(--mui-palette-action-hover); text-decoration: none; }
+  .rail-item[aria-current="page"] { background-color: rgba(var(--mui-palette-primary-mainChannel) / var(--mui-palette-action-selectedOpacity)); }
+  .rail-item[aria-current="page"]:hover {
+    background-color: rgba(var(--mui-palette-primary-mainChannel) / calc(var(--mui-palette-action-selectedOpacity) + var(--mui-palette-action-hoverOpacity)));
+  }
+  .rail-item:focus-visible { outline: 2px solid var(--mui-palette-primary-main); outline-offset: 2px; }
+  @media (pointer: coarse) {
+    .rail-item { min-height: 44px; min-width: 44px; }
+  }
+  /* A destination with no route yet: a span, not a link, at MUI's disabled opacity. */
+  .rail-item[aria-disabled="true"] { opacity: 0.38; pointer-events: none; cursor: default; color: var(--mui-palette-text-secondary); }
+  .rail-glyph { display: inline-flex; align-items: center; justify-content: center; width: 46px; height: 26px; color: var(--mui-palette-text-secondary); }
+  .rail-label { max-width: 100%; font: var(--mui-font-caption); font-size: 9.5px; font-weight: 600; line-height: 1.2; color: var(--mui-palette-text-secondary); }
+  .rail-item[aria-current="page"] .rail-glyph { color: var(--mui-palette-primary-main); }
+  .rail-item[aria-current="page"] .rail-label { color: var(--mui-palette-text-primary); }
+  /* The agent rail: a 56x28 glyph slot and 10px labels, no padding at the sides. */
+  .agent-rail .rail-item { padding: 6px 0; }
+  .agent-rail .rail-glyph,
+  .agent-tabs .rail-glyph { width: 56px; height: 28px; }
+  .agent-rail .rail-label,
+  .agent-tabs .rail-label { font-size: 10px; text-align: center; }
+
+  /* ClientBottomNav (MUI BottomNavigation, labels shown): fixed, below md only. */
+  .client-bottom-nav {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 30;
+    display: flex;
+    justify-content: center;
+    box-sizing: border-box;
+    min-height: 56px;
+    padding: 0 6px max(env(safe-area-inset-bottom), 8px);
+    background-color: var(--mui-palette-background-paper);
+    border-top: 1px solid var(--mui-palette-divider);
+  }
+  @media (min-width: 768px) {
+    .client-bottom-nav { display: none; }
+  }
+  .bottom-tab {
+    display: inline-flex;
+    flex: 1;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    box-sizing: border-box;
+    min-width: 56px;
+    max-width: 168px;
+    padding: 0 12px;
+    color: var(--mui-palette-text-secondary);
+    text-decoration: none;
+    -webkit-tap-highlight-color: transparent;
+    transition: color 250ms cubic-bezier(0.4, 0, 0.2, 1) 0ms, padding-top 250ms cubic-bezier(0.4, 0, 0.2, 1) 0ms;
+  }
+  .bottom-tab[aria-current="page"] { color: var(--mui-palette-primary-main); }
+  .bottom-tab[aria-disabled="true"] { opacity: 0.38; pointer-events: none; cursor: default; }
+  .bottom-tab:focus-visible { outline: 2px solid var(--mui-palette-primary-main); outline-offset: -2px; }
+  .bottom-tab-label { font-family: var(--font-sans); font-size: 0.75rem; line-height: 1.5; transition: font-size 200ms cubic-bezier(0.4, 0, 0.2, 1) 0ms; }
+  /* The not-yet tab draws its label as a caption, so it keeps caption's line height. */
+  .bottom-tab[aria-disabled="true"] .bottom-tab-label { line-height: 1.66; }
+  .bottom-tab[aria-current="page"] .bottom-tab-label { font-size: 0.875rem; }
+  @media (pointer: coarse) {
+    .bottom-tab { min-height: 44px; min-width: 44px; }
+  }
+
+  /* AgentBottomNav: a List, not BottomNavigation, so it lays out differently. */
+  .agent-tabs {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 30;
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-around;
+    box-sizing: border-box;
+    margin: 0;
+    padding: 8px 6px max(env(safe-area-inset-bottom), 8px);
+    list-style: none;
+    background-color: var(--mui-palette-surface-1);
+    border-top: 1px solid var(--mui-palette-divider);
+    color: var(--mui-palette-text-secondary);
+  }
+  @media (min-width: 768px) {
+    .agent-tabs { display: none; }
+  }
+  .agent-tabs .rail-item { width: auto; min-width: 56px; gap: 3px; padding: 0 4px; }
+}
