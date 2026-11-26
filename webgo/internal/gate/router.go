@@ -90,6 +90,28 @@ func (rt *Router) Protected(pattern string, h http.Handler) {
 	rt.handle(pattern, rt.wrap(h, true))
 }
 
+// SelfGated mounts a route that LOADS the session but decides for itself what to do with
+// it: a JSON endpoint whose caller is a script, not a page.
+//
+// The difference from Protected is the answer to a signed-out caller. Protected redirects to
+// /login, which is right for a page and wrong here: a service worker posting "mark this read"
+// wants a status it can read, not 303 and a sign-in page. The Next.js app draws the same
+// line — its /api routes sit outside PROTECTED_PREFIXES and each one checks the session
+// itself — so these paths are deliberately not in ProtectedPrefixes, and the handler must
+// answer 401 when there is no session.
+//
+// An auth outage is still handled here rather than in every handler (wrap answers 503).
+func (rt *Router) SelfGated(pattern string, h http.Handler) {
+	p := patternPath(pattern)
+	switch {
+	case !strings.HasPrefix(p, "/api/"):
+		panic(fmt.Sprintf("gate: %q is not an /api/ path; a page route is Protected or Public", pattern))
+	case IsProtected(p) || IsAuthOnly(p):
+		panic(fmt.Sprintf("gate: %q is gated; mount it with Protected or AuthOnly", pattern))
+	}
+	rt.handle(pattern, rt.wrap(h, true))
+}
+
 // AuthOnly mounts an auth screen that a signed-in user is bounced away from.
 func (rt *Router) AuthOnly(pattern string, h http.Handler) {
 	p := patternPath(pattern)

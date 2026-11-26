@@ -51,6 +51,7 @@ type app struct {
 	lead         *page.Template
 	leadNew      *page.Template
 	leadNotFound *page.Template
+	messages     *page.Template
 }
 
 type identityRow struct {
