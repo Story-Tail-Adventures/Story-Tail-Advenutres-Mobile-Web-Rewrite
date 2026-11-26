@@ -12,6 +12,10 @@ sdk.dir=/Users/<you>/Library/Android/sdk
 supabase.url=http://10.0.2.2:54321
 supabase.anonKey=<ANON_KEY from `supabase status`>
 
+# Optional base URL for Edge Function calls (/functions/v1/{name}). Leave it out and it is
+# supabase.url. Set it to the Go service only once Go is live in production (docs/GO-MIGRATION.md §5.8).
+# supabase.functionsUrl=https://<go service host>
+
 # §3.10.7 notifications (optional). From the Firebase console: Project settings → Your apps →
 # the Android app com.storytail.adventures. Leave them out and the app simply offers no
 # notifications. These identify the project; they are not secrets, but they stay out of git.
