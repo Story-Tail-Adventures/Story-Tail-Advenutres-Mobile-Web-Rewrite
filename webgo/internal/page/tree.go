@@ -99,6 +99,20 @@ func inRawText(n *html.Node) (string, bool) {
 	return "", false
 }
 
+// stripComments removes every comment node under n. Comments in a page file are notes for
+// the people editing it (what a slot is for, which Next component it ports); they never ship.
+func stripComments(n *html.Node) {
+	for c := n.FirstChild; c != nil; {
+		next := c.NextSibling
+		if c.Type == html.CommentNode {
+			n.RemoveChild(c)
+		} else {
+			stripComments(c)
+		}
+		c = next
+	}
+}
+
 // replaceText makes text the only child of n, as a text node. Never parsed as markup.
 func replaceText(n *html.Node, text string) {
 	htmlx.RemoveChilds(n)

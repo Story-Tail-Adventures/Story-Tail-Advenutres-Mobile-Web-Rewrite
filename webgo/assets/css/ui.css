@@ -1,0 +1,991 @@
+/* Story-Tail Adventures — the component classes that replace MUI (docs/GO-MIGRATION.md §4.8).
+ *
+ * Every rule here is MUI v9's own, read off the running Next app (its emotion CSS and computed
+ * styles, light and dark) and written against the same theme variables (theme.css). So a Go
+ * page that uses `.btn .btn-contained` paints the same pixels as a Next page that used
+ * <Button variant="contained">, in both schemes. /_styleguide (development only) shows every
+ * class here, light and dark, beside its MUI name.
+ *
+ * Same layer as MUI's emotion rules (`mui`), above the reset and below the section rules
+ * (components.css, public.css, client.css, shell.css, css/area/*.css), so the gates and the
+ * area rules win exactly as they did over MUI.
+ *
+ * Plain class names, no framework. Spacing is MUI's 8px scale; breakpoints are the theme's:
+ * sm 640, md 768, lg 1024, web 1200, xl 1280 (web/lib/mui/tokens.ts BREAKPOINTS).
+ *
+ * The Next app has two button layers, and both map here:
+ *
+ *   <MuiButton variant= color= size=>       .btn .btn-{contained|outlined|text}
+ *                                             .btn-{secondary|tertiary|error|brand|inherit|...}
+ *                                             .btn-{small|large} .btn-block
+ *   <Button> (components/ui/Button.tsx),     add .st-btn for its legacy box (40px tall, 24px
+ *   which wraps MuiButton:                  sides, 8px gap, no wrap):
+ *     filled   = btn btn-contained st-btn          tonal  = btn btn-outlined btn-secondary st-btn
+ *     outlined = btn btn-outlined st-btn           text   = btn btn-text st-btn
+ *     tertiary = btn btn-outlined btn-tertiary st-btn
+ *     danger   = btn btn-contained btn-error st-btn
+ *     orange   = btn btn-contained btn-brand st-btn
+ *     elevated = btn btn-text btn-elevated st-btn
+ *     size sm / lg = add btn-small / btn-large
+ */
+
+@layer mui {
+  /* ── Flip without fades ──────────────────────────────────────────────────────────────────
+     theme.js adds this class for one frame while the scheme flips, so every surface repaints
+     at once instead of fading (lib/theme.ts withoutTransitions). */
+  .sta-no-transitions *,
+  .sta-no-transitions *::before,
+  .sta-no-transitions *::after {
+    transition: none !important;
+  }
+
+  /* ── Typography (MUI's variants; letter-spacing stays normal, as computed in Next) ───── */
+  .type-h1 { margin: 0; font: var(--mui-font-h1); }
+  .type-h2 { margin: 0; font: var(--mui-font-h2); }
+  .type-h3 { margin: 0; font: var(--mui-font-h3); }
+  .type-h4 { margin: 0; font: var(--mui-font-h4); }
+  .type-h5 { margin: 0; font: var(--mui-font-h5); }
+  .type-h6 { margin: 0; font: var(--mui-font-h6); }
+  .type-subtitle1 { margin: 0; font: var(--mui-font-subtitle1); }
+  .type-subtitle2 { margin: 0; font: var(--mui-font-subtitle2); }
+  .type-body1 { margin: 0; font: var(--mui-font-body1); }
+  .type-body2 { margin: 0; font: var(--mui-font-body2); }
+  .type-caption { margin: 0; font: var(--mui-font-caption); }
+  .type-overline { margin: 0; font: var(--mui-font-overline); text-transform: uppercase; }
+  .type-button { margin: 0; font: var(--mui-font-button); }
+  /* The theme's `script` variant: the wordmark and script accents. */
+  .type-script { margin: 0; font-family: var(--font-script); font-weight: 700; font-size: 32px; line-height: 1; }
+  .type-mono { font-family: var(--font-mono); }
+
+  .text-primary { color: var(--mui-palette-text-primary); }
+  .text-secondary { color: var(--mui-palette-text-secondary); }
+  .text-disabled { color: var(--mui-palette-text-disabled); }
+  .text-error { color: var(--mui-palette-error-main); }
+  .text-success { color: var(--mui-palette-success-main); }
+  .text-warning { color: var(--mui-palette-warning-main); }
+  .text-brand { color: var(--mui-palette-brand-main); }
+  .text-primary-main { color: var(--mui-palette-primary-main); }
+  .text-center { text-align: center; }
+  .text-right { text-align: right; }
+  .fw-400 { font-weight: 400; }
+  .fw-500 { font-weight: 500; }
+  .fw-600 { font-weight: 600; }
+  .fw-700 { font-weight: 700; }
+  .nowrap { white-space: nowrap; }
+  .truncate { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .pre-line { white-space: pre-line; }
+
+  /* ── Layout helpers (MUI Stack / Box idioms) ─────────────────────────────────────────── */
+  .stack { display: flex; flex-direction: column; }
+  .row { display: flex; flex-direction: row; align-items: center; }
+  .wrap { flex-wrap: wrap; }
+  .grow { flex: 1 1 auto; min-width: 0; }
+  .spacer { flex: 1; }
+  .shrink-0 { flex-shrink: 0; }
+  .items-start { align-items: flex-start; }
+  .items-baseline { align-items: baseline; }
+  .justify-between { justify-content: space-between; }
+  .justify-end { justify-content: flex-end; }
+  .justify-center { justify-content: center; }
+  .gap-0_5 { gap: 4px; }
+  .gap-1 { gap: 8px; }
+  .gap-1_5 { gap: 12px; }
+  .gap-2 { gap: 16px; }
+  .gap-2_5 { gap: 20px; }
+  .gap-3 { gap: 24px; }
+  .gap-4 { gap: 32px; }
+  .gap-5 { gap: 40px; }
+  .gap-6 { gap: 48px; }
+
+  /* Show or hide by width, without choosing a display value for the other side (the sx
+     `display: { xs: "none", md: "flex" }` idiom). !important inside the mui layer beats any
+     normal declaration, and the element keeps its own display where it shows. Breakpoints:
+     sm 640, md 768, lg 1024, web 1200. */
+  @media (max-width: 639.95px) { .from-sm { display: none !important; } }
+  @media (min-width: 640px) { .below-sm { display: none !important; } }
+  @media (max-width: 767.95px) { .from-md { display: none !important; } }
+  @media (min-width: 768px) { .below-md { display: none !important; } }
+  @media (max-width: 1023.95px) { .from-lg { display: none !important; } }
+  @media (min-width: 1024px) { .below-lg { display: none !important; } }
+  @media (max-width: 1199.95px) { .from-web { display: none !important; } }
+  @media (min-width: 1200px) { .below-web { display: none !important; } }
+
+  /* MUI's visuallyHidden (lib/mui/sx.ts VISUALLY_HIDDEN): off screen, still read aloud. */
+  .visually-hidden {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+    border: 0;
+  }
+
+  /* The legacy `.tap-44` (lib/mui/sx.ts TAP_TARGET): on a touch screen the TAP AREA grows to
+     at least 44px with an invisible ::after, and the visible control keeps its size. */
+  @media (pointer: coarse) {
+    .tap-target { position: relative; }
+    .tap-target::after { content: ""; position: absolute; inset: -8px; }
+  }
+
+  /* ── Icons (the sprite in /assets/icons.svg) ─────────────────────────────────────────────
+     <svg class="icon icon-20" aria-hidden="true"><use href="/assets/icons.svg#search"></use></svg>
+     Stroke icons in currentColor, as components/ui/Icon.tsx draws them; display: block keeps
+     the reset's vertical behaviour. */
+  .icon {
+    display: block;
+    flex-shrink: 0;
+    width: 20px;
+    height: 20px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.7;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+  .icon-filled { fill: currentColor; }
+  .icon-inline { display: inline-block; vertical-align: middle; }
+  .icon-11 { width: 11px; height: 11px; }
+  .icon-14 { width: 14px; height: 14px; }
+  .icon-16 { width: 16px; height: 16px; }
+  .icon-18 { width: 18px; height: 18px; }
+  .icon-19 { width: 19px; height: 19px; }
+  .icon-20 { width: 20px; height: 20px; }
+  .icon-22 { width: 22px; height: 22px; }
+  .icon-24 { width: 24px; height: 24px; }
+  .icon-28 { width: 28px; height: 28px; }
+  .icon-32 { width: 32px; height: 32px; }
+  .icon-36 { width: 36px; height: 36px; }
+
+  /* ── Button (MuiButton) ────────────────────────────────────────────────────────────────── */
+  .btn {
+    --btn-main: var(--mui-palette-primary-main);
+    --btn-main-channel: var(--mui-palette-primary-mainChannel);
+    --btn-dark: var(--mui-palette-primary-dark);
+    --btn-contrast: var(--mui-palette-primary-contrastText);
+    --variant-textColor: var(--btn-main);
+    --variant-outlinedColor: var(--btn-main);
+    --variant-outlinedBorder: rgba(var(--btn-main-channel) / 0.5);
+    --variant-containedColor: var(--btn-contrast);
+    --variant-containedBg: var(--btn-main);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    position: relative;
+    box-sizing: border-box;
+    -webkit-tap-highlight-color: transparent;
+    background-color: var(--variant-textBg, transparent);
+    outline: 0;
+    border: 0;
+    margin: 0;
+    border-radius: var(--mui-shape-borderRadius);
+    padding: 6px 8px;
+    cursor: pointer;
+    user-select: none;
+    vertical-align: middle;
+    appearance: none;
+    text-decoration: none;
+    font: var(--mui-font-button);
+    text-transform: none;
+    min-width: 64px;
+    color: var(--variant-textColor);
+    transition:
+      background-color 250ms cubic-bezier(0.4, 0, 0.2, 1) 0ms,
+      box-shadow 250ms cubic-bezier(0.4, 0, 0.2, 1) 0ms,
+      border-color 250ms cubic-bezier(0.4, 0, 0.2, 1) 0ms,
+      color 250ms cubic-bezier(0.4, 0, 0.2, 1) 0ms;
+  }
+  .btn:hover { text-decoration: none; }
+  @media (hover: hover) {
+    .btn:hover {
+      --variant-containedBg: var(--btn-dark);
+      --variant-textBg: rgba(var(--btn-main-channel) / var(--mui-palette-action-hoverOpacity));
+      --variant-outlinedBorder: var(--btn-main);
+      --variant-outlinedBg: rgba(var(--btn-main-channel) / var(--mui-palette-action-hoverOpacity));
+    }
+  }
+  .btn:focus-visible {
+    outline: 2px solid var(--mui-palette-primary-main);
+    outline-offset: 2px;
+  }
+
+  .btn-text { padding: 6px 8px; color: var(--variant-textColor); background-color: var(--variant-textBg, transparent); }
+
+  .btn-outlined {
+    padding: 5px 15px;
+    border: 1px solid var(--variant-outlinedBorder);
+    background-color: var(--variant-outlinedBg, transparent);
+    color: var(--variant-outlinedColor);
+  }
+
+  .btn-contained {
+    padding: 6px 16px;
+    color: var(--variant-containedColor);
+    background-color: var(--variant-containedBg);
+    box-shadow: var(--mui-shadows-2);
+  }
+  .btn-contained:hover { box-shadow: var(--mui-shadows-4); }
+  @media (hover: none) {
+    .btn-contained:hover { box-shadow: var(--mui-shadows-2); }
+  }
+  .btn-contained:active { box-shadow: var(--mui-shadows-8); }
+  .btn-contained:focus-visible { box-shadow: var(--mui-shadows-6); }
+
+  .btn-small { font-size: 0.8125rem; }
+  .btn-small.btn-text { padding: 4px 5px; }
+  .btn-small.btn-outlined { padding: 3px 9px; }
+  .btn-small.btn-contained { padding: 4px 10px; }
+  .btn-large { font-size: 0.9375rem; }
+  .btn-large.btn-text { padding: 8px 11px; }
+  .btn-large.btn-outlined { padding: 7px 21px; }
+  .btn-large.btn-contained { padding: 8px 22px; }
+  .btn-block { width: 100%; }
+
+  .btn-secondary {
+    --btn-main: var(--mui-palette-secondary-main);
+    --btn-main-channel: var(--mui-palette-secondary-mainChannel);
+    --btn-dark: var(--mui-palette-secondary-dark);
+    --btn-contrast: var(--mui-palette-secondary-contrastText);
+  }
+  .btn-tertiary {
+    --btn-main: var(--mui-palette-tertiary-main);
+    --btn-main-channel: var(--mui-palette-tertiary-mainChannel);
+    --btn-dark: var(--mui-palette-tertiary-dark);
+    --btn-contrast: var(--mui-palette-tertiary-contrastText);
+  }
+  .btn-brand {
+    --btn-main: var(--mui-palette-brand-main);
+    --btn-main-channel: var(--mui-palette-brand-mainChannel);
+    --btn-dark: var(--mui-palette-brand-dark);
+    --btn-contrast: var(--mui-palette-brand-contrastText);
+  }
+  .btn-error {
+    --btn-main: var(--mui-palette-error-main);
+    --btn-main-channel: var(--mui-palette-error-mainChannel);
+    --btn-dark: var(--mui-palette-error-dark);
+    --btn-contrast: var(--mui-palette-error-contrastText);
+  }
+  .btn-success {
+    --btn-main: var(--mui-palette-success-main);
+    --btn-main-channel: var(--mui-palette-success-mainChannel);
+    --btn-dark: var(--mui-palette-success-dark);
+    --btn-contrast: var(--mui-palette-success-contrastText);
+  }
+  .btn-warning {
+    --btn-main: var(--mui-palette-warning-main);
+    --btn-main-channel: var(--mui-palette-warning-mainChannel);
+    --btn-dark: var(--mui-palette-warning-dark);
+    --btn-contrast: var(--mui-palette-warning-contrastText);
+  }
+  .btn-info {
+    --btn-main: var(--mui-palette-info-main);
+    --btn-main-channel: var(--mui-palette-info-mainChannel);
+    --btn-dark: var(--mui-palette-info-dark);
+    --btn-contrast: var(--mui-palette-info-contrastText);
+  }
+  /* color="inherit": the surrounding text colour, and MUI's grey contained button. */
+  .btn-inherit {
+    --variant-textColor: currentColor;
+    --variant-outlinedColor: currentColor;
+    --variant-outlinedBorder: currentColor;
+    --variant-containedColor: var(--mui-palette-text-primary);
+    --variant-containedBg: var(--mui-palette-Button-inheritContainedBg);
+  }
+  .btn-outlined.btn-inherit { border-color: rgba(var(--mui-palette-common-onBackgroundChannel) / 0.23); }
+  @media (hover: hover) {
+    .btn-inherit:hover {
+      --variant-containedBg: var(--mui-palette-Button-inheritContainedHoverBg);
+      --variant-textBg: rgba(var(--mui-palette-text-primaryChannel) / var(--mui-palette-action-hoverOpacity));
+      --variant-outlinedBg: rgba(var(--mui-palette-text-primaryChannel) / var(--mui-palette-action-hoverOpacity));
+    }
+  }
+
+  .btn:disabled,
+  .btn[aria-disabled="true"] {
+    color: var(--mui-palette-action-disabled);
+    pointer-events: none;
+    cursor: default;
+  }
+  .btn-outlined:disabled,
+  .btn-outlined[aria-disabled="true"] { border-color: var(--mui-palette-action-disabledBackground); }
+  .btn-contained:disabled,
+  .btn-contained[aria-disabled="true"] {
+    box-shadow: var(--mui-shadows-0);
+    background-color: var(--mui-palette-action-disabledBackground);
+  }
+  fieldset:disabled .btn { color: var(--mui-palette-action-disabled); pointer-events: none; }
+
+  /* components/ui/Button.tsx's legacy box, on top of the MUI look. */
+  .st-btn { min-height: 40px; padding-left: 24px; padding-right: 24px; white-space: nowrap; }
+  .st-btn.btn-text { padding-left: 12px; padding-right: 12px; }
+  .st-btn.btn-small { min-height: 32px; padding-left: 16px; padding-right: 16px; }
+  .st-btn.btn-large { min-height: 48px; padding-left: 28px; padding-right: 28px; }
+  .btn-elevated { background-color: var(--mui-palette-background-paper); box-shadow: var(--mui-shadows-1); }
+  /* A disabled MUI button has pointer-events: none, so its title never shows; Button.tsx
+     wraps it in a span that carries the tooltip. Same here. */
+  .btn-tooltip { display: inline-flex; cursor: not-allowed; }
+  .btn-tooltip.btn-block { display: block; }
+
+  /* ── Icon button (MuiIconButton; 40px is the legacy .btn-icon, as ThemeToggle draws it) ── */
+  .icon-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    box-sizing: border-box;
+    flex: 0 0 auto;
+    width: 40px;
+    height: 40px;
+    padding: 8px;
+    margin: 0;
+    border: 0;
+    border-radius: 50%;
+    outline: 0;
+    background-color: transparent;
+    color: var(--mui-palette-action-active);
+    font-size: 1.5rem;
+    text-align: center;
+    text-decoration: none;
+    cursor: pointer;
+    user-select: none;
+    vertical-align: middle;
+    appearance: none;
+    -webkit-tap-highlight-color: transparent;
+    transition: background-color 150ms cubic-bezier(0.4, 0, 0.2, 1) 0ms;
+  }
+  .icon-btn:hover { background-color: rgba(var(--mui-palette-action-activeChannel) / var(--mui-palette-action-hoverOpacity)); }
+  @media (hover: none) {
+    .icon-btn:hover { background-color: transparent; }
+  }
+  .icon-btn:focus-visible { outline: 2px solid var(--mui-palette-primary-main); outline-offset: 2px; }
+  .icon-btn:disabled,
+  .icon-btn[aria-disabled="true"] {
+    background-color: transparent;
+    color: var(--mui-palette-action-disabled);
+    pointer-events: none;
+    cursor: default;
+  }
+  .icon-btn-36 { width: 36px; height: 36px; }
+  .icon-btn-44 { width: 44px; height: 44px; }
+
+  /* ── Link (MuiLink: underline="always" by default) ─────────────────────────────────────── */
+  .link {
+    color: var(--mui-palette-primary-main);
+    text-decoration: underline;
+    text-decoration-color: rgba(var(--mui-palette-primary-mainChannel) / 0.4);
+    cursor: pointer;
+  }
+  .link:hover { text-decoration-color: inherit; }
+  .link-hover { text-decoration: none; }
+  .link-hover:hover { text-decoration: underline; }
+  .link-none,
+  .link-none:hover { text-decoration: none; }
+  .link-inherit { color: inherit; text-decoration-color: color-mix(in srgb, currentColor 40%, transparent); }
+  .link:focus-visible { outline: 2px solid var(--mui-palette-primary-main); outline-offset: 2px; }
+
+  /* ── Card and Paper (MuiCard on MuiPaper; dark Paper gets MUI's elevation overlay) ────── */
+  .paper,
+  .card {
+    background-color: var(--mui-palette-background-paper);
+    color: var(--mui-palette-text-primary);
+    border-radius: 4px;
+    box-shadow: var(--Paper-shadow, none);
+    background-image: var(--Paper-overlay, none);
+    transition: box-shadow 300ms cubic-bezier(0.4, 0, 0.2, 1) 0ms;
+  }
+  .card { overflow: hidden; --Paper-shadow: var(--mui-shadows-1); --Paper-overlay: var(--mui-overlays-1); }
+  .card-elevated { --Paper-shadow: var(--mui-shadows-2); --Paper-overlay: var(--mui-overlays-2); }
+  .card-flat,
+  .paper-outlined {
+    --Paper-shadow: none;
+    --Paper-overlay: none;
+    border: 1px solid var(--mui-palette-divider);
+  }
+  .card-flat { background-color: var(--mui-palette-surface-2); }
+  .card-tonal { --Paper-shadow: none; --Paper-overlay: none; background-color: var(--mui-palette-surface-3); }
+  .paper-square { border-radius: 0; }
+  .card-content { padding: 16px; }
+  .card-content:last-child { padding-bottom: 24px; }
+  .card-actions { display: flex; align-items: center; gap: 8px; padding: 8px; }
+
+  /* ── Chip (MuiChip) ───────────────────────────────────────────────────────────────────────
+     <span class="chip"><span class="chip-label">Caribbean</span></span> */
+  .chip {
+    max-width: 100%;
+    font-family: var(--font-sans);
+    font-size: 0.8125rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    height: 32px;
+    box-sizing: border-box;
+    color: var(--mui-palette-text-primary);
+    background-color: var(--mui-palette-action-selected);
+    border-radius: 16px;
+    border: 0;
+    padding: 0;
+    margin: 0;
+    white-space: nowrap;
+    outline: 0;
+    text-decoration: none;
+    vertical-align: middle;
+    cursor: unset;
+    transition:
+      background-color 300ms cubic-bezier(0.4, 0, 0.2, 1) 0ms,
+      box-shadow 300ms cubic-bezier(0.4, 0, 0.2, 1) 0ms;
+  }
+  .chip-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding-left: 12px; padding-right: 12px; }
+  .chip-small { height: 24px; }
+  .chip-small .chip-label { padding-left: 8px; padding-right: 8px; }
+  .chip-outlined { background-color: transparent; border: 1px solid var(--mui-palette-Chip-defaultBorder); }
+  .chip-outlined .chip-label { padding-left: 11px; padding-right: 11px; }
+  .chip-outlined.chip-small .chip-label { padding-left: 7px; padding-right: 7px; }
+  .chip-primary { background-color: var(--mui-palette-primary-main); color: var(--mui-palette-primary-contrastText); }
+  .chip-secondary { background-color: var(--mui-palette-secondary-main); color: var(--mui-palette-secondary-contrastText); }
+  .chip-outlined.chip-primary { background-color: transparent; color: var(--mui-palette-primary-main); border-color: rgba(var(--mui-palette-primary-mainChannel) / 0.7); }
+  .chip-outlined.chip-secondary { background-color: transparent; color: var(--mui-palette-secondary-main); border-color: rgba(var(--mui-palette-secondary-mainChannel) / 0.7); }
+  a.chip,
+  button.chip,
+  .chip-clickable { cursor: pointer; user-select: none; -webkit-tap-highlight-color: transparent; }
+  a.chip:hover,
+  button.chip:hover,
+  .chip-clickable:hover {
+    background-color: rgba(var(--mui-palette-action-selectedChannel) / calc(var(--mui-palette-action-selectedOpacity) + var(--mui-palette-action-hoverOpacity)));
+  }
+  a.chip-outlined:hover,
+  button.chip-outlined:hover,
+  .chip-outlined.chip-clickable:hover { background-color: var(--mui-palette-action-hover); }
+  .chip:focus-visible { outline: 2px solid var(--mui-palette-primary-main); outline-offset: 2px; }
+
+  /* A chip that is really a checkbox or radio (components/ui/Chip.tsx ChipInput):
+     <label class="chip chip-outlined chip-input"><input class="visually-hidden" type="checkbox" ...><span class="chip-label">Caribbean</span></label>
+     Works with JS off; the selected look is :has(input:checked). */
+  .chip-input { height: 28px; }
+  .chip-input:has(input:enabled) { cursor: pointer; }
+  .chip-input:has(input:disabled) { opacity: 0.38; }
+  .chip-input:has(input:checked) {
+    background-color: var(--mui-palette-secondary-main);
+    color: var(--mui-palette-secondary-contrastText);
+    border-color: var(--mui-palette-secondary-main);
+  }
+  .chip-input:has(input:focus-visible) { outline: 2px solid var(--mui-palette-primary-main); outline-offset: 2px; }
+  /* ChipGroup: wraps rather than scrolls (Screen-Inventory §4.4 note in Chip.tsx). */
+  .chip-group { display: flex; flex-direction: row; flex-wrap: wrap; gap: 8px; }
+
+  /* The trip-status chip, Design-System §4.3 (components/ui/StatusChip.tsx):
+     <span class="status-chip status-booked">Booked</span>
+     22px tall, 9px sides, 10.5px uppercase; the colours are the theme's status.<kind> pair. */
+  .status-chip {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    box-sizing: border-box;
+    height: 22px;
+    max-width: 100%;
+    padding: 0 9px;
+    border-radius: 16px;
+    font-family: var(--font-sans);
+    font-size: 10.5px;
+    font-weight: 600;
+    letter-spacing: 0.3px;
+    text-transform: uppercase;
+    white-space: nowrap;
+    vertical-align: middle;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .status-proposal { background-color: var(--mui-palette-status-proposal-bg); color: var(--mui-palette-status-proposal-fg); }
+  .status-booked { background-color: var(--mui-palette-status-booked-bg); color: var(--mui-palette-status-booked-fg); }
+  .status-due { background-color: var(--mui-palette-status-due-bg); color: var(--mui-palette-status-due-fg); }
+  .status-traveling { background-color: var(--mui-palette-status-traveling-bg); color: var(--mui-palette-status-traveling-fg); }
+  .status-past { background-color: var(--mui-palette-status-past-bg); color: var(--mui-palette-status-past-fg); }
+  .status-lead { background-color: var(--mui-palette-status-lead-bg); color: var(--mui-palette-status-lead-fg); }
+  .status-inquiry { background-color: var(--mui-palette-status-inquiry-bg); color: var(--mui-palette-status-inquiry-fg); }
+  .status-cancelled { background-color: var(--mui-palette-status-cancelled-bg); color: var(--mui-palette-status-cancelled-fg); }
+
+  /* ── Form fields (components/ui/Field, Select, Textarea: FormControl + FormLabel +
+     OutlinedInput size="small" + FormHelperText, the label stationary above, 44px box) ──────
+     <div class="field">
+       <label class="field-label" for="email">Email</label>
+       <input class="input" id="email" name="email" aria-describedby="email-hint">
+       <p class="field-help" id="email-hint">We'll send the confirmation here.</p>
+     </div>
+     An invalid field sets aria-invalid="true" on the control and swaps the hint for
+     <p class="field-help field-error" id="email-error">. */
+  .field {
+    display: flex;
+    flex-direction: column;
+    position: relative;
+    width: 100%;
+    min-width: 0;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    vertical-align: top;
+  }
+  .field-label {
+    display: block;
+    position: relative;
+    margin-bottom: 6px;
+    padding: 0;
+    font: 400 0.75rem/1.3 var(--font-sans);
+    color: var(--mui-palette-text-secondary);
+  }
+  .field:focus-within .field-label { color: var(--mui-palette-primary-main); }
+  .field:has([aria-invalid="true"]) .field-label { color: var(--mui-palette-error-main); }
+  .field:has(.input:disabled) .field-label { color: var(--mui-palette-text-disabled); }
+  /* A label with an action on its row (the "Forgot?" link on 2.1.1). */
+  .field-label-row { display: flex; align-items: baseline; justify-content: space-between; }
+
+  .input {
+    display: block;
+    box-sizing: border-box;
+    width: 100%;
+    min-width: 0;
+    min-height: 44px;
+    margin: 0;
+    padding: 8.5px 14px;
+    font: 400 1rem/1.4375em var(--font-sans);
+    color: var(--mui-palette-text-primary);
+    background: none;
+    border: 1px solid rgba(var(--mui-palette-common-onBackgroundChannel) / 0.23);
+    border-radius: var(--mui-shape-borderRadius);
+    outline: 0;
+  }
+  .input::placeholder { color: currentColor; opacity: var(--mui-opacity-inputPlaceholder); }
+  .input:hover { border-color: var(--mui-palette-text-primary); }
+  @media (hover: none) {
+    .input:hover { border-color: rgba(var(--mui-palette-common-onBackgroundChannel) / 0.23); }
+  }
+  /* MUI's focused outline is 2px; the second pixel is an inset shadow so nothing moves. */
+  .input:focus { border-color: var(--mui-palette-primary-main); box-shadow: inset 0 0 0 1px var(--mui-palette-primary-main); }
+  .input[aria-invalid="true"] { border-color: var(--mui-palette-error-main); }
+  .input[aria-invalid="true"]:focus { box-shadow: inset 0 0 0 1px var(--mui-palette-error-main); }
+  .input:disabled { color: var(--mui-palette-text-disabled); border-color: var(--mui-palette-action-disabled); cursor: default; }
+  /* Forms disable every field while they post by wrapping them in <fieldset disabled>
+     (theme.ts MuiInputBase override). */
+  fieldset:disabled .input { opacity: 0.6; cursor: not-allowed; }
+  textarea.input { min-height: 0; resize: vertical; }
+  input.input[type="date"],
+  input.input[type="time"] { min-height: 44px; }
+
+  /* NativeSelect: a real <select> in a wrapper that draws MUI's arrow.
+     <div class="select"><select class="input" id="country" name="country">...</select></div> */
+  .select { position: relative; display: block; width: 100%; }
+  .select > .input { appearance: none; padding-right: 32px; cursor: pointer; }
+  .select::after {
+    content: "";
+    position: absolute;
+    right: 14px;
+    top: calc(50% - 2px);
+    border-left: 5px solid transparent;
+    border-right: 5px solid transparent;
+    border-top: 5px solid var(--mui-palette-action-active);
+    pointer-events: none;
+  }
+  .select:has(.input:disabled)::after { border-top-color: var(--mui-palette-action-disabled); }
+  .select > .input option { color: var(--mui-palette-text-primary); background-color: var(--mui-palette-background-paper); }
+
+  .field-help {
+    margin: 3px 14px 0;
+    font: 400 0.75rem/1.66 var(--font-sans);
+    color: var(--mui-palette-text-secondary);
+  }
+  .field-error { color: var(--mui-palette-error-main); }
+
+  /* ── Checkbox and radio (MuiCheckbox / MuiRadio inside FormControlLabel) ─────────────────
+     <label class="check"><input class="check-input" type="checkbox" name="x"><span>Label</span></label> */
+  .check {
+    display: inline-flex;
+    align-items: center;
+    vertical-align: middle;
+    margin-left: -11px;
+    margin-right: 16px;
+    cursor: pointer;
+    font: var(--mui-font-body1);
+    color: var(--mui-palette-text-primary);
+    -webkit-tap-highlight-color: transparent;
+  }
+  .check:has(.check-input:disabled) { cursor: default; color: var(--mui-palette-text-disabled); }
+  .check-input {
+    appearance: none;
+    flex: none;
+    box-sizing: border-box;
+    width: 18px;
+    height: 18px;
+    margin: 12px;
+    border: 2px solid var(--mui-palette-text-secondary);
+    border-radius: 2px;
+    background: transparent center / 14px 14px no-repeat;
+    cursor: inherit;
+  }
+  .check-input:checked {
+    border-color: var(--mui-palette-primary-main);
+    background-color: var(--mui-palette-primary-main);
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 14 14'%3E%3Cpath d='M2.5 7.2 5.6 10.3 11.5 4.2' fill='none' stroke='%23FFFFFF' stroke-width='2'/%3E%3C/svg%3E");
+  }
+  .scheme-dark .check-input:checked {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 14 14'%3E%3Cpath d='M2.5 7.2 5.6 10.3 11.5 4.2' fill='none' stroke='%230A1828' stroke-width='2'/%3E%3C/svg%3E");
+  }
+  .check-input[type="radio"] { width: 20px; height: 20px; margin: 11px; border-radius: 50%; }
+  .check-input[type="radio"]:checked {
+    background-color: transparent;
+    background-image: radial-gradient(circle, var(--mui-palette-primary-main) 0 4.5px, transparent 5px);
+  }
+  .check-input:focus-visible { outline: 2px solid var(--mui-palette-primary-main); outline-offset: 2px; }
+  .check-input:disabled { border-color: var(--mui-palette-action-disabled); }
+  .check-input:disabled:checked { background-color: var(--mui-palette-action-disabled); }
+  .check-input[type="radio"]:disabled:checked {
+    background-color: transparent;
+    background-image: radial-gradient(circle, var(--mui-palette-action-disabled) 0 4.5px, transparent 5px);
+  }
+
+  /* ── Table (MuiTableContainer / Table / TableCell) ─────────────────────────────────────── */
+  .table-wrap { width: 100%; overflow-x: auto; }
+  .table { display: table; width: 100%; border-collapse: collapse; border-spacing: 0; }
+  .table th,
+  .table td {
+    display: table-cell;
+    padding: 16px;
+    font: var(--mui-font-body2);
+    text-align: left;
+    vertical-align: inherit;
+    color: var(--mui-palette-text-primary);
+    border-bottom: 1px solid var(--mui-palette-TableCell-border);
+  }
+  .table thead th { font-weight: 500; line-height: 1.5rem; }
+  .table .cell-num { text-align: right; }
+  .table-small th,
+  .table-small td { padding: 6px 16px; }
+  .table-hover tbody tr:hover { background-color: var(--mui-palette-action-hover); }
+  .table tbody tr[aria-selected="true"] { background-color: rgba(var(--mui-palette-primary-mainChannel) / var(--mui-palette-action-selectedOpacity)); }
+
+  /* ── Tabs as links (MuiTabs / MuiTab): one URL per tab, the current one aria-current ───
+     <nav class="tabs" aria-label="Trip"><a class="tab" href="/x" aria-current="page">Overview</a>...</nav> */
+  .tabs {
+    display: flex;
+    min-height: 48px;
+    overflow-x: auto;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+  }
+  .tabs::-webkit-scrollbar { display: none; }
+  .tabs-rule { border-bottom: 1px solid var(--mui-palette-divider); }
+  .tab {
+    position: relative;
+    display: inline-flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    box-sizing: border-box;
+    min-width: 90px;
+    max-width: 360px;
+    min-height: 48px;
+    padding: 12px 16px;
+    overflow: hidden;
+    font: var(--mui-font-button);
+    line-height: 1.25;
+    text-align: center;
+    text-transform: none;
+    text-decoration: none;
+    white-space: normal;
+    color: var(--mui-palette-text-secondary);
+    -webkit-tap-highlight-color: transparent;
+  }
+  .tab[aria-current="page"],
+  .tab[aria-selected="true"] { color: var(--mui-palette-primary-main); }
+  .tab[aria-current="page"]::after,
+  .tab[aria-selected="true"]::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: 2px;
+    background-color: var(--mui-palette-primary-main);
+  }
+  .tab:focus-visible { outline: 2px solid var(--mui-palette-primary-main); outline-offset: -2px; }
+  .tabs-full > .tab { flex: 1 1 0; max-width: none; }
+
+  /* ── Dialog (MuiDialog on a native <dialog>; opened by ui.js, or a confirm page with JS off)
+     <dialog id="x" class="dialog" aria-labelledby="x-title">
+       <h2 class="dialog-title" id="x-title">Delete trip?</h2>
+       <div class="dialog-content"><p class="dialog-text">...</p></div>
+       <div class="dialog-actions"><button class="btn btn-text" data-dialog-close>Cancel</button>...</div>
+     </dialog> */
+  .dialog {
+    box-sizing: border-box;
+    width: auto;
+    max-width: min(640px, calc(100% - 64px));
+    max-height: calc(100% - 64px);
+    margin: auto;
+    padding: 0;
+    border: 0;
+    border-radius: 4px;
+    overflow-y: auto;
+    background-color: var(--mui-palette-background-paper);
+    background-image: var(--mui-overlays-24, none);
+    color: var(--mui-palette-text-primary);
+    box-shadow: var(--mui-shadows-24);
+  }
+  .dialog[open] { display: flex; flex-direction: column; }
+  .dialog::backdrop { background-color: rgba(0, 0, 0, 0.5); }
+  .dialog-xs { max-width: min(444px, calc(100% - 64px)); }
+  .dialog-md { max-width: min(768px, calc(100% - 64px)); }
+  .dialog-full-width { width: calc(100% - 64px); }
+  .dialog-title { flex: 0 0 auto; margin: 0; padding: 16px 24px; font: var(--mui-font-h6); }
+  .dialog-content { flex: 1 1 auto; overflow-y: auto; padding: 20px 24px; }
+  .dialog-title + .dialog-content { padding-top: 0; }
+  .dialog-text { margin: 0; font: var(--mui-font-body1); color: var(--mui-palette-text-secondary); }
+  .dialog-actions { display: flex; flex: 0 0 auto; align-items: center; justify-content: flex-end; gap: 8px; padding: 8px; }
+
+  /* ── Menu (MuiMenu / MenuItem), as a popover or inside <details class="dropdown"> ───────
+     <button popovertarget="m" class="btn btn-text">New</button>
+     <div id="m" popover class="menu" role="menu"><a class="menu-item" role="menuitem" href="/x">New client</a></div>
+     The popover is light-dismissed and closed by Escape with no script. Where CSS anchor
+     positioning is supported it sits under its button; elsewhere it opens centred. */
+  .menu {
+    box-sizing: border-box;
+    min-width: 112px;
+    max-height: calc(100% - 96px);
+    margin: 0;
+    padding: 8px 0;
+    overflow-y: auto;
+    list-style: none;
+    border: 0;
+    border-radius: 4px;
+    background-color: var(--mui-palette-background-paper);
+    background-image: var(--mui-overlays-8, none);
+    color: var(--mui-palette-text-primary);
+    box-shadow: var(--mui-shadows-8);
+  }
+  .menu[popover] { inset: auto; margin: 4px 0 0; }
+  @supports (position-area: bottom) {
+    .menu[popover] { position-area: bottom span-left; position-try-fallbacks: flip-block, flip-inline; }
+  }
+  @supports not (position-area: bottom) {
+    .menu[popover] { inset: 0; margin: auto; height: fit-content; }
+  }
+  .menu-item {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    position: relative;
+    box-sizing: border-box;
+    width: 100%;
+    min-height: 48px;
+    margin: 0;
+    padding: 6px 16px;
+    border: 0;
+    background: transparent;
+    font: var(--mui-font-body1);
+    color: inherit;
+    text-align: left;
+    text-decoration: none;
+    white-space: nowrap;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+  }
+  @media (min-width: 640px) {
+    .menu-item { min-height: auto; }
+  }
+  .menu-item:hover { background-color: var(--mui-palette-action-hover); text-decoration: none; }
+  .menu-item:focus-visible { background-color: var(--mui-palette-action-focus); outline: 0; }
+  .menu-item[aria-disabled="true"],
+  .menu-item:disabled { opacity: var(--mui-palette-action-disabledOpacity); pointer-events: none; }
+  /* A dense list (the agent bar's menus): MenuList dense. */
+  .menu-dense .menu-item { min-height: 32px; padding-top: 4px; padding-bottom: 4px; font: var(--mui-font-body2); }
+  /* ListItemIcon inside a MenuItem: a 36px column for the glyph. */
+  .menu-item-icon { display: inline-flex; flex-shrink: 0; min-width: 36px; color: var(--mui-palette-action-active); }
+  .menu-divider { margin: 8px 0; border: 0; border-bottom: thin solid var(--mui-palette-divider); }
+  .dropdown { position: relative; display: inline-block; }
+  .dropdown > summary { list-style: none; cursor: pointer; }
+  .dropdown > summary::-webkit-details-marker { display: none; }
+  .dropdown > .menu { position: absolute; right: 0; top: calc(100% + 4px); z-index: 1300; }
+
+  /* ── Alert (components/ui/Alert.tsx: MuiAlert standard, no icon, 14px x 4px box) ────────
+     <div class="alert alert-error" role="alert"><div class="alert-message">...</div></div> */
+  .alert {
+    --alert-bg: var(--mui-palette-Alert-errorStandardBg);
+    --alert-fg: var(--mui-palette-Alert-errorColor);
+    --alert-icon: var(--mui-palette-Alert-errorIconColor);
+    display: flex;
+    padding: 4px 14px;
+    border-radius: 4px;
+    font: var(--mui-font-body2);
+    background-color: var(--alert-bg);
+    color: var(--alert-fg);
+  }
+  .alert-error {
+    --alert-bg: var(--mui-palette-Alert-errorStandardBg);
+    --alert-fg: var(--mui-palette-Alert-errorColor);
+    --alert-icon: var(--mui-palette-Alert-errorIconColor);
+  }
+  .alert-success {
+    --alert-bg: var(--mui-palette-Alert-successStandardBg);
+    --alert-fg: var(--mui-palette-Alert-successColor);
+    --alert-icon: var(--mui-palette-Alert-successIconColor);
+  }
+  .alert-warning {
+    --alert-bg: var(--mui-palette-Alert-warningStandardBg);
+    --alert-fg: var(--mui-palette-Alert-warningColor);
+    --alert-icon: var(--mui-palette-Alert-warningIconColor);
+  }
+  .alert-info {
+    --alert-bg: var(--mui-palette-Alert-infoStandardBg);
+    --alert-fg: var(--mui-palette-Alert-infoColor);
+    --alert-icon: var(--mui-palette-Alert-infoIconColor);
+  }
+  .alert-icon { display: flex; margin-right: 12px; padding: 7px 0; opacity: 0.9; color: var(--alert-icon); }
+  .alert-message { min-width: 0; padding: 8px 0; overflow: auto; }
+  .alert-action { display: flex; align-items: flex-start; margin-left: auto; margin-right: -8px; padding: 4px 0 0 16px; }
+
+  /* ── Snackbar (MuiSnackbar + SnackbarContent): the one-time flash after a redirect ───────
+     <div class="snackbar" role="status" data-autohide><div class="snackbar-content"><div class="snackbar-message">Saved.</div></div></div>
+     It fades by itself after six seconds with no script (ui.js then hides it from AT). */
+  .snackbar {
+    position: fixed;
+    z-index: 1400;
+    left: 8px;
+    right: 8px;
+    bottom: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    pointer-events: none;
+  }
+  @media (min-width: 640px) {
+    .snackbar { left: 50%; right: auto; bottom: 24px; transform: translateX(-50%); }
+  }
+  .snackbar[data-autohide] { animation: sta-snackbar-out 225ms cubic-bezier(0.4, 0, 0.2, 1) 6s forwards; }
+  @keyframes sta-snackbar-out {
+    to { opacity: 0; visibility: hidden; }
+  }
+  .snackbar-content {
+    pointer-events: auto;
+    display: flex;
+    flex-wrap: wrap;
+    flex-grow: 1;
+    align-items: center;
+    padding: 6px 16px;
+    border-radius: 4px;
+    font: var(--mui-font-body2);
+    background-color: var(--mui-palette-SnackbarContent-bg);
+    background-image: var(--mui-overlays-6, none);
+    color: var(--mui-palette-SnackbarContent-color);
+    box-shadow: var(--mui-shadows-6);
+  }
+  @media (min-width: 640px) {
+    .snackbar-content { flex-grow: initial; min-width: 288px; }
+  }
+  .snackbar-message { padding: 8px 0; }
+  .snackbar-action { display: flex; align-items: center; margin-left: auto; margin-right: -8px; padding-left: 16px; }
+
+  /* ── Avatar (components/public/Avatar.tsx on MuiAvatar: initials, 36px, type 36% of size) ─ */
+  .avatar {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    box-sizing: border-box;
+    flex-shrink: 0;
+    width: 36px;
+    height: 36px;
+    overflow: hidden;
+    border-radius: 50%;
+    font-family: var(--font-sans);
+    font-size: 13px;
+    font-weight: 600;
+    line-height: 1;
+    user-select: none;
+    background-color: var(--mui-palette-tertiary-container);
+    color: var(--mui-palette-tertiary-onContainer);
+  }
+  .avatar-brand { background-color: var(--mui-palette-brandSource-burgundy); color: var(--mui-palette-common-white); }
+  .avatar-primary { background-color: var(--mui-palette-primary-main); color: var(--mui-palette-primary-contrastText); }
+  .avatar-28 { width: 28px; height: 28px; font-size: 10px; }
+  .avatar-32 { width: 32px; height: 32px; font-size: 12px; }
+  .avatar-40 { width: 40px; height: 40px; font-size: 14px; }
+  .avatar-48 { width: 48px; height: 48px; font-size: 17px; }
+  .avatar-56 { width: 56px; height: 56px; font-size: 20px; }
+  .avatar-64 { width: 64px; height: 64px; font-size: 23px; }
+  .avatar-96 { width: 96px; height: 96px; font-size: 35px; }
+
+  /* ── Divider (MuiDivider; components/ui/Divider.tsx) ──────────────────────────────────── */
+  .divider {
+    margin: 0;
+    flex-shrink: 0;
+    border-width: 0;
+    border-style: solid;
+    border-color: var(--mui-palette-divider);
+    border-bottom-width: thin;
+  }
+  .divider-vertical { height: auto; align-self: stretch; border-bottom-width: 0; border-right-width: thin; }
+  /* "———— OR ————" (DividerWithLabel): <div class="divider-label" role="none"><span>or</span></div> */
+  .divider-label {
+    display: flex;
+    align-items: center;
+    margin: 0;
+    white-space: nowrap;
+    text-align: center;
+    font: var(--mui-font-caption);
+    color: var(--mui-palette-text-secondary);
+  }
+  .divider-label::before,
+  .divider-label::after { content: ""; width: 100%; align-self: center; border-top: thin solid var(--mui-palette-divider); }
+  .divider-label > span { display: inline-block; padding-left: 9.6px; padding-right: 9.6px; }
+
+  /* ── Busy and loading ─────────────────────────────────────────────────────────────────── */
+  /* components/ui/Spinner.tsx: decorative, inside a button, currentColor. */
+  .spinner {
+    display: inline-flex;
+    flex-shrink: 0;
+    box-sizing: border-box;
+    width: 16px;
+    height: 16px;
+    border: 2px solid currentColor;
+    border-right-color: transparent;
+    border-radius: 50%;
+    animation: sta-spin 1.4s linear infinite;
+  }
+  .spinner-20 { width: 20px; height: 20px; }
+  @keyframes sta-spin {
+    to { transform: rotate(360deg); }
+  }
+  /* MuiSkeleton, wave. */
+  .skeleton {
+    display: block;
+    position: relative;
+    overflow: hidden;
+    height: 1.2em;
+    border-radius: 4px;
+    background-color: var(--mui-palette-Skeleton-bg);
+  }
+  .skeleton-circle { border-radius: 50%; }
+  .skeleton::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    transform: translateX(-100%);
+    background: linear-gradient(90deg, transparent, var(--mui-palette-action-hover), transparent);
+    animation: sta-wave 2s linear 0.5s infinite;
+  }
+  @keyframes sta-wave {
+    0% { transform: translateX(-100%); }
+    50%, 100% { transform: translateX(100%); }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .skeleton::after { animation: none; }
+    .spinner { animation-duration: 2.8s; }
+  }
+
+  /* ── Public content column (components/public/Container.tsx): 1280 / 980 / 720px of content
+     inside the --gutter (18 / 32 / 48px, public.css). */
+  .container { box-sizing: border-box; width: 100%; margin-left: auto; margin-right: auto; padding-left: var(--gutter); padding-right: var(--gutter); max-width: calc(1280px + 2 * var(--gutter)); }
+  .container-prose { max-width: calc(980px + 2 * var(--gutter)); }
+  .container-narrow { max-width: calc(720px + 2 * var(--gutter)); }
+}
