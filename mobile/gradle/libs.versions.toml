@@ -15,7 +15,7 @@ kotlin = "2.4.21"
 # JetBrains material3 versions track Compose Multiplatform: 1.12.0-alpha03 needs Compose
 # 1.12.0-beta01, which the 1.12.1 plugin satisfies. 1.13.0-alpha01 drags foundation and ui up
 # to 1.13.0-alpha01, and the Compose plugin then warns that the runtime does not match it.
-material3 = "1.13.0-rc01"
+material3 = "1.12.0-alpha03"
 # Networking / async / serialization
 kotlinx-coroutines = "1.11.0"
 kotlinx-serialization = "1.13.0"
