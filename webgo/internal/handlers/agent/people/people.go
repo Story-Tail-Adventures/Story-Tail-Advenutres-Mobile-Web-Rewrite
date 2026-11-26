@@ -39,6 +39,7 @@ var (
 var Specs = []page.Spec{
 	noAccessSpec, failedSpec, worklistSpec, calendarSpec,
 	clientsSpec, clientNewSpec, clientEditSpec, notFoundSpec, clientDetailSpec, mergeSpec,
+	leadsSpec, leadSpec, leadNewSpec, leadNotFoundSpec,
 }
 
 // Mount registers this sub-area's routes. Templates are taken here, so a missing page stops
@@ -53,6 +54,7 @@ func Mount(rt *gate.Router, d handlers.Deps) error {
 		{worklistSpec, &a.worklist}, {calendarSpec, &a.calendar},
 		{clientsSpec, &a.clients}, {clientNewSpec, &a.clientNew}, {clientEditSpec, &a.clientEdit},
 		{notFoundSpec, &a.notFound}, {clientDetailSpec, &a.clientDetail}, {mergeSpec, &a.merge},
+		{leadsSpec, &a.leads}, {leadSpec, &a.lead}, {leadNewSpec, &a.leadNew}, {leadNotFoundSpec, &a.leadNotFound},
 	} {
 		tmpl, err := d.Pages.Template(t.spec.File)
 		if err != nil {
@@ -75,5 +77,10 @@ func Mount(rt *gate.Router, d handlers.Deps) error {
 	rt.Protected("POST /agent/clients/{clientId}/account", http.HandlerFunc(a.postClientAccount))
 	rt.Protected("GET /agent/clients/{clientId}/merge", http.HandlerFunc(a.serveMerge))
 	rt.Protected("POST /agent/clients/{clientId}/merge", http.HandlerFunc(a.postMerge))
+	rt.Protected("GET /agent/leads", http.HandlerFunc(a.serveLeads))
+	rt.Protected("GET /agent/leads/new", http.HandlerFunc(a.serveNewLead))
+	rt.Protected("POST /agent/leads/new", http.HandlerFunc(a.postNewLead))
+	rt.Protected("GET /agent/leads/{leadId}", http.HandlerFunc(a.serveLead))
+	rt.Protected("POST /agent/leads/{leadId}", http.HandlerFunc(a.postLead))
 	return nil
 }
