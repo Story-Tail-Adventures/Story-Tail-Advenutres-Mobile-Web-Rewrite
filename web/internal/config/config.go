@@ -15,6 +15,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/url"
+	"regexp"
 	"strconv"
 	"strings"
 )
@@ -131,6 +132,39 @@ func Load(getenv func(string) string) (Config, error) {
 		}
 	}
 
+	// ALLOWED_ORIGIN, EMAIL_SITE_URL and EMAIL_UNSUBSCRIBE_URL are read at REQUEST time, by
+	// internal/api/registry.go and internal/domain/email. Config does not hold them, so nothing
+	// at startup could see a placeholder in one: ALLOWED_ORIGIN goes straight into an
+	// Access-Control-Allow-Origin header, and a stale EMAIL_UNSUBSCRIBE_URL breaks the
+	// unsubscribe link in mail that has already been sent — neither fails anything at boot.
+	// email.go does check its two, but against `^https?://[^\s/]+$`, which the placeholder
+	// "https://<your-domain-or-onrender-host>" satisfies. Startup is the last place a leftover
+	// can be caught before it ships.
+	//
+	// Each stays optional; an unset one keeps the behaviour it has today. Only a value that is
+	// set and cannot be a real address is an error.
+	for _, v := range []struct {
+		name string
+		raw  string
+		// origin is true for a bare origin, false for a URL that may carry a path.
+		origin bool
+	}{
+		{"ALLOWED_ORIGIN", strings.TrimRight(strings.TrimSpace(getenv("ALLOWED_ORIGIN")), "/"), true},
+		{"EMAIL_SITE_URL", strings.TrimRight(strings.TrimSpace(getenv("EMAIL_SITE_URL")), "/"), true},
+		{"EMAIL_UNSUBSCRIBE_URL", strings.TrimSpace(getenv("EMAIL_UNSUBSCRIBE_URL")), false},
+	} {
+		if v.raw == "" {
+			continue
+		}
+		check := checkURL
+		if v.origin {
+			check = checkOrigin
+		}
+		if err := check(v.raw, prod); err != nil {
+			errs = append(errs, fmt.Errorf("%s: %w", v.name, err))
+		}
+	}
+
 	c.InquiryEmail = strings.TrimSpace(getenv("INQUIRY_EMAIL"))
 	if c.InquiryEmail == "" && !prod {
 		c.InquiryEmail = "gyasi@example.com" // the seed agent's address
@@ -179,16 +213,82 @@ func checkOrigin(raw string, prod bool) error {
 	if err != nil {
 		return fmt.Errorf("not a URL: %q", raw)
 	}
-	switch {
-	case u.Scheme == "https":
-	case u.Scheme == "http" && !prod:
-	case u.Scheme == "http":
-		return fmt.Errorf("must be https in production, got %q", raw)
-	default:
-		return fmt.Errorf("must be an http(s) origin, got %q", raw)
+	if err := checkScheme(u, raw, prod, "origin"); err != nil {
+		return err
 	}
 	if u.Host == "" || u.User != nil || (u.Path != "" && u.Path != "/") || u.RawQuery != "" || u.Fragment != "" {
 		return fmt.Errorf("must be an origin like https://example.com, got %q", raw)
+	}
+	return checkHost(u.Hostname(), prod)
+}
+
+// checkScheme allows https everywhere and http only outside production. kind names the shape
+// in the error text ("origin" or "URL").
+func checkScheme(u *url.URL, raw string, prod bool, kind string) error {
+	switch {
+	case u.Scheme == "https", u.Scheme == "http" && !prod:
+		return nil
+	case u.Scheme == "http":
+		return fmt.Errorf("must be https in production, got %q", raw)
+	default:
+		return fmt.Errorf("must be an http(s) %s, got %q", kind, raw)
+	}
+}
+
+// checkURL is checkOrigin for a value that may carry a path, like EMAIL_UNSUBSCRIBE_URL. The
+// host still has to be one that could resolve.
+func checkURL(raw string, prod bool) error {
+	u, err := url.Parse(raw)
+	if err != nil {
+		return fmt.Errorf("not a URL: %q", raw)
+	}
+	if err := checkScheme(u, raw, prod, "URL"); err != nil {
+		return err
+	}
+	return checkHost(u.Hostname(), prod)
+}
+
+// hostLabel is one label of a hostname: letters, digits and hyphens, not starting or ending
+// with a hyphen.
+var hostLabel = regexp.MustCompile(`^[A-Za-z0-9]([A-Za-z0-9-]*[A-Za-z0-9])?$`)
+
+// reservedHosts are the names RFC 2606 and RFC 6761 set aside for documentation and testing.
+// They resolve nowhere, so a production origin using one is a placeholder somebody forgot.
+var reservedHosts = map[string]bool{
+	"example": true, "example.com": true, "example.org": true, "example.net": true,
+	"test": true, "invalid": true, "localhost": true,
+}
+
+// checkHost rejects a host that cannot be a real one.
+//
+// WHY THIS EXISTS. url.Parse is lenient about the authority: it accepted
+// "https://<your-domain-or-onrender-host>" and reported the angle brackets as the Host,
+// so SITE_URL passed every check above and the service booted on a placeholder. It then
+// served that text as the canonical link, as og:url, as the Sitemap line in robots.txt and
+// in all 33 sitemap entries, and would have built every auth redirect from it. Nothing
+// failed; it was only visible by reading robots.txt on the live site.
+//
+// A placeholder that fails loudly is a placeholder; one that fails quietly is a bug waiting
+// for a deploy (.github/workflows/deploy.yml says the same thing about its own).
+func checkHost(host string, prod bool) error {
+	if host == "" {
+		return fmt.Errorf("has no host")
+	}
+	for _, label := range strings.Split(host, ".") {
+		if !hostLabel.MatchString(label) {
+			return fmt.Errorf("%q is not a hostname (bad label %q) — a leftover placeholder?", host, label)
+		}
+	}
+	if !prod {
+		return nil
+	}
+	// In production the origin is public, so it needs a name that can resolve: a dot, and
+	// not one of the names the RFCs reserve for documentation.
+	if !strings.Contains(host, ".") {
+		return fmt.Errorf("%q has no dot, so it cannot resolve in production — a leftover placeholder?", host)
+	}
+	if reservedHosts[strings.ToLower(host)] {
+		return fmt.Errorf("%q is reserved for documentation and resolves nowhere", host)
 	}
 	return nil
 }
