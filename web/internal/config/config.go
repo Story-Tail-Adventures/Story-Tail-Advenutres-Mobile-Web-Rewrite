@@ -132,6 +132,39 @@ func Load(getenv func(string) string) (Config, error) {
 		}
 	}
 
+	// ALLOWED_ORIGIN, EMAIL_SITE_URL and EMAIL_UNSUBSCRIBE_URL are read at REQUEST time, by
+	// internal/api/registry.go and internal/domain/email. Config does not hold them, so nothing
+	// at startup could see a placeholder in one: ALLOWED_ORIGIN goes straight into an
+	// Access-Control-Allow-Origin header, and a stale EMAIL_UNSUBSCRIBE_URL breaks the
+	// unsubscribe link in mail that has already been sent — neither fails anything at boot.
+	// email.go does check its two, but against `^https?://[^\s/]+$`, which the placeholder
+	// "https://<your-domain-or-onrender-host>" satisfies. Startup is the last place a leftover
+	// can be caught before it ships.
+	//
+	// Each stays optional; an unset one keeps the behaviour it has today. Only a value that is
+	// set and cannot be a real address is an error.
+	for _, v := range []struct {
+		name string
+		raw  string
+		// origin is true for a bare origin, false for a URL that may carry a path.
+		origin bool
+	}{
+		{"ALLOWED_ORIGIN", strings.TrimRight(strings.TrimSpace(getenv("ALLOWED_ORIGIN")), "/"), true},
+		{"EMAIL_SITE_URL", strings.TrimRight(strings.TrimSpace(getenv("EMAIL_SITE_URL")), "/"), true},
+		{"EMAIL_UNSUBSCRIBE_URL", strings.TrimSpace(getenv("EMAIL_UNSUBSCRIBE_URL")), false},
+	} {
+		if v.raw == "" {
+			continue
+		}
+		check := checkURL
+		if v.origin {
+			check = checkOrigin
+		}
+		if err := check(v.raw, prod); err != nil {
+			errs = append(errs, fmt.Errorf("%s: %w", v.name, err))
+		}
+	}
+
 	c.InquiryEmail = strings.TrimSpace(getenv("INQUIRY_EMAIL"))
 	if c.InquiryEmail == "" && !prod {
 		c.InquiryEmail = "gyasi@example.com" // the seed agent's address
@@ -180,16 +213,37 @@ func checkOrigin(raw string, prod bool) error {
 	if err != nil {
 		return fmt.Errorf("not a URL: %q", raw)
 	}
-	switch {
-	case u.Scheme == "https":
-	case u.Scheme == "http" && !prod:
-	case u.Scheme == "http":
-		return fmt.Errorf("must be https in production, got %q", raw)
-	default:
-		return fmt.Errorf("must be an http(s) origin, got %q", raw)
+	if err := checkScheme(u, raw, prod, "origin"); err != nil {
+		return err
 	}
 	if u.Host == "" || u.User != nil || (u.Path != "" && u.Path != "/") || u.RawQuery != "" || u.Fragment != "" {
 		return fmt.Errorf("must be an origin like https://example.com, got %q", raw)
+	}
+	return checkHost(u.Hostname(), prod)
+}
+
+// checkScheme allows https everywhere and http only outside production. kind names the shape
+// in the error text ("origin" or "URL").
+func checkScheme(u *url.URL, raw string, prod bool, kind string) error {
+	switch {
+	case u.Scheme == "https", u.Scheme == "http" && !prod:
+		return nil
+	case u.Scheme == "http":
+		return fmt.Errorf("must be https in production, got %q", raw)
+	default:
+		return fmt.Errorf("must be an http(s) %s, got %q", kind, raw)
+	}
+}
+
+// checkURL is checkOrigin for a value that may carry a path, like EMAIL_UNSUBSCRIBE_URL. The
+// host still has to be one that could resolve.
+func checkURL(raw string, prod bool) error {
+	u, err := url.Parse(raw)
+	if err != nil {
+		return fmt.Errorf("not a URL: %q", raw)
+	}
+	if err := checkScheme(u, raw, prod, "URL"); err != nil {
+		return err
 	}
 	return checkHost(u.Hostname(), prod)
 }

@@ -258,3 +258,66 @@ func TestDevelopmentStillAllowsLocalhost(t *testing.T) {
 		}
 	}
 }
+
+// ALLOWED_ORIGIN, EMAIL_SITE_URL and EMAIL_UNSUBSCRIBE_URL are read per request, not held in
+// Config, so no startup check saw them. The exact string below is what production was serving
+// in its Access-Control-Allow-Origin header while every page and probe looked healthy.
+func TestProductionRefusesAPlaceholderInTheRequestTimeURLs(t *testing.T) {
+	const placeholder = "https://<your-domain-or-onrender-host>"
+	for _, tc := range []struct{ name, value string }{
+		{"ALLOWED_ORIGIN", placeholder},
+		{"EMAIL_SITE_URL", placeholder},
+		{"EMAIL_UNSUBSCRIBE_URL", placeholder + "/functions/v1/email-unsubscribe"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := Load(env(with(goodProd, tc.name, tc.value)))
+			if err == nil {
+				t.Fatalf("%s=%q loaded without error", tc.name, tc.value)
+			}
+			if !strings.Contains(err.Error(), tc.name) {
+				t.Errorf("error does not name %s: %v", tc.name, err)
+			}
+		})
+	}
+}
+
+// Each one is optional: an unset value keeps the behaviour it had before this check existed.
+func TestRequestTimeURLsStayOptional(t *testing.T) {
+	if _, err := Load(env(goodProd)); err != nil {
+		t.Fatalf("a good production config was refused with all three unset: %v", err)
+	}
+}
+
+func TestProductionAcceptsRealRequestTimeURLs(t *testing.T) {
+	const host = "https://story-tail-advenutres-mobile-web-rewrite.onrender.com"
+	_, err := Load(env(with(goodProd,
+		"ALLOWED_ORIGIN", host,
+		"EMAIL_SITE_URL", host+"/",
+		"EMAIL_UNSUBSCRIBE_URL", host+"/functions/v1/email-unsubscribe",
+	)))
+	if err != nil {
+		t.Fatalf("real hosts refused: %v", err)
+	}
+}
+
+// "*" is not a leftover placeholder, but it is not an origin either, and edge.CORS copies
+// ALLOWED_ORIGIN into the header verbatim. The scheme check refuses it, which is the answer
+// we want: a wildcard CORS origin should be a decision, not a config value nobody noticed.
+func TestProductionRefusesAWildcardAllowedOrigin(t *testing.T) {
+	if _, err := Load(env(with(goodProd, "ALLOWED_ORIGIN", "*"))); err == nil {
+		t.Fatal(`ALLOWED_ORIGIN="*" loaded without error`)
+	}
+}
+
+// Development still runs against localhost and the local Supabase stack over http.
+func TestDevelopmentAllowsLocalRequestTimeURLs(t *testing.T) {
+	_, err := Load(env(map[string]string{
+		"STA_ENV":               "development",
+		"ALLOWED_ORIGIN":        "http://localhost:3000",
+		"EMAIL_SITE_URL":        "http://localhost:8080",
+		"EMAIL_UNSUBSCRIBE_URL": "http://localhost:54321/functions/v1/email-unsubscribe",
+	}))
+	if err != nil {
+		t.Fatalf("development refused local URLs: %v", err)
+	}
+}
